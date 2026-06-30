@@ -1,8 +1,8 @@
 package com.lordmacu.chispa.wakeword
 
 /** Fixed-size rolling window of equal-width float frames. Holds the latest
- *  [capacity] frames; [snapshot] returns them oldest→newest as the dense input
- *  the next model stage expects. Pure — unit-tested. */
+ *  [capacity] frames; [snapshot] returns defensive copies of them oldest→newest
+ *  as the dense input the next model stage expects. Pure — unit-tested. */
 class FrameRing(private val capacity: Int, private val width: Int) {
     private val buf = ArrayDeque<FloatArray>(capacity)
 
@@ -14,7 +14,7 @@ class FrameRing(private val capacity: Int, private val width: Int) {
 
     fun isFull(): Boolean = buf.size == capacity
 
-    fun snapshot(): Array<FloatArray> = Array(buf.size) { buf[it] }
+    fun snapshot(): Array<FloatArray> = Array(buf.size) { buf[it].copyOf() }
 
     fun clear() = buf.clear()
 }
