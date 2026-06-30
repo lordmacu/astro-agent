@@ -7,12 +7,15 @@
 ///                         (neural, on-device, no network — see pet.md §10).
 library;
 
-/// Always-on wake-word listener ("Hey Chispa"). Fires an event each time the
-/// wake word is heard.
+/// Always-on wake-word listener ("Oye Chispa" / "Chispa"). Fires an event each
+/// time the wake word is heard. [pause]/[resume] silence the detector while
+/// Chispa speaks, so she doesn't hear herself.
 abstract interface class WakeWordDetector {
   Stream<void> get onWake;
   Future<void> start();
   Future<void> stop();
+  Future<void> pause();
+  Future<void> resume();
 }
 
 /// Captures one spoken command and returns the recognized text.

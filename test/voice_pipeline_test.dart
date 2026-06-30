@@ -34,6 +34,10 @@ class FakeWakeWord implements WakeWordDetector {
   Future<void> start() async {}
   @override
   Future<void> stop() async {}
+  @override
+  Future<void> pause() async {}
+  @override
+  Future<void> resume() async {}
 }
 
 class FixedLlmClient implements LlmClient {
@@ -43,15 +47,13 @@ class FixedLlmClient implements LlmClient {
   String get providerId => 'fake';
   @override
   Future<LlmResponse> complete(LlmRequest request) async => LlmResponse(
-        message: LlmMessage.text(Role.assistant, reply),
-        stopReason: StopReason.endTurn,
-      );
+    message: LlmMessage.text(Role.assistant, reply),
+    stopReason: StopReason.endTurn,
+  );
 }
 
-ChispaBrain _brain(String reply) => ChispaBrain(
-      client: FixedLlmClient(reply),
-      registry: ToolRegistry(),
-    );
+ChispaBrain _brain(String reply) =>
+    ChispaBrain(client: FixedLlmClient(reply), registry: ToolRegistry());
 
 void main() {
   test('runOnce: listen, ask the brain, speak, with phases in order', () async {

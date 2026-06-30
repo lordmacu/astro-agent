@@ -84,12 +84,14 @@ class SttWakeWord implements WakeWordDetector {
   }
 
   /// Pause listening (e.g. while Chispa speaks, to avoid hearing herself).
+  @override
   Future<void> pause() async {
     _running = false;
     await _speech.stop();
   }
 
   /// Resume after [pause].
+  @override
   Future<void> resume() async {
     if (_running || !_available) return;
     _running = true;
