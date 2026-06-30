@@ -4,6 +4,8 @@ package com.lordmacu.chispa.wakeword
  *  threshold than longer ones ("oye chispa") to curb false positives. */
 data class PhrasePolicy(
     val assetFile: String,
+    /** Firing threshold in [0,1]. Mutable on purpose: WakeWordEngine.setThreshold()
+     *  adjusts it at runtime for on-device calibration. */
     var threshold: Float,
     val minConsecutive: Int,
     val refractoryFrames: Int,
