@@ -1,13 +1,16 @@
 package com.lordmacu.chispa.wakeword
 
+import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 
 /** Always-on foreground service (type microphone) that hosts the wake-word
  *  engine so the mic survives backgrounding. Bound by [WakeWordChannel]. */
@@ -26,6 +29,17 @@ class WakeWordService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+
+        // Guard: a microphone-typed foreground service requires RECORD_AUDIO on API 23+.
+        // Starting without it throws SecurityException on API 34+.
+        val hasMic = Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
+            checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+        if (!hasMic) {
+            Log.w(TAG, "RECORD_AUDIO not granted; wake-word service idle until granted")
+            stopSelf()
+            return
+        }
+
         // API 29+ requires the typed 3-arg form for foregroundServiceType="microphone";
         // mandatory on API 34+ (throws MissingForegroundServiceTypeException otherwise).
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -37,7 +51,15 @@ class WakeWordService : Service() {
         } else {
             startForeground(NOTIF_ID, buildNotification())
         }
-        engine = WakeWordEngine(assets) { phraseId -> onDetect?.invoke(phraseId) }
+
+        // Guard: TFLite models may not exist yet (trained in Colab later). If loading throws,
+        // keep the service alive as a benign foreground service; all engine calls are null-safe.
+        engine = try {
+            WakeWordEngine(assets) { phraseId -> onDetect?.invoke(phraseId) }
+        } catch (e: Exception) {
+            Log.w(TAG, "Wake-word models unavailable; running idle (no detection): ${e.message}")
+            null
+        }
     }
 
     fun startListening() = engine?.start()
@@ -67,6 +89,7 @@ class WakeWordService : Service() {
     }
 
     companion object {
+        private const val TAG = "WakeWordService"
         private const val CHANNEL_ID = "chispa_wakeword"
         private const val NOTIF_ID = 42
     }
