@@ -22,9 +22,9 @@ class TfliteModel(assets: AssetManager, assetPath: String) : Inferencer {
 
     init {
         val fd = assets.openFd(assetPath)
-        val model = fd.createInputStream().channel.map(
-            FileChannel.MapMode.READ_ONLY, fd.startOffset, fd.declaredLength,
-        )
+        val model = fd.createInputStream().channel.use { channel ->
+            channel.map(FileChannel.MapMode.READ_ONLY, fd.startOffset, fd.declaredLength)
+        }
         fd.close()
         interpreter = Interpreter(model)
     }

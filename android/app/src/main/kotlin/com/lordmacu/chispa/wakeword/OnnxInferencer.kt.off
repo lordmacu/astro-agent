@@ -18,7 +18,7 @@ class OnnxInferencer(assets: AssetManager, assetPath: String) : Inferencer {
 
     init {
         val bytes = assets.open(assetPath).readBytes()
-        session = env.createSession(bytes, OrtSession.SessionOptions())
+        session = OrtSession.SessionOptions().use { opts -> env.createSession(bytes, opts) }
         inputName = session.inputNames.iterator().next()
     }
 
