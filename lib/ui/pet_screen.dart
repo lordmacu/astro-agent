@@ -6,7 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/config/design_tokens.dart';
 import '../core/state/app_state.dart';
 import '../core/state/app_state_provider.dart';
-import '../voice/stt_wake_word.dart';
+import '../voice/voice_interfaces.dart';
+import '../voice/wake_word_provider.dart';
 import '../voice/tts_provider.dart';
 import '../voice/voice_controller.dart';
 import '../voice/voice_pipeline.dart';
@@ -27,7 +28,7 @@ class _PetScreenState extends ConsumerState<PetScreen> {
   static const _greeting = '¡Hola! Soy Chispa, tu copiloto. ¿Listo para rodar?';
   static const _wakeAck = '¡Aquí estoy! ¿Qué necesitas?';
 
-  final SttWakeWord _wake = SttWakeWord();
+  late final WakeWordDetector _wake = ref.read(wakeWordProvider);
   StreamSubscription<void>? _wakeSub;
   Timer? _visemeTimer;
   bool _speaking = false;
@@ -73,7 +74,6 @@ class _PetScreenState extends ConsumerState<PetScreen> {
   void dispose() {
     _visemeTimer?.cancel();
     _wakeSub?.cancel();
-    _wake.dispose();
     super.dispose();
   }
 
@@ -81,7 +81,8 @@ class _PetScreenState extends ConsumerState<PetScreen> {
   Widget build(BuildContext context) {
     final mood = ref.watch(moodStateProvider);
     final voice = ref.watch(voiceControllerProvider);
-    final appState = ref.watch(appStateProvider).valueOrNull ?? const AppState();
+    final appState =
+        ref.watch(appStateProvider).valueOrNull ?? const AppState();
 
     final ambient = AmbientPalette.fromLux(appState.lux);
     final moodColor = DesignTokens.moodColor[mood.mood];
@@ -134,7 +135,9 @@ class _PetScreenState extends ConsumerState<PetScreen> {
                         _speaking ? _spokenText : '',
                         textAlign: TextAlign.center,
                         style: const TextStyle(
-                            color: DesignTokens.ink, fontSize: 17),
+                          color: DesignTokens.ink,
+                          fontSize: 17,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -147,8 +150,10 @@ class _PetScreenState extends ConsumerState<PetScreen> {
                     Text(
                       _speaking ? '…' : 'Di «Chispa» o tócala 🎙️',
                       textAlign: TextAlign.center,
-                      style:
-                          const TextStyle(color: DesignTokens.dim, fontSize: 11),
+                      style: const TextStyle(
+                        color: DesignTokens.dim,
+                        fontSize: 11,
+                      ),
                     ),
                   ],
                 ),
