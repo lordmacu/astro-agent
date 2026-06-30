@@ -1,9 +1,12 @@
 package com.lordmacu.chispa.wakeword
 
+import android.Manifest
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
@@ -41,7 +44,10 @@ class WakeWordChannel(private val context: Context, messenger: BinaryMessenger) 
         })
         control.setMethodCallHandler { call, result ->
             when (call.method) {
-                "start" -> { bindAndStart(); result.success(null) }
+                "start" -> {
+                    if (hasRecordAudio()) { bindAndStart(); result.success(true) }
+                    else { result.success(false) }
+                }
                 "pause" -> { service?.pause(); result.success(null) }
                 "resume" -> { service?.resume(); result.success(null) }
                 "stop" -> { stop(); result.success(null) }
@@ -56,11 +62,22 @@ class WakeWordChannel(private val context: Context, messenger: BinaryMessenger) 
         }
     }
 
+    private fun hasRecordAudio(): Boolean =
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
+            context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) ==
+            PackageManager.PERMISSION_GRANTED
+
     private fun bindAndStart() {
         val intent = Intent(context, WakeWordService::class.java)
         context.startForegroundService(intent)
         context.bindService(intent, connection, Context.BIND_AUTO_CREATE)
         bound = true
+    }
+
+    /** Called by the host Activity once RECORD_AUDIO is granted, to start what
+     *  an earlier start() call skipped. */
+    fun startIfPermitted() {
+        if (hasRecordAudio() && service == null) bindAndStart()
     }
 
     private fun stop() {

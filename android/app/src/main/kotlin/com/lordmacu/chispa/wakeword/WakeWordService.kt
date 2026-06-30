@@ -1,19 +1,21 @@
 package com.lordmacu.chispa.wakeword
 
-import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
 
 /** Always-on foreground service (type microphone) that hosts the wake-word
- *  engine so the mic survives backgrounding. Bound by [WakeWordChannel]. */
+ *  engine so the mic survives backgrounding. Bound by [WakeWordChannel].
+ *
+ *  Precondition: RECORD_AUDIO must be granted BEFORE the service is started.
+ *  [WakeWordChannel] enforces this gate; the service therefore never needs to
+ *  call stopSelf() before startForeground() (which would cause an ANR). */
 class WakeWordService : Service() {
     private val binder = LocalBinder()
     private var engine: WakeWordEngine? = null
@@ -29,16 +31,6 @@ class WakeWordService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-
-        // Guard: a microphone-typed foreground service requires RECORD_AUDIO on API 23+.
-        // Starting without it throws SecurityException on API 34+.
-        val hasMic = Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
-            checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
-        if (!hasMic) {
-            Log.w(TAG, "RECORD_AUDIO not granted; wake-word service idle until granted")
-            stopSelf()
-            return
-        }
 
         // API 29+ requires the typed 3-arg form for foregroundServiceType="microphone";
         // mandatory on API 34+ (throws MissingForegroundServiceTypeException otherwise).
