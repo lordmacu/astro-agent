@@ -49,7 +49,10 @@ class WakeWordEngine(
     private var record: AudioRecord? = null
 
     fun setThreshold(phraseId: String, value: Float) {
-        phrases.firstOrNull { it.id == phraseId }?.policy?.threshold = value
+        phrases.firstOrNull { it.id == phraseId }?.let {
+            it.policy.threshold = value
+            it.debouncer.setThreshold(value)
+        }
     }
 
     fun pause() { paused = true }
@@ -78,28 +81,33 @@ class WakeWordEngine(
     private fun loop() {
         val pcm = ShortArray(WakeConfig.HOP_SAMPLES)
         val rec = record ?: return
-        while (running) {
-            val n = rec.read(pcm, 0, pcm.size)
-            if (n <= 0 || paused) continue
+        try {
+            while (running) {
+                val n = rec.read(pcm, 0, pcm.size)
+                if (n <= 0 || paused) continue
 
-            val audio = FloatArray(n) { pcm[it] / 32768f } // PCM16 -> [-1,1]
-            val mels = melspec.run(audio) // flat: framesOut * melBins
-            var off = 0
-            while (off + melBins <= mels.size) {
-                melRing.push(mels.copyOfRange(off, off + melBins))
-                off += melBins
+                val audio = FloatArray(n) { pcm[it] / 32768f } // PCM16 -> [-1,1]
+                val mels = melspec.run(audio) // flat: framesOut * melBins
+                var off = 0
+                while (off + melBins <= mels.size) {
+                    melRing.push(mels.copyOfRange(off, off + melBins))
+                    off += melBins
+                }
+                if (!melRing.isFull()) continue
+
+                val emb = embedding.run(flatten(melRing.snapshot())) // embDim
+                embRing.push(emb)
+                if (!embRing.isFull()) continue
+
+                val ctx = flatten(embRing.snapshot())
+                for (p in phrases) {
+                    val score = p.model.run(ctx).last() // classifier prob in [0,1]
+                    if (p.debouncer.update(score)) onWake(p.id)
+                }
             }
-            if (!melRing.isFull()) continue
-
-            val emb = embedding.run(flatten(melRing.snapshot())) // embDim
-            embRing.push(emb)
-            if (!embRing.isFull()) continue
-
-            val ctx = flatten(embRing.snapshot())
-            for (p in phrases) {
-                val score = p.model.run(ctx).last() // classifier prob in [0,1]
-                if (p.debouncer.update(score)) onWake(p.id)
-            }
+        } finally {
+            rec.stop()
+            rec.release()
         }
     }
 
@@ -112,11 +120,11 @@ class WakeWordEngine(
 
     fun stop() {
         running = false
-        worker?.join(500)
+        worker?.join(800)
         worker = null
-        record?.run { stop(); release() }
         record = null
-        melRing.clear(); embRing.clear()
+        melRing.clear()
+        embRing.clear()
     }
 
     fun close() {
@@ -129,5 +137,5 @@ class WakeWordEngine(
 /** mel/embedding window length read from the model's input rank. */
 private fun Inferencer.inputFrames(): Int {
     // TfliteModel exposes the interpreter; for other impls, fall back to outputShape geometry.
-    return (this as? TfliteModel)?.inputFrameCount() ?: 16
+    return (this as? TfliteModel)?.inputFrameCount() ?: WakeConfig.DEFAULT_WINDOW_FRAMES
 }

@@ -4,12 +4,18 @@ package com.lordmacu.chispa.wakeword
  *  [minConsecutive] hops at/above [threshold], then suppresses for
  *  [refractoryFrames] hops. Pure — no Android deps, fully unit-tested. */
 class WakeDebouncer(
-    private val threshold: Float,
+    threshold: Float,
     private val minConsecutive: Int,
     private val refractoryFrames: Int,
 ) {
+    private var threshold: Float = threshold
     private var consecutive = 0
     private var cooldown = 0
+
+    /** Update the firing threshold at runtime (on-device calibration). */
+    fun setThreshold(value: Float) {
+        threshold = value
+    }
 
     /** Returns true on exactly the hop a wake should fire. */
     fun update(score: Float): Boolean {

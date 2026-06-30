@@ -28,4 +28,11 @@ class WakeDebouncerTest {
         assertFalse(d.update(0.9f)) // cooldown 1
         assertEquals(true, d.update(0.9f)) // ready again
     }
+
+    @Test fun setThresholdChangesFiringAtRuntime() {
+        val d = WakeDebouncer(threshold = 0.9f, minConsecutive = 1, refractoryFrames = 0)
+        assertFalse(d.update(0.5f)) // 0.5 < 0.9 -> no fire
+        d.setThreshold(0.4f)
+        assertEquals(true, d.update(0.5f)) // 0.5 >= 0.4 -> fire
+    }
 }
