@@ -17,10 +17,12 @@ class OwwWakeWord implements WakeWordDetector {
   final MethodChannel _control;
   final Stream<dynamic> _events;
 
+  late final Stream<void> _onWake = _events.map((_) {});
+
   /// Fires once per native detection (the phrase that fired is dropped here;
   /// the interface only needs "woke").
   @override
-  Stream<void> get onWake => _events.map((_) {});
+  Stream<void> get onWake => _onWake;
 
   @override
   Future<void> start() => _control.invokeMethod<void>('start');
@@ -36,7 +38,7 @@ class OwwWakeWord implements WakeWordDetector {
 
   /// Override a phrase's firing threshold at runtime (tuning).
   Future<void> setThreshold(String phrase, double value) =>
-      _control.invokeMethod<void>('setThreshold', <String, Object>{
+      _control.invokeMethod<void>('setThreshold', <String, dynamic>{
         'phrase': phrase,
         'value': value,
       });
