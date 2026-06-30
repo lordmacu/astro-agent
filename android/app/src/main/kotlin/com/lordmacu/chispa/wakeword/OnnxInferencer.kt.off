@@ -1,0 +1,41 @@
+// PARKED. To enable the ONNX fallback for a stage that ships only .onnx:
+//   1. build.gradle.kts: uncomment the onnxruntime-android dependency.
+//   2. Rename this file: OnnxInferencer.kt.off -> OnnxInferencer.kt
+//   3. In WakeWordEngine, build OnnxInferencer(...) for that stage instead of
+//      TfliteModel(...), keyed off the asset extension (.onnx vs .tflite).
+package com.lordmacu.chispa.wakeword
+
+import android.content.res.AssetManager
+import ai.onnxruntime.OnnxTensor
+import ai.onnxruntime.OrtEnvironment
+import ai.onnxruntime.OrtSession
+import java.nio.FloatBuffer
+
+class OnnxInferencer(assets: AssetManager, assetPath: String) : Inferencer {
+    private val env = OrtEnvironment.getEnvironment()
+    private val session: OrtSession
+    private val inputName: String
+
+    init {
+        val bytes = assets.open(assetPath).readBytes()
+        session = env.createSession(bytes, OrtSession.SessionOptions())
+        inputName = session.inputNames.iterator().next()
+    }
+
+    override val outputShape: IntArray
+        get() = (session.outputInfo.values.first().info as ai.onnxruntime.TensorInfo)
+            .shape.map { it.toInt() }.toIntArray()
+
+    override fun run(input: FloatArray): FloatArray {
+        val shape = longArrayOf(1, input.size.toLong())
+        OnnxTensor.createTensor(env, FloatBuffer.wrap(input), shape).use { t ->
+            session.run(mapOf(inputName to t)).use { r ->
+                @Suppress("UNCHECKED_CAST")
+                val out = (r[0].value as Array<FloatArray>)
+                return out[0]
+            }
+        }
+    }
+
+    override fun close() = session.close()
+}

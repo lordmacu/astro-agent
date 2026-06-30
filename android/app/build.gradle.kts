@@ -37,6 +37,10 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+
+    androidResources {
+        noCompress += "tflite" // mmap models directly; don't gzip them in the APK
+    }
 }
 
 flutter {
@@ -45,4 +49,7 @@ flutter {
 
 dependencies {
     testImplementation("junit:junit:4.13.2")
+    implementation("org.tensorflow:tensorflow-lite:2.16.1")
+    // Parked ONNX fallback (enable only if a stage ships .onnx, not .tflite):
+    // implementation("com.microsoft.onnxruntime:onnxruntime-android:1.18.0")
 }
