@@ -1,0 +1,69 @@
+name: chispa
+description: "Chispa - AI pet for the car"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # State management and reactive streams.
+  flutter_riverpod: ^2.6.1
+  rxdart: ^0.28.0
+
+  # Immutable models / JSON.
+  freezed_annotation: ^2.4.4
+  json_annotation: ^4.9.0
+
+  # LLM transport (ported brain).
+  http: ^1.2.2
+
+  # Long-term memory (ported from nexo-rs, SQLite-backed).
+  sqflite: ^2.4.1
+  uuid: ^4.5.1
+
+  # Small key-value persistence (e.g. the learned forward-axis calibration).
+  shared_preferences: ^2.3.2
+
+  # Phone sensors.
+  sensors_plus: ^6.1.1
+  light: ^5.0.0
+  proximity_sensor: ^1.3.8
+  geolocator: ^13.0.2
+
+  # Voice — simple system TTS (lightweight), active now.
+  flutter_tts: ^4.2.0
+
+  # Wake word / speech-to-text (stopgap; Porcupine is the low-power upgrade).
+  speech_to_text: ^7.0.0
+
+  # Offline NEURAL TTS (sherpa-onnx + Piper) — the later upgrade, kept off for
+  # fast dev builds. Uncomment to switch (see lib/voice/tts_provider.dart).
+  # sherpa_onnx: ^1.10.0
+  # path_provider: ^2.1.4
+  # audioplayers: ^6.1.0
+  # archive: ^3.6.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+  # Run sqflite on the Dart VM for memory tests (no device needed).
+  sqflite_common_ffi: ^2.3.4
+
+  # Code generation for freezed / json models.
+  build_runner: ^2.4.13
+  freezed: ^2.5.7
+  json_serializable: ^6.8.0
+
+flutter:
+  uses-material-design: true
+  # Voice model asset — DISABLED for fast dev builds (65MB). Uncomment to
+  # re-enable voice (see lib/voice/tts_provider.dart).
+  # assets:
+  #   - assets/tts/vits-piper-es_ES-davefx-medium.zip

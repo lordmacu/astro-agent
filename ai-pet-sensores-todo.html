@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Chispa · Sensores del celular</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{ --ink:#e8edf5; --dim:#5f6a7d; --accent:#43d6cf; }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none}
+  html,body{height:100%}
+  body{
+    background:radial-gradient(130% 90% at 50% 0%, #26384f 0%, #101b2c 62%);
+    color:var(--ink);font-family:"Space Mono",monospace;
+    display:flex;align-items:center;justify-content:center;min-height:100dvh;padding:20px;
+  }
+  .app{width:100%;max-width:380px;display:flex;flex-direction:column;align-items:center;gap:16px}
+
+  .chip{display:flex;align-items:center;gap:10px;background:rgba(16,21,31,.5);
+    border:1px solid rgba(255,255,255,.07);border-radius:30px;padding:8px 15px;backdrop-filter:blur(6px)}
+  .chip .ic{font-size:17px;line-height:1}
+  .chip .lbl{font-family:"Fredoka",sans-serif;font-size:12px;letter-spacing:2px;text-transform:uppercase}
+  .chip .lux{font-size:10px;color:var(--dim);letter-spacing:1px}
+
+  .speedo{display:flex;align-items:baseline;gap:8px}
+  .speedo b{font-size:46px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;color:var(--ink);transition:color .35s}
+  .speedo .un{font-size:13px;color:var(--dim);letter-spacing:1px}
+  .speedo i{font-style:normal;font-size:10px;color:#3a4456;letter-spacing:1px;align-self:flex-end;margin-bottom:6px}
+
+  .stage{position:relative;width:228px;height:228px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .ring{position:absolute;inset:0;transform:rotate(135deg);pointer-events:none}
+  .ring circle{fill:none;stroke-linecap:round}
+  .ring .track{stroke:rgba(255,255,255,.06);stroke-width:6}
+  .ring .fill{stroke:var(--accent);stroke-width:6;transition:stroke .35s;filter:drop-shadow(0 0 6px var(--accent))}
+  .pet{width:190px;height:190px;display:block;overflow:visible}
+  #tilt{transform-box:fill-box;transform-origin:50% 92%;transition:transform .18s ease}
+  #shift{transform-box:fill-box;transform-origin:50% 50%}
+  #creature{transform-box:fill-box;transform-origin:50% 78%}
+  #body{transition:fill .45s ease}
+  .eye{transform-box:fill-box;transform-origin:center;transition:transform .15s ease}
+  .pupil{transition:transform .3s ease}
+  #mouth{transition:d .09s linear, fill .09s linear}
+  .blush,.extra{opacity:0;transition:opacity .3s ease}
+  .heart{opacity:0}
+  #creature{animation-timing-function:ease-in-out;animation-iteration-count:infinite}
+  [data-mood="rest"]    #creature{animation-name:breathe;animation-duration:3.8s}
+  [data-mood="thinking"]#creature{animation-name:breathe;animation-duration:3.4s}
+  [data-mood="lean"]    #creature{animation-name:breathe;animation-duration:2.6s}
+  [data-mood="excited"] #creature{animation-name:bounce;animation-duration:.5s}
+  [data-mood="scared"]  #creature{animation-name:shiver;animation-duration:.12s;animation-timing-function:linear}
+  [data-mood="bump"]    #creature{animation-name:none}
+  [data-pet="1"] #creature{animation:sway 1.9s ease-in-out infinite !important}
+  [data-pet="1"] .heart{animation:rise 1.8s ease-in infinite}
+  [data-pet="1"] #heart2{animation-delay:.9s}
+  @keyframes breathe{0%,100%{transform:scale(1,1)}50%{transform:scale(1.022,.978)}}
+  @keyframes bounce{0%,100%{transform:translateY(0) scale(1,1)}40%{transform:translateY(-8px) scale(.97,1.04)}60%{transform:translateY(0) scale(1.05,.94)}}
+  @keyframes shiver{0%{transform:translate(-1.6px,0) scale(1.06,.92)}50%{transform:translate(1.6px,0) scale(1.06,.92)}100%{transform:translate(-1.6px,0) scale(1.06,.92)}}
+  @keyframes sway{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}
+  @keyframes rise{0%{opacity:0;transform:translate(0,0) scale(.6)}25%{opacity:1}100%{opacity:0;transform:translate(0,-32px) scale(1.1)}}
+
+  .speech{font-family:"Fredoka",sans-serif;font-size:17px;text-align:center;min-height:23px;
+    opacity:0;animation:fade .4s forwards}
+  @keyframes fade{to{opacity:1}}
+
+  .sensors{width:100%;display:flex;align-items:center;gap:16px;
+    background:rgba(16,21,31,.5);border:1px solid rgba(255,255,255,.06);border-radius:16px;padding:13px 15px}
+  .gmeter{width:68px;height:68px;flex:none}
+  .gmeter .frame{stroke:#283446;stroke-width:2;fill:rgba(8,11,17,.6)}
+  .gmeter .cross{stroke:#283446;stroke-width:1.4}
+  .gmeter .dot{fill:var(--accent);transition:fill .35s;filter:drop-shadow(0 0 5px var(--accent))}
+  .reads{flex:1;display:flex;flex-direction:column;gap:6px}
+  .read{display:flex;justify-content:space-between;font-size:11px;letter-spacing:1px}
+  .read span{color:var(--dim)}
+  .read b{font-weight:700;font-variant-numeric:tabular-nums}
+
+  .row{width:100%;display:flex;justify-content:space-between;align-items:center}
+  .prox{display:flex;align-items:center;gap:9px;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--dim)}
+  .prox .pdot{width:8px;height:8px;border-radius:50%;background:#2c3a4f;transition:background .25s,box-shadow .25s}
+  .prox.near .pdot{background:#5fd97a;box-shadow:0 0 9px #5fd97a}
+  .prox b{color:var(--ink);font-weight:700}
+  .event{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--dim);display:flex;align-items:center;gap:8px}
+  .event .edot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent);transition:background .35s}
+
+  .hint{font-size:11px;color:var(--dim);text-align:center}
+  #mouthG{transform-box:fill-box;transform-origin:center}
+  #think{transition:opacity .3s ease}
+  [data-mood="thinking"] .tdot{animation:tpulse 1.1s ease-in-out infinite}
+  #tdot2{animation-delay:.18s} #tdot3{animation-delay:.36s}
+  @keyframes tpulse{0%,100%{opacity:.3}50%{opacity:1}}
+
+  .ctrls{display:flex;gap:10px;align-items:center}
+  .btn{background:rgba(67,214,207,.12);border:1px solid rgba(67,214,207,.4);color:var(--ink);
+    font-family:"Fredoka",sans-serif;font-size:13px;border-radius:20px;padding:9px 16px;cursor:pointer;transition:all .2s}
+  .btn:active{background:rgba(67,214,207,.25)}
+  .pause{background:none;border:none;color:var(--dim);font-family:"Space Mono",monospace;
+    font-size:10px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;padding:2px 12px}
+  .pause:active{color:var(--ink)}
+
+  @media (prefers-reduced-motion:reduce){#creature,.heart{animation:none!important}}
+</style>
+</head>
+<body>
+<div class="app" data-mood="rest" data-pet="0">
+
+  <div class="chip"><span class="ic" id="ambIc">☀️</span><span class="lbl" id="ambLbl">día</span><span class="lux" id="ambLux">12000 lux</span></div>
+
+  <div class="speedo"><b id="spd">0</b><span class="un">km/h</span><i id="spdSrc">🛰️ GPS + acelerómetro</i></div>
+
+  <div class="stage" id="stage">
+    <svg class="ring" viewBox="0 0 228 228">
+      <circle class="track" cx="114" cy="114" r="104" stroke-dasharray="490 654"/>
+      <circle class="fill"  cx="114" cy="114" r="104" stroke-dasharray="0 654" id="accArc"/>
+    </svg>
+    <svg class="pet" viewBox="0 0 200 200" aria-label="Chispa">
+      <g id="tilt"><g id="shift"><g id="creature">
+        <path id="body" d="M100 36 C148 36 168 74 168 116 C168 158 140 178 100 178 C60 178 32 158 32 116 C32 74 52 36 100 36 Z" fill="#43d6cf"/>
+        <line x1="100" y1="36" x2="100" y2="16" stroke="#0a0d14" stroke-width="3" stroke-linecap="round" opacity="0.3"/>
+        <circle id="spark" cx="100" cy="13" r="5" fill="#f2f7c7"/>
+        <ellipse class="blush" id="blushL" cx="58" cy="130" rx="13" ry="8" fill="#ff7a9c"/>
+        <ellipse class="blush" id="blushR" cx="142" cy="130" rx="13" ry="8" fill="#ff7a9c"/>
+        <g class="eye" id="eyeL"><ellipse cx="76" cy="104" rx="15" ry="18" fill="#10141d"/><circle class="pupil" id="pupilL" cx="80" cy="100" r="5" fill="#fff"/></g>
+        <g class="eye" id="eyeR"><ellipse cx="124" cy="104" rx="15" ry="18" fill="#10141d"/><circle class="pupil" id="pupilR" cx="128" cy="100" r="5" fill="#fff"/></g>
+        <path id="eyeClosedL" d="M66 106 Q76 98 86 106" fill="none" stroke="#10141d" stroke-width="4" stroke-linecap="round" opacity="0"/>
+        <path id="eyeClosedR" d="M114 106 Q124 98 134 106" fill="none" stroke="#10141d" stroke-width="4" stroke-linecap="round" opacity="0"/>
+        <g id="mouthG"><path id="mouth" d="M82 138 Q100 154 118 138" fill="none" stroke="#10141d" stroke-width="5" stroke-linecap="round"/></g>
+        <path class="extra" id="sweat" d="M150 88 C150 88 142 100 142 106 a8 8 0 0 0 16 0 C158 100 150 88 150 88 Z" fill="#7fd0ff"/>
+        <text class="extra" id="zzz" x="150" y="70" font-family="Fredoka, sans-serif" font-size="22" fill="#9fb0c7">z</text>
+        <text class="extra" id="surp" x="118" y="72" font-family="Fredoka, sans-serif" font-weight="600" font-size="32" fill="#b48bff">!</text>
+        <text class="heart" id="heart1" x="44" y="80" font-size="20" fill="#ff7a9c">♥</text>
+        <text class="heart" id="heart2" x="150" y="92" font-size="16" fill="#ff7a9c">♥</text>
+        <g id="think" opacity="0">
+          <circle cx="150" cy="52" r="3.5" fill="#fff" opacity="0.85"/>
+          <circle cx="159" cy="42" r="5" fill="#fff" opacity="0.9"/>
+          <ellipse cx="176" cy="26" rx="23" ry="15" fill="#fff"/>
+          <circle class="tdot" id="tdot1" cx="166" cy="26" r="3" fill="#5f6a7d"/>
+          <circle class="tdot" id="tdot2" cx="176" cy="26" r="3" fill="#5f6a7d"/>
+          <circle class="tdot" id="tdot3" cx="186" cy="26" r="3" fill="#5f6a7d"/>
+        </g>
+      </g></g></g>
+    </svg>
+  </div>
+
+  <div class="speech" id="speech">Buen día, a rodar.</div>
+
+  <button class="btn" id="ask">🔎 Preguntar algo (ver pensar y hablar)</button>
+
+  <div class="row">
+    <span class="event"><span class="edot"></span><span id="evLabel">en reposo</span></span>
+    <span class="prox" id="prox"><span class="pdot"></span><b id="proxVal">lejos</b></span>
+  </div>
+
+  <div class="hint">Manten presionada a Chispa para acariciarla 🤚</div>
+  <button class="pause" id="pause">⏸ pausar</button>
+</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const app = document.querySelector('.app');
+
+  // === LUZ AMBIENTE (ciclo lento) ===
+  const LIGHT = [
+    {key:'day',  ic:'☀️', lbl:'día',       lux:12000, bg1:'#26384f', bg2:'#101b2c', body:'#43d6cf', acc:'#43d6cf', eye:1.0,  dur:7},
+    {key:'dusk', ic:'🌆', lbl:'atardecer', lux:500,   bg1:'#3a2433', bg2:'#160d18', body:'#f2a93b', acc:'#f2a93b', eye:0.92, dur:7},
+    {key:'night',ic:'🌙', lbl:'noche',     lux:3,     bg1:'#0b0f18', bg2:'#04060a', body:'#6f79c4', acc:'#8b95e6', eye:0.5,  dur:7},
+    {key:'dawn', ic:'🌅', lbl:'amanecer',  lux:200,   bg1:'#2c2742', bg2:'#16131f', body:'#9fb0e0', acc:'#f5a0b5', eye:0.82, dur:7},
+  ];
+
+  // === MOVIMIENTO (escena rápida) ===
+  const MOTION = [
+    {label:'en reposo',           fx:0,    fy:0,    spd:0,  dur:3.0},
+    {label:'acelerando',          fx:0,    fy:0.55, spd:72, dur:2.8},
+    {label:'velocidad estable',   fx:0,    fy:0.04, spd:62, dur:2.6},
+    {label:'curva a la izquierda',fx:-0.6, fy:0,    spd:34, dur:2.8},
+    {label:'bache',               fx:0,    fy:0,    spd:50, dur:1.6, bump:true},
+    {label:'curva a la derecha',  fx:0.6,  fy:0,    spd:34, dur:2.8},
+    {label:'frenada brusca',      fx:0,    fy:-0.78,spd:0,  dur:2.4},
+    {label:'en reposo',           fx:0,    fy:0,    spd:0,  dur:2.6},
+  ];
+
+  const MOTION_COLOR = { excited:'#f2a93b', scared:'#7fb6ff', bump:'#b48bff' };
+  const MOTION_DOT   = { excited:'#f2a93b', scared:'#ff4d57', bump:'#b48bff' };
+  const PET_LINES = ['Mmm, qué rico.', 'Me gusta esto.', 'Prrr...', 'Otra vez, porfa.'];
+  const SPEECH = {
+    excited:'¡Eso, vamos!', scared:'¡Frenada, sujétate!', bump:'¡Uy, un bache!', lean:'¡Curvaaa!',
+    'rest-day':'Buen día, a rodar.', 'rest-dusk':'Qué lindo atardecer.',
+    'rest-night':'Noche tranquila...', 'rest-dawn':'Mmm, amaneciendo.',
+  };
+
+  // estado
+  let lphase=0, lT=0, mphase=0, mT=0, paused=false;
+  let fx=0, fy=0, fz=0, hop=0, bumpClock=-1, speed=0;
+  let petting=false, petTimer=0, petIdx=0;
+  let lastMood=null, lastPet='0', lastSpeech='', baseEye=1.0;
+  let talkUntil=0, agent='idle', agentT=0, autoT=15;
+  // formas de boca al hablar (visemas) + bolsa ponderada para variar
+  const VIS = [
+    {d:'M88 142 Q100 146 112 142', f:'none'},                              // 0 cerrada (m,b,p)
+    {d:'M90 139 Q100 151 110 139 Z', f:'#10141d'},                         // 1 abierta pequeña
+    {d:'M82 133 Q100 168 118 133 Z', f:'#10141d'},                         // 2 abierta amplia (a)
+    {d:'M93 140 a7 8 0 1 0 14 0 a7 8 0 1 0 -14 0 Z', f:'#10141d'},         // 3 redonda (o,u)
+    {d:'M83 140 Q100 152 117 140 Q100 147 83 140 Z', f:'#10141d'},         // 4 ancha (e,i)
+  ];
+  const VPOOL = [1,2,3,4,2,1,4,3,2,0];
+  let vIdx=1, vNext=0;
+  const ANSWER='Hoy hay sol en Bogotá y las vías están despejadas. ¡Buen momento para rodar!';
+
+  const hex2rgb=h=>{h=h.replace('#','');return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];};
+  const rgb=a=>`rgb(${a[0]|0},${a[1]|0},${a[2]|0})`;
+  let cur={bg1:hex2rgb('#26384f'),bg2:hex2rgb('#101b2c'),body:hex2rgb('#43d6cf'),acc:hex2rgb('#43d6cf'),lux:12000,eye:1.0};
+  const ease=(arr,t,k)=>{for(let i=0;i<3;i++)arr[i]+=(t[i]-arr[i])*k;};
+
+  function speak(t){ if(!t||t===lastSpeech) return; lastSpeech=t;
+    talkUntil = performance.now() + Math.min(2600, Math.max(900, t.length*70));
+    const s=$('speech'); s.style.animation='none'; s.offsetHeight; s.textContent=t; s.style.animation='fade .4s forwards'; }
+
+  function ask(){ if(agent!=='idle'||petting) return; agent='thinking'; agentT=0; speak('Mmm, déjame consultar eso...'); }
+
+  function blink(){
+    if(!petting && lastMood!=='scared' && lastMood!=='bump'){
+      $('eyeL').style.transform='scaleY(0.08)'; $('eyeR').style.transform='scaleY(0.08)';
+      setTimeout(()=>{ if(!petting){ $('eyeL').style.transform=`scaleY(${baseEye})`; $('eyeR').style.transform=`scaleY(${baseEye})`; } },130);
+    }
+    setTimeout(blink, 2600+Math.random()*2200);
+  }
+  blink();
+
+  // caricia (proximidad)
+  const st=$('stage');
+  function petStart(e){ e.preventDefault(); petting=true; petTimer=0; petIdx=Math.floor(Math.random()*PET_LINES.length);
+    $('prox').classList.add('near'); $('proxVal').textContent='cerca'; speak(PET_LINES[petIdx]); }
+  function petEnd(e){ if(e)e.preventDefault(); petting=false; lastSpeech='';
+    $('prox').classList.remove('near'); $('proxVal').textContent='lejos'; }
+  st.addEventListener('pointerdown',petStart);
+  st.addEventListener('pointerup',petEnd);
+  st.addEventListener('pointerleave',petEnd);
+  st.addEventListener('pointercancel',petEnd);
+  $('ask').addEventListener('click', ask);
+  $('pause').addEventListener('click',()=>{ paused=!paused; $('pause').textContent=paused?'▶ reanudar':'⏸ pausar'; });
+
+  let prev=performance.now();
+  function loop(now){
+    const dt=Math.min((now-prev)/1000,0.05); prev=now;
+
+    // --- ciclo de luz ---
+    const lp=LIGHT[lphase];
+    ease(cur.bg1,hex2rgb(lp.bg1),0.05); ease(cur.bg2,hex2rgb(lp.bg2),0.05);
+    ease(cur.body,hex2rgb(lp.body),0.05); ease(cur.acc,hex2rgb(lp.acc),0.05);
+    cur.lux+=(lp.lux-cur.lux)*0.05; cur.eye+=(lp.eye-cur.eye)*0.06;
+    document.body.style.background=`radial-gradient(130% 90% at 50% 0%, ${rgb(cur.bg1)} 0%, ${rgb(cur.bg2)} 62%)`;
+    $('ambIc').textContent=lp.ic; $('ambLbl').textContent=lp.lbl;
+    $('ambLux').textContent=Math.round(cur.lux).toLocaleString('es')+' lux';
+
+    // --- fuerzas de movimiento ---
+    const mp=MOTION[mphase];
+    fx+=((mp.fx||0)-fx)*0.10; fy+=((mp.fy||0)-fy)*0.12;
+    if(mp.bump && mT<0.05) bumpClock=0;
+    if(bumpClock>=0){ bumpClock+=dt; fz=Math.exp(-7*bumpClock)*Math.sin(38*bumpClock); hop=-fz*16;
+      if(bumpClock>0.9){ bumpClock=-1; fz=0; hop=0; } }
+    else { fz+=(0-fz)*0.2; hop+=(0-hop)*0.3; }
+
+    // --- velocidad (km/h): el GPS la da directa; aquí seguimos el objetivo de cada fase ---
+    const tSpd = mp.spd||0;
+    const rate = (tSpd<speed) ? 2.2 : 1.0;   // frena más rápido que acelera
+    speed += (tSpd-speed)*Math.min(1, rate*dt);
+    if(speed<0.5) speed=0;
+
+    // --- resolver animacion (jerarquia) ---
+    let motionMood = null;
+    if(bumpClock>=0 && bumpClock<0.5) motionMood='bump';
+    else if(fy<-0.45) motionMood='scared';
+    else if(fy>0.4)   motionMood='excited';
+    else if(Math.abs(fx)>0.4) motionMood='lean';
+    let mood;
+    if(agent==='thinking') mood='thinking';
+    else if(petting) mood='pet';
+    else if(agent==='answering') mood='rest';
+    else mood = motionMood || 'rest';
+
+    // animacion CSS (solo al cambiar, para no reiniciarla)
+    if(mood!==lastMood){ if(mood!=='pet') app.dataset.mood=mood; lastMood=mood; }
+    const petAttr = petting?'1':'0';
+    if(petAttr!==lastPet){ app.dataset.pet=petAttr; lastPet=petAttr;
+      $('blushL').style.opacity=petting?.55:0; $('blushR').style.opacity=petting?.55:0; }
+
+    // color del cuerpo
+    let bodyCol = MOTION_COLOR[mood] || rgb(cur.body);
+    $('body').setAttribute('fill', bodyCol);
+    document.documentElement.style.setProperty('--accent', rgb(cur.acc));
+
+    // ojos
+    baseEye = (mood==='excited')?1.2 : (mood==='scared')?1.35 : (mood==='bump')?1.4 : (mood==='lean')?1.15 : cur.eye;
+    if(petting){
+      $('eyeL').style.transform='scaleY(0.05)'; $('eyeR').style.transform='scaleY(0.05)';
+      $('eyeClosedL').style.opacity=1; $('eyeClosedR').style.opacity=1;
+    } else {
+      $('eyeClosedL').style.opacity=0; $('eyeClosedR').style.opacity=0;
+      $('eyeL').style.transform=`scaleY(${baseEye})`; $('eyeR').style.transform=`scaleY(${baseEye})`;
+    }
+
+    // boca
+    let mouth, mfill='none';
+    if(mood==='thinking') mouth='M88 142 Q100 146 112 142';
+    else if(petting) mouth='M80 136 Q100 158 120 136';
+    else if(mood==='scared'||mood==='bump'){ mouth='M90 144 a10 10 0 1 0 20 0 a10 10 0 1 0 -20 0 Z'; mfill='#10141d'; }
+    else if(mood==='excited'){ mouth='M80 134 Q100 168 120 134 Z'; mfill='#10141d'; }
+    else if(lp.key==='night' && mood==='rest') mouth='M86 142 Q100 148 114 142';
+    else mouth='M82 138 Q100 154 118 138';
+    // hablar: mientras hay subtítulo activo, alterna formas de boca como sílabas
+    const talking = (now < talkUntil) && !petting && mood!=='thinking';
+    if(talking){
+      if(now>vNext){ let n; do{ n=VPOOL[(Math.random()*VPOOL.length)|0]; } while(n===vIdx); vIdx=n; vNext=now+85+Math.random()*95; }
+      mouth=VIS[vIdx].d; mfill=VIS[vIdx].f;
+    }
+    $('mouthG').style.transform='scaleY(1)';
+    $('mouth').setAttribute('d',mouth);
+    $('mouth').setAttribute('fill', mfill);
+
+    // extras
+    $('sweat').style.opacity = (mood==='scared')?1:0;
+    $('surp').style.opacity  = (mood==='bump')?1:0;
+    $('zzz').style.opacity   = (!petting && mood==='rest' && lp.key==='night')?1:0;
+    $('spark').style.opacity = (mood==='thinking')?1 : (lp.key==='day')?1:0.3;
+    $('think').style.opacity = (mood==='thinking')?1:0;
+
+    // postura por fuerzas (cero al acariciar; mirada arriba al pensar)
+    if(mood==='thinking'){
+      $('tilt').style.transform='rotate(4deg)';
+      $('shift').style.transform='translate(0px,0px)';
+      $('pupilL').style.transform='translate(2px,-3px)';
+      $('pupilR').style.transform='translate(2px,-3px)';
+    } else {
+      const tlt = petting?0:fx*9, shf = petting?0:(-fy*6+hop), gz = petting?0:fx*4;
+      $('tilt').style.transform=`rotate(${tlt.toFixed(2)}deg)`;
+      $('shift').style.transform=`translate(0px, ${shf.toFixed(2)}px)`;
+      $('pupilL').style.transform=`translateX(${gz.toFixed(2)}px)`;
+      $('pupilR').style.transform=`translateX(${gz.toFixed(2)}px)`;
+    }
+
+    // estado de movimiento
+    document.querySelector('.event .edot').style.background = MOTION_DOT[mood] || rgb(cur.acc);
+    $('evLabel').textContent=mp.label;
+    $('spd').textContent=Math.round(speed);
+    $('spd').style.color = (mood==='excited')?'#f2a93b' : (mood==='scared')?'#ff4d57' : 'var(--ink)';
+    const frac=Math.max(0,Math.min(1,speed/100));
+    $('accArc').setAttribute('stroke-dasharray', `${(frac*490).toFixed(0)} 654`);
+    $('accArc').style.stroke = (mood==='excited')?'#f2a93b' : (mood==='scared')?'#ff4d57' : rgb(cur.acc);
+
+    // agente: consultar -> responder
+    if(agent==='thinking'){ agentT+=dt; if(agentT>2.6){ agent='answering'; agentT=0; lastSpeech=''; speak(ANSWER); } }
+    else if(agent==='answering'){ agentT+=dt; if(agentT>3.4){ agent='idle'; lastSpeech=''; } }
+
+    // voz (el agente tiene prioridad sobre el ambiente)
+    if(agent!=='idle'){ /* la consulta/respuesta ya habla */ }
+    else if(petting){ petTimer+=dt; if(petTimer>2.6){ petIdx=(petIdx+1)%PET_LINES.length; speak(PET_LINES[petIdx]); petTimer=0; } }
+    else speak(SPEECH[motionMood || ('rest-'+lp.key)]);
+
+    // avanzar ciclos + disparar consulta sola de vez en cuando
+    if(!paused){
+      lT+=dt; if(lT>=lp.dur){ lT=0; lphase=(lphase+1)%LIGHT.length; }
+      mT+=dt; if(mT>=mp.dur){ mT=0; mphase=(mphase+1)%MOTION.length; }
+      autoT+=dt; if(agent==='idle' && !petting && autoT>20){ autoT=0; ask(); }
+    }
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

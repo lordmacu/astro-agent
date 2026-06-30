@@ -1,0 +1,44 @@
+/// All numeric thresholds used by the mood cascade live here, in one place.
+/// Never hard-code a magic number in `MoodResolver` — read it from this object.
+class Thresholds {
+  const Thresholds();
+
+  /// Longitudinal g below this counts as hard braking.
+  final double brakeG = -0.45;
+
+  /// Below this speed a hard deceleration is not treated as a scare.
+  final double brakeSpeedKmh = 20.0;
+
+  /// Longitudinal g above this counts as eager acceleration.
+  final double accelG = 0.40;
+
+  /// Vertical g magnitude above this counts as a bump.
+  final double bumpG = 0.60;
+
+  /// Lateral g magnitude above this counts as a curve.
+  final double leanG = 0.40;
+
+  /// Gyroscope turn rate (rad/s) above which a curve registers as the `lean`
+  /// mood. Gentler than [leanG] so ordinary turns are caught.
+  final double turnRateLean = 0.5;
+
+  /// Tilt per rad/s of yaw: maps the gyroscope turn rate to the body lean
+  /// (-1..1, clamped). The character multiplies the result by ~9°.
+  final double tiltPerYaw = 1.8;
+
+  /// Below this g magnitude on every axis the phone is mechanically still; the
+  /// speed fusion uses it (with a recent GPS stop) to zero out phantom speed.
+  final double quietG = 0.06;
+
+  /// RPM above this counts as high revs.
+  final double rpmHigh = 3500.0;
+
+  /// Coolant temperature above this raises worry.
+  final double coolantHighC = 112.0;
+
+  /// How long the car must be still before Chispa falls asleep.
+  final Duration sleepAfter = const Duration(seconds: 8);
+
+  /// Distance to the next maneuver below which attention is heightened.
+  final double turnImminentM = 80.0;
+}
