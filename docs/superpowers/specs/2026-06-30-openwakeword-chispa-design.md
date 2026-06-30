@@ -129,8 +129,10 @@ always-on listening. New Kotlin classes under `android/app/src/main/kotlin/.../w
 - **EventChannel** `chispa/wakeword`: emits on each detection (payload: phrase + score).
 - **MethodChannel** `chispa/wakeword/control`: `start`, `stop`, `pause`, `resume`,
   `setThreshold(phrase, value)`.
-- `pause`/`resume` stop/restart the `AudioRecord` capture so Chispa doesn't hear herself while
-  speaking (TTS), mirroring `SttWakeWord.pause/resume`.
+- `pause`/`resume` use a flag-based design: `pause()` keeps `AudioRecord` open and the
+  inference loop running but discards all audio, avoiding the startup latency and glitches
+  of stopping/restarting the recorder on an always-on device. `resume()` clears the rolling
+  mel and embedding windows so detection restarts from a clean state after the silent gap.
 
 ### Config
 All numeric knobs (per-phrase threshold, min-consecutive frames, refractory ms, hop size) live
@@ -219,4 +221,6 @@ the app is untouched throughout.
 - **"Chispa" false positives** — mitigated by running the longer "Oye Chispa" as the primary
   trigger and giving bare "Chispa" a higher threshold; both tunable from config.
 - **Self-hearing** — pause on TTS start, resume on TTS end (existing pattern), plus audio-focus
-  ducking already in scope.
+  ducking already in scope. Implemented as flag-based pause (mic stays open, audio discarded)
+  + ring-clear on resume, not stop/restart of `AudioRecord` (avoids startup latency/glitches
+  on an always-on device).

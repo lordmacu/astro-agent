@@ -9,7 +9,13 @@ import kotlin.concurrent.thread
 
 /** openWakeWord streaming engine: mic → melspectrogram → embedding → per-phrase
  *  classifiers → debouncers → [onWake](phraseId). Window sizes come from each
- *  model's I/O shape (read at load), never hardcoded. */
+ *  model's I/O shape (read at load), never hardcoded.
+ *
+ *  Pause/resume design (deliberate trade-off): [pause] keeps [AudioRecord] open
+ *  and the inference loop running, but discards audio. This avoids the startup
+ *  latency and glitches that stopping and restarting the recorder would cause on
+ *  an always-on dashboard device. [resume] clears the rolling mel and embedding
+ *  windows so detection restarts from a clean state after the silent gap. */
 class WakeWordEngine(
     private val assets: AssetManager,
     private val onWake: (String) -> Unit,
@@ -36,9 +42,9 @@ class WakeWordEngine(
     // melBins = melspec output width; embWindow = mel frames the embedding model
     // consumes; classWindow = embeddings the classifier consumes; embDim = embedding width.
     private val melBins = melspec.outputShape.last()
-    private val embWindow = embedding.inputFrames()
+    private val embWindow = embedding.inputFrameCount()
     private val embDim = embedding.outputShape.last()
-    private val classWindow = phrases.first().model.inputFrames()
+    private val classWindow = phrases.first().model.inputFrameCount()
 
     private val melRing = FrameRing(capacity = embWindow, width = melBins)
     private val embRing = FrameRing(capacity = classWindow, width = embDim)
@@ -55,8 +61,20 @@ class WakeWordEngine(
         }
     }
 
+    /** Suppresses detection without stopping [AudioRecord]. The inference loop
+     *  keeps running but discards all audio while paused, avoiding the startup
+     *  latency and glitches of stopping/restarting the recorder. Call this on
+     *  TTS start so Chispa doesn't hear herself speak. */
     fun pause() { paused = true }
-    fun resume() { paused = false }
+
+    /** Re-enables detection and clears the rolling mel and embedding windows so
+     *  the first post-resume detection window starts from a clean state (no
+     *  pre-pause frames straddling the gap). Call this on TTS end. */
+    fun resume() {
+        melRing.clear()
+        embRing.clear()
+        paused = false
+    }
 
     @SuppressLint("MissingPermission") // RECORD_AUDIO granted before the service starts
     fun start() {
@@ -134,8 +152,3 @@ class WakeWordEngine(
     }
 }
 
-/** mel/embedding window length read from the model's input rank. */
-private fun Inferencer.inputFrames(): Int {
-    // TfliteModel exposes the interpreter; for other impls, fall back to outputShape geometry.
-    return (this as? TfliteModel)?.inputFrameCount() ?: WakeConfig.DEFAULT_WINDOW_FRAMES
-}

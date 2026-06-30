@@ -75,9 +75,11 @@ class WakeWordChannel(private val context: Context, messenger: BinaryMessenger) 
     }
 
     /** Called by the host Activity once RECORD_AUDIO is granted, to start what
-     *  an earlier start() call skipped. */
+     *  an earlier start() call skipped. Guards on [bound] (not [service]) so a
+     *  pending bindService (service still null, bind already in flight) is not
+     *  double-bound. */
     fun startIfPermitted() {
-        if (hasRecordAudio() && service == null) bindAndStart()
+        if (hasRecordAudio() && !bound) bindAndStart()
     }
 
     private fun stop() {

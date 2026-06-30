@@ -16,10 +16,6 @@ object WakeConfig {
     const val SAMPLE_RATE = 16_000
     const val HOP_SAMPLES = 1_280 // 80 ms at 16 kHz
 
-    /** Fallback embedding/classifier window length when a model's input rank
-     *  doesn't expose a frame dimension. */
-    const val DEFAULT_WINDOW_FRAMES = 16
-
     const val MELSPEC_ASSET = "oww/melspectrogram.tflite"
     const val EMBEDDING_ASSET = "oww/embedding.tflite"
 

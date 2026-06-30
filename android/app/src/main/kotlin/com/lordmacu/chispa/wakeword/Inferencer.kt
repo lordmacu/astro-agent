@@ -11,6 +11,10 @@ import java.nio.channels.FileChannel
 interface Inferencer {
     /** Output tensor shape, e.g. [1, 96] or [1, frames, 32]. */
     val outputShape: IntArray
+    /** Number of frames the input tensor expects (second-to-last dim), or 1 for
+     *  flat/variable inputs. Every stage must implement this so the engine always
+     *  obtains the correct window geometry — there is no silent fallback. */
+    fun inputFrameCount(): Int
     /** Run one inference over a flat float input; returns a flat float output. */
     fun run(input: FloatArray): FloatArray
     fun close()
@@ -55,7 +59,7 @@ class TfliteModel(assets: AssetManager, assetPath: String) : Inferencer {
 
     /** Number of frames the input tensor expects (its second-to-last dim),
      *  or 1 for a flat/variable input. */
-    fun inputFrameCount(): Int {
+    override fun inputFrameCount(): Int {
         val shape = interpreter.getInputTensor(0).shape()
         return when {
             shape.size >= 2 && shape[shape.size - 2] > 0 -> shape[shape.size - 2]

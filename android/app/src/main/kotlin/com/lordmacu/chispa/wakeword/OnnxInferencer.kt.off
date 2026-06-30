@@ -26,6 +26,18 @@ class OnnxInferencer(assets: AssetManager, assetPath: String) : Inferencer {
         get() = (session.outputInfo.values.first().info as ai.onnxruntime.TensorInfo)
             .shape.map { it.toInt() }.toIntArray()
 
+    /** Number of frames the input tensor expects (second-to-last dim of the first
+     *  input), or 1 for a flat/variable input — mirrors TfliteModel's logic. */
+    override fun inputFrameCount(): Int {
+        val info = session.inputInfo.values.first().info as? ai.onnxruntime.TensorInfo
+            ?: return 1
+        val shape = info.shape
+        return when {
+            shape.size >= 2 && shape[shape.size - 2] > 0 -> shape[shape.size - 2].toInt()
+            else -> 1
+        }
+    }
+
     override fun run(input: FloatArray): FloatArray {
         val shape = longArrayOf(1, input.size.toLong())
         OnnxTensor.createTensor(env, FloatBuffer.wrap(input), shape).use { t ->
