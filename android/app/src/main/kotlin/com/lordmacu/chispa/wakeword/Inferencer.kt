@@ -53,5 +53,15 @@ class TfliteModel(assets: AssetManager, assetPath: String) : Inferencer {
         if (shape.size <= 1) 1 else shape.drop(1).fold(1) { a, b -> a * if (b <= 0) 1 else b }
             .let { if (it == 0) 1 else it }
 
+    /** Number of frames the input tensor expects (its second-to-last dim),
+     *  or 1 for a flat/variable input. */
+    fun inputFrameCount(): Int {
+        val shape = interpreter.getInputTensor(0).shape()
+        return when {
+            shape.size >= 2 && shape[shape.size - 2] > 0 -> shape[shape.size - 2]
+            else -> 1
+        }
+    }
+
     override fun close() = interpreter.close()
 }
