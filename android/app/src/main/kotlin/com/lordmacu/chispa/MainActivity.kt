@@ -5,8 +5,13 @@ import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 
 class MainActivity : FlutterActivity() {
+    private lateinit var wakeWordChannel: WakeWordChannel
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        WakeWordChannel(applicationContext, flutterEngine.dartExecutor.binaryMessenger)
+        wakeWordChannel = WakeWordChannel(
+            applicationContext,
+            flutterEngine.dartExecutor.binaryMessenger,
+        )
     }
 }

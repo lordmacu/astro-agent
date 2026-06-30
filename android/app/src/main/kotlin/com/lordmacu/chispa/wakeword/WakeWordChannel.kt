@@ -19,15 +19,19 @@ class WakeWordChannel(private val context: Context, messenger: BinaryMessenger) 
 
     private var sink: EventChannel.EventSink? = null
     private var service: WakeWordService? = null
+    private var bound = false
 
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
-            val svc = (binder as WakeWordService.LocalBinder).service()
+            val svc = (binder as? WakeWordService.LocalBinder)?.service() ?: return
             service = svc
             svc.onDetect = { phraseId -> main.post { sink?.success(phraseId) } }
             svc.startListening()
         }
-        override fun onServiceDisconnected(name: ComponentName?) { service = null }
+        override fun onServiceDisconnected(name: ComponentName?) {
+            service?.onDetect = null
+            service = null
+        }
     }
 
     init {
@@ -56,10 +60,14 @@ class WakeWordChannel(private val context: Context, messenger: BinaryMessenger) 
         val intent = Intent(context, WakeWordService::class.java)
         context.startForegroundService(intent)
         context.bindService(intent, connection, Context.BIND_AUTO_CREATE)
+        bound = true
     }
 
     private fun stop() {
-        service?.let { runCatching { context.unbindService(connection) } }
+        if (bound) {
+            runCatching { context.unbindService(connection) }
+            bound = false
+        }
         context.stopService(Intent(context, WakeWordService::class.java))
         service = null
     }
