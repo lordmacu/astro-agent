@@ -1,0 +1,270 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:screen_brightness/screen_brightness.dart';
+import 'package:sqflite/sqflite.dart' show getDatabasesPath;
+import 'package:sqflite_common_ffi/sqflite_ffi.dart' show databaseFactoryFfi;
+
+import '../core/config/setting_key.dart';
+import '../core/config/settings_providers.dart';
+import '../core/config/settings_resolver.dart';
+import '../core/state/app_mode.dart';
+import '../core/state/app_state_provider.dart';
+import '../memory/long_term_memory.dart';
+import '../platform/media_controller.dart';
+import '../sensors/location/place_resolver.dart';
+import '../platform/system_actions.dart';
+import 'astro_brain.dart';
+import 'llm/providers/openai_compat_client.dart';
+import 'memory_context.dart';
+import 'tools/context_tool.dart';
+import 'tools/device_tool.dart';
+import 'tools/memory_tools.dart';
+import 'tools/music_tool.dart';
+import 'tools/navigate_tool.dart';
+import 'tools/phone_tool.dart';
+import 'tools/timer_tool.dart';
+import 'tools/tool_registry.dart';
+import 'tools/web_search/providers/duckduckgo_provider.dart';
+import 'tools/web_search/providers/fallback_provider.dart';
+import 'tools/web_search/providers/minimax_provider.dart';
+import 'tools/web_search/providers/tavily_provider.dart';
+import 'tools/web_search/web_search_provider.dart';
+import 'tools/web_search/web_search_tool.dart';
+
+/// Resolve a secret: prefer the runtime `.env` (so any `flutter run` works),
+/// then fall back to a `--dart-define` build arg. Returns '' when unset.
+String _secret(String envName, String define) {
+  try {
+    final v = dotenv.env[envName];
+    if (v != null && v.trim().isNotEmpty) return v.trim();
+  } catch (_) {
+    // dotenv not initialised (e.g. in tests) — fall through to the define.
+  }
+  return define;
+}
+
+/// MiniMax API key: user setting > .env (LLM_API_KEY) > dart-define.
+String _miniMaxKey(Ref ref) => resolveSecret(
+  store: ref.read(settingsStoreProvider),
+  key: SettingKey.llmApiKey,
+  envDefine: _secret(
+    'LLM_API_KEY',
+    const String.fromEnvironment(
+      'LLM_API_KEY',
+      defaultValue: String.fromEnvironment('MINIMAX_API_KEY'),
+    ),
+  ),
+);
+
+/// Web-search key: user setting > .env (TAVILY_API_KEY) > dart-define.
+String _searchKey(Ref ref) => resolveSecret(
+  store: ref.read(settingsStoreProvider),
+  key: SettingKey.searchApiKey,
+  envDefine: _secret(
+    'TAVILY_API_KEY',
+    const String.fromEnvironment('TAVILY_API_KEY'),
+  ),
+);
+
+/// Pick the web-search backend for the active LLM provider. MiniMax gets its
+/// native search (`/v1/coding_plan/search`) with DuckDuckGo as a keyless,
+/// always-available fallback; every other provider uses Tavily when its key is
+/// configured, else no web search at all. Gating on the provider id keeps the
+/// MiniMax-only search key from ever being used under a different LLM.
+WebSearchProvider? _buildSearchProvider(Ref ref, String llmProviderId) {
+  if (llmProviderId == 'minimax') {
+    final key = _miniMaxKey(ref);
+    return FallbackSearchProvider([
+      if (key.isNotEmpty) MiniMaxSearchProvider(apiKey: key),
+      DuckDuckGoProvider(),
+    ]);
+  }
+  final tavily = _searchKey(ref);
+  if (tavily.isNotEmpty) return TavilyProvider(apiKey: tavily);
+  return null;
+}
+
+/// Whether the brain has credentials. The UI uses this to fall back to canned
+/// lines instead of hitting the API with no key.
+final astroConfiguredProvider = Provider<bool>((ref) {
+  ref.watch(settingsProvider.select((s) => s.llmApiKey));
+  return _miniMaxKey(ref).isNotEmpty;
+});
+
+/// The model Astro talks through. Default MiniMax-M3 (only model with
+/// documented tool calling; thinking is disabled at the client for speed).
+/// Override with `ASTRO_MODEL=` in `.env` to experiment (e.g. a highspeed
+/// variant) — but M2.x tool support is undocumented and their thinking can't
+/// be turned off, so they may be slower and may not call tools.
+final astroModelProvider = Provider<String>((ref) {
+  final user = ref.watch(settingsProvider.select((s) => s.llmModel)).trim();
+  if (user.isNotEmpty) return user;
+  return _secret(
+    'ASTRO_MODEL',
+    const String.fromEnvironment('ASTRO_MODEL'),
+  ).ifEmpty('MiniMax-M3');
+});
+
+extension _Fallback on String {
+  String ifEmpty(String other) => isEmpty ? other : this;
+}
+
+/// Astro's persona and answer style, tuned to the active mode. The language
+/// rule (#0) and the speaking style are shared; car mode frames Astro as a
+/// copilot aware of speed and driving safety, normal mode as a general
+/// companion with neither. The rest follows the humanize-text guidelines (short
+/// active sentences, everyday words, no clichés, no hedging), for a voiced pet.
+String astroSystemPromptFor(AppMode mode) {
+  final persona = mode.isCar
+      ? 'Eres Astro, la mascota copiloto de un carro. Vas en el asiento del '
+            'copiloto y hablas como un buen amigo: cálido, con humor, cercano. '
+            'Tus respuestas se leen en voz alta, así que habla natural.'
+      : 'Eres Astro, la mascota que acompaña a su dueño. Estás con él, en casa '
+            'o en su mano, y hablas como un buen amigo: cálido, con humor, '
+            'cercano. Tus respuestas se leen en voz alta, así que habla natural.';
+
+  final contextTool = mode.isCar
+      ? 'get_context (hora, velocidad, ubicación)'
+      : 'get_context (hora, ubicación)';
+
+  final closing = mode.isCar
+      ? ' Nunca inventes datos del carro. Cuida la seguridad: no distraigas de '
+            'más mientras se conduce.'
+      : '';
+
+  return '''
+REGLA #0, IRROMPIBLE — IDIOMA: responde SIEMPRE en español de Colombia, con
+tildes correctas. Nunca uses chino, inglés, portugués ni ningún otro idioma,
+pase lo que pase y en cualquier idioma que te hablen. Si algo saldría en otro
+idioma, reescríbelo en español antes de responder. Una respuesta con otro
+idioma no sirve.
+
+$persona
+
+Cómo hablas:
+- Frases cortas, de 10 a 20 palabras, una idea por frase. Voz activa.
+- Palabras cotidianas y concretas. Datos exactos cuando los tengas.
+- Sé breve: 1 o 2 frases. Nada de listas ni markdown.
+- Sin punto y coma, sin guiones largos, sin jerga ni clichés.
+- No te disculpes, no dudes, no digas que eres una IA. Di las cosas directo.
+
+Comandos cortados: el reconocedor de voz a veces corta la frase y te llega
+incompleta (una o dos palabras sueltas, o algo a medias como "busca en" o
+"llama a"). Cuando eso pase, NO adivines ni inventes: pide que te lo repitan
+completo con una pregunta corta y concreta que termine en "?" (así se reabre el
+micrófono). Ej: "Se cortó, ¿qué querías buscar?".
+
+Herramientas: $contextTool; music (poner o controlar música); device (brillo,
+volumen, linterna); navigate (llevar a un destino); timer (temporizador o
+alarma); phone (llamar o mandar mensaje); web_search (datos frescos de
+internet); remember_fact (guardar algo del usuario).$closing''';
+}
+
+/// Holds the command-time voice confirmation for mutating tools. The UI sets
+/// [confirmer] once mounted; until then, mutating tools are denied. A mutable
+/// holder (not a StateProvider) so the UI can install it from initState without
+/// modifying provider state mid-build.
+class ToolConfirmerHolder {
+  ConfirmTool? confirmer;
+}
+
+final toolConfirmerProvider = Provider<ToolConfirmerHolder>(
+  (_) => ToolConfirmerHolder(),
+);
+
+/// Native media controller (play / pause / skip) shared by the music tool.
+final mediaControllerProvider = Provider<MediaController>(
+  (_) => MediaController(),
+);
+
+/// Long-term memory, opened once. Uses the ffi factory backed by the bundled
+/// libsqlite3 (which has FTS5); `getDatabasesPath()` still gives a valid
+/// per-app location. Null if it fails to open (the brain works without recall).
+final memoryProvider = FutureProvider<LongTermMemory?>((ref) async {
+  try {
+    final dir = await getDatabasesPath();
+    return await LongTermMemory.open(
+      factory: databaseFactoryFfi,
+      path: '$dir/astro_memory.db',
+    );
+  } catch (_) {
+    return null;
+  }
+});
+
+/// The fully wired brain: MiniMax client + the active tool set + memory recall.
+/// A FutureProvider because opening memory is async.
+final astroBrainProvider = FutureProvider<AstroBrain>((ref) async {
+  // Rebuild the brain whenever the key or model changes.
+  ref.watch(settingsProvider.select((s) => s.llmApiKey));
+  ref.watch(settingsProvider.select((s) => s.searchApiKey));
+  final client = OpenAiCompatClient.miniMax(apiKey: _miniMaxKey(ref));
+  final media = ref.read(mediaControllerProvider);
+  const actions = SystemActions();
+  final placeResolver = PlaceResolver(); // one instance, so its cache persists
+
+  // Above the soft limit of 5 on purpose: MiniMax-M3 has strong tool use and a
+  // 1M-token context, so it handles this set well. If selection ever degrades,
+  // split into a router / topic agents.
+  final registry = ToolRegistry(softLimit: 8)
+    // Situational snapshot: time + speed + location.
+    ..register(
+      ContextTool(
+        speedKmh: () => ref.read(appStateProvider).valueOrNull?.speedKmh,
+        locationName: placeResolver.name,
+        carMode: () => ref.read(appModeProvider).isCar,
+      ),
+    )
+    // Music: play / pause / resume / next / previous.
+    ..register(MusicTool(media))
+    // Phone hardware: brightness + volume + flashlight.
+    ..register(
+      DeviceTool(
+        setBrightness: (v) =>
+            ScreenBrightness().setApplicationScreenBrightness(v),
+        setVolume: media.setVolume,
+        nudgeVolume: media.nudgeVolume,
+        setTorch: actions.setTorch,
+      ),
+    )
+    // Navigation to a destination.
+    ..register(NavigateTool(actions.navigate))
+    // Countdown timer / alarm.
+    ..register(
+      TimerTool(setTimer: actions.setTimer, setAlarm: actions.setAlarm),
+    )
+    // Calls and messages (mutating → confirmed).
+    ..register(
+      PhoneTool(
+        resolveContact: actions.resolveContact,
+        call: actions.call,
+        message: actions.message,
+      ),
+    );
+
+  // Web search: on MiniMax (Astro's provider) use MiniMax's native search with
+  // DuckDuckGo as a keyless fallback; any other LLM provider uses Tavily.
+  final searchProvider = _buildSearchProvider(ref, client.providerId);
+  if (searchProvider != null) {
+    registry.register(WebSearchTool(searchProvider));
+  }
+
+  // Long-term memory: write tool + automatic recall (no separate read tool, to
+  // stay within the tool budget — recall is injected each turn).
+  final memory = await ref.watch(memoryProvider.future);
+  RecallContext? recall;
+  if (memory != null) {
+    registry.register(RememberTool(memory));
+    recall = MemoryContext(memory).call;
+  }
+
+  return AstroBrain(
+    client: client,
+    registry: registry,
+    recallContext: recall,
+    confirm: (tool, args) async {
+      final confirmer = ref.read(toolConfirmerProvider).confirmer;
+      return confirmer == null ? false : confirmer(tool, args);
+    },
+  );
+});
