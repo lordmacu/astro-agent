@@ -16,20 +16,27 @@ import '../platform/system_actions.dart';
 import 'astro_brain.dart';
 import 'llm/providers/openai_compat_client.dart';
 import 'memory_context.dart';
+import '../platform/battery_reader.dart';
 import '../platform/calendar_prefs.dart';
 import '../platform/calendar_writer.dart';
 import '../platform/camera_capture.dart';
+import '../platform/email_reader.dart';
 import '../platform/email_sender.dart';
+import '../platform/sent_emails_store.dart';
 import '../platform/smtp_store.dart';
+import '../platform/weather_service.dart';
 import 'tools/calendar_tool.dart';
 import 'tools/camera_tool.dart';
 import 'tools/email_tool.dart';
+import 'tools/read_email_tool.dart';
 import 'tools/context_tool.dart';
 import 'tools/device_tool.dart';
 import 'tools/memory_tools.dart';
 import 'tools/music_tool.dart';
 import 'tools/navigate_tool.dart';
+import 'tools/places_tool.dart';
 import 'tools/phone_tool.dart';
+import 'tools/weather_tool.dart';
 import 'tools/timer_tool.dart';
 import 'tools/tool_registry.dart';
 import 'tools/web_search/providers/duckduckgo_provider.dart';
@@ -132,8 +139,8 @@ String astroSystemPromptFor(AppMode mode) {
             'cercano. Tus respuestas se leen en voz alta, así que habla natural.';
 
   final contextTool = mode.isCar
-      ? 'get_context (hora, velocidad, ubicación)'
-      : 'get_context (hora, ubicación)';
+      ? 'get_context (hora, velocidad, ubicación, batería)'
+      : 'get_context (hora, ubicación, batería)';
 
   final closing = mode.isCar
       ? ' Nunca inventes datos del carro. Cuida la seguridad: no distraigas de '
@@ -164,10 +171,11 @@ micrófono). Ej: "Se cortó, ¿qué querías buscar?".
 
 Herramientas: $contextTool; music (poner o controlar música); take_photo (tomar
 una foto y guardarla en la galería); calendar (crear un evento o recordatorio en
-el calendario); device (brillo, volumen, linterna); navigate (llevar a un
-destino); timer (temporizador o alarma); phone (llamar o mandar mensaje);
-web_search (datos frescos de internet); remember_fact (guardar algo del
-usuario).$closing''';
+el calendario); send_email (mandar un correo); read_email (revisar los últimos
+correos); clima (el tiempo de un lugar); lugares (buscar sitios cerca en el
+mapa); device (brillo, volumen, linterna); navigate (llevar a un destino);
+timer (temporizador o alarma); phone (llamar o mandar mensaje); web_search (datos
+frescos de internet); remember_fact (guardar algo del usuario).$closing''';
 }
 
 /// Holds the command-time voice confirmation for mutating tools. The UI sets
@@ -247,18 +255,20 @@ final astroBrainProvider = FutureProvider<AstroBrain>((ref) async {
   final media = ref.read(mediaControllerProvider);
   const actions = SystemActions();
   final calendarWriter = CalendarWriter();
+  final batteryReader = BatteryReader();
   final placeResolver = PlaceResolver(); // one instance, so its cache persists
 
   // Above the soft limit of 5 on purpose: MiniMax-M3 has strong tool use and a
   // 1M-token context, so it handles this set well. If selection ever degrades,
   // split into a router / topic agents.
-  final registry = ToolRegistry(softLimit: 10)
-    // Situational snapshot: time + speed + location.
+  final registry = ToolRegistry(softLimit: 14)
+    // Situational snapshot: time + speed + location + battery.
     ..register(
       ContextTool(
         speedKmh: () => ref.read(appStateProvider).valueOrNull?.speedKmh,
         locationName: placeResolver.name,
         carMode: () => ref.read(appModeProvider).isCar,
+        battery: batteryReader.read,
       ),
     )
     // Music: play / pause / resume / next / previous.
@@ -295,16 +305,33 @@ final astroBrainProvider = FutureProvider<AstroBrain>((ref) async {
       ),
     )
     // Email over SMTP (mutating → confirmed before sending).
+    // When SMTP is not configured, falls back to a mailto draft via intent.
     ..register(
       EmailTool(
         isConfigured: () async => (await const SmtpStore().load()).isComplete,
-        send: ({required to, required subject, required body}) async =>
-            const EmailSender().send(
-              config: await const SmtpStore().load(),
-              to: to,
-              subject: subject,
-              body: body,
-            ),
+        send: ({required to, required subject, required body}) async {
+          final ok = await const EmailSender().send(
+            config: await const SmtpStore().load(),
+            to: to,
+            subject: subject,
+            body: body,
+          );
+          // Remember the recipient so Astro can reuse it later.
+          if (ok) await const SentEmailsStore().add(to);
+          return ok;
+        },
+        composeViaIntent: ({required to, required subject, required body}) =>
+            actions.composeEmail(to: to, subject: subject, body: body),
+      ),
+    )
+    // Read the inbox over IMAP (read-only).
+    ..register(
+      ReadEmailTool(
+        canRead: () async => (await const SmtpStore().load()).canRead,
+        fetch: ({required count}) async => const EmailReader().fetchRecent(
+          await const SmtpStore().load(),
+          count: count,
+        ),
       ),
     )
     // Phone hardware: brightness + volume + flashlight.
@@ -319,6 +346,19 @@ final astroBrainProvider = FutureProvider<AstroBrain>((ref) async {
     )
     // Navigation to a destination.
     ..register(NavigateTool(actions.navigate))
+    // Find places nearby (opens the map).
+    ..register(PlacesTool(actions.nearby))
+    // Current weather (empty place → current location).
+    ..register(
+      WeatherTool(
+        fetch: (place) async {
+          final p = place.trim().isEmpty
+              ? (await placeResolver.name() ?? '')
+              : place;
+          return const WeatherService().summary(p);
+        },
+      ),
+    )
     // Countdown timer / alarm.
     ..register(
       TimerTool(setTimer: actions.setTimer, setAlarm: actions.setAlarm),
@@ -342,10 +382,22 @@ final astroBrainProvider = FutureProvider<AstroBrain>((ref) async {
   // Long-term memory: write tool + automatic recall (no separate read tool, to
   // stay within the tool budget — recall is injected each turn).
   final memory = await ref.watch(memoryProvider.future);
-  RecallContext? recall;
-  if (memory != null) {
-    registry.register(RememberTool(memory));
-    recall = MemoryContext(memory).call;
+  final memRecall = memory != null ? MemoryContext(memory).call : null;
+  if (memory != null) registry.register(RememberTool(memory));
+
+  // Recall each turn = long-term memory + the addresses Astro has emailed, so it
+  // can reuse a recipient the user references.
+  Future<String?> recall(String userText) async {
+    final parts = <String>[];
+    if (memRecall != null) {
+      final m = await memRecall(userText);
+      if (m != null && m.isNotEmpty) parts.add(m);
+    }
+    final recipients = await const SentEmailsStore().all();
+    if (recipients.isNotEmpty) {
+      parts.add('Correos a los que ya escribiste: ${recipients.join(', ')}.');
+    }
+    return parts.isEmpty ? null : parts.join('\n');
   }
 
   return AstroBrain(
