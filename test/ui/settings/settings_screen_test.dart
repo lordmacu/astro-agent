@@ -34,8 +34,57 @@ void main() {
     );
     // The Modelo label should be present via a ListTile.
     expect(find.text('Modelo'), findsOneWidget);
-    // The dropdown button for the model should be present.
-    expect(find.byType(DropdownButton<String>), findsWidgets);
+    // The Modelo dropdown (inside its ListTile) should be present.
+    final modelDropdown = find.descendant(
+      of: find.ancestor(
+        of: find.text('Modelo'),
+        matching: find.byType(ListTile),
+      ),
+      matching: find.byType(DropdownButton<String>),
+    );
+    expect(modelDropdown, findsOneWidget);
+  });
+
+  testWidgets('AI section: selecting Personalizado reveals custom text field', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+        child: const MaterialApp(home: SettingsScreen()),
+      ),
+    );
+
+    // Scroll to make the IA section visible.
+    await tester.drag(find.byType(ListView), const Offset(0, -300));
+    await tester.pumpAndSettle();
+
+    // Custom field must NOT be visible before selecting it.
+    expect(find.text('Modelo personalizado'), findsNothing);
+
+    // Tap the Modelo dropdown (NOT the Idioma one).
+    final modelDropdown = find.descendant(
+      of: find.ancestor(
+        of: find.text('Modelo'),
+        matching: find.byType(ListTile),
+      ),
+      matching: find.byType(DropdownButton<String>),
+    );
+    expect(modelDropdown, findsOneWidget);
+    await tester.tap(modelDropdown);
+    await tester.pumpAndSettle();
+
+    // Select "Personalizado…" from the menu.
+    final customItem = find.text('Personalizado…').last;
+    expect(customItem, findsOneWidget);
+    await tester.tap(customItem);
+    await tester.pumpAndSettle();
+
+    // The stored model value must NOT be cleared.
+    // The custom text field must NOW be visible.
+    expect(find.text('Modelo personalizado'), findsOneWidget);
   });
 
   testWidgets('AI section: selecting a model preset persists it', (

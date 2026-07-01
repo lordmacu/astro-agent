@@ -247,18 +247,46 @@ class SettingsScreen extends ConsumerWidget {
 }
 
 /// Model picker: a dropdown of preset model names plus a "Personalizado…"
-/// sentinel. When the current value is not in the preset list, the sentinel is
-/// selected and a free-text tile is shown below for editing the custom value.
-class _ModelPickerTile extends StatelessWidget {
+/// sentinel. Selecting "Personalizado…" reveals a free-text tile without
+/// clobbering the stored model value; the text tile persists until a preset is
+/// chosen again. Also shown automatically when the stored model is already a
+/// non-preset value (so existing custom values open in custom mode).
+class _ModelPickerTile extends StatefulWidget {
   const _ModelPickerTile({required this.currentModel, required this.onChanged});
 
   final String currentModel;
   final ValueChanged<String> onChanged;
 
   @override
+  State<_ModelPickerTile> createState() => _ModelPickerTileState();
+}
+
+class _ModelPickerTileState extends State<_ModelPickerTile> {
+  /// True when the user has chosen "Personalizado…" from the dropdown OR when
+  /// the stored model is already a non-preset value.
+  late bool _customMode;
+
+  @override
+  void initState() {
+    super.initState();
+    _customMode = !_modelPresets.contains(widget.currentModel);
+  }
+
+  @override
+  void didUpdateWidget(_ModelPickerTile old) {
+    super.didUpdateWidget(old);
+    // If the parent rebuilds with a preset model (e.g. after a preset is
+    // selected), leave custom mode in whatever state it was set to locally.
+    // Only flip it off when the new value is a known preset AND we are not
+    // already showing the custom field because of a user tap.
+    if (_modelPresets.contains(widget.currentModel)) {
+      _customMode = false;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final isCustom = !_modelPresets.contains(currentModel);
-    final dropdownValue = isCustom ? _customSentinel : currentModel;
+    final dropdownValue = _customMode ? _customSentinel : widget.currentModel;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -282,17 +310,24 @@ class _ModelPickerTile extends StatelessWidget {
               ),
             ],
             onChanged: (v) {
-              if (v == null || v == _customSentinel) return;
-              onChanged(v);
+              if (v == null) return;
+              if (v == _customSentinel) {
+                // Reveal the custom text field without changing the stored model.
+                setState(() => _customMode = true);
+                return;
+              }
+              // A real preset was chosen: leave custom mode and persist.
+              setState(() => _customMode = false);
+              widget.onChanged(v);
             },
           ),
         ),
-        if (isCustom)
+        if (_customMode)
           SettingsTextTile(
             label: 'Modelo personalizado',
-            value: currentModel,
+            value: widget.currentModel,
             hint: 'MiniMax-M3',
-            onSubmitted: onChanged,
+            onSubmitted: widget.onChanged,
           ),
       ],
     );
