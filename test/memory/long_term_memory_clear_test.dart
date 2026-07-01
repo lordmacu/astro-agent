@@ -20,4 +20,23 @@ void main() {
     expect(await mem.count(), 0);
     await mem.close();
   });
+
+  test(
+    'clearAll does not throw when FTS is unavailable (forceNoFts)',
+    () async {
+      final mem = await LongTermMemory.open(
+        factory: databaseFactory,
+        path: inMemoryDatabasePath,
+        forceNoFts: true,
+      );
+      expect(mem.hasFullTextSearch, isFalse);
+      await mem.remember('test memory without fts');
+      expect(await mem.count(), 1);
+      // Must not throw even though memories_fts table does not exist.
+      final removed = await mem.clearAll();
+      expect(removed, 1);
+      expect(await mem.count(), 0);
+      await mem.close();
+    },
+  );
 }

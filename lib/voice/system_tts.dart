@@ -8,19 +8,23 @@ import 'voice_interfaces.dart';
 /// quality and full offline behaviour. `speak` completes when playback ends, so
 /// the speaking animation lines up.
 class SystemTts implements TextToSpeech {
-  SystemTts({this.language = 'es-ES', this.rate = 0.5});
+  // A touch faster than the 0.5 default so replies feel snappier without
+  // hurting clarity.
+  SystemTts({this.language = 'es-ES', this.rate = 0.56, this.pitch = 1.0});
 
   final String language;
   final double rate;
+  final double pitch;
 
   final FlutterTts _tts = FlutterTts();
   Future<void>? _ready;
 
   Future<void> _ensureReady() => _ready ??= () async {
-        await _tts.awaitSpeakCompletion(true);
-        await _tts.setLanguage(language);
-        await _tts.setSpeechRate(rate);
-      }();
+    await _tts.awaitSpeakCompletion(true);
+    await _tts.setLanguage(language);
+    await _tts.setSpeechRate(rate);
+    await _tts.setPitch(pitch);
+  }();
 
   @override
   Future<void> speak(String text) async {

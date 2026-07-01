@@ -258,7 +258,9 @@ class LongTermMemory {
       where: 'agent_id = ?',
       whereArgs: [agentId],
     );
-    await _db.delete('memories_fts');
+    if (_ftsAvailable) {
+      await _db.delete('memories_fts');
+    }
     await _db.delete('memory_vectors');
     return removed;
   }

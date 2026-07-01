@@ -13,7 +13,12 @@ final ttsProvider = Provider<TextToSpeech>((ref) {
   if (s.neuralVoiceInstalled &&
       s.neuralVoiceEnabled &&
       s.neuralVoicePath.isNotEmpty) {
-    return SherpaTts(modelDir: s.neuralVoicePath, speed: s.voicePitch);
+    // Neural: speed is separate from pitch; use default speed (1.0).
+    return SherpaTts(modelDir: s.neuralVoicePath);
   }
-  return SystemTts(rate: s.voiceRate);
+  return SystemTts(
+    rate: s.voiceRate,
+    pitch: s.voicePitch,
+    language: s.voiceLanguage == 'en' ? 'en-US' : 'es-ES',
+  );
 });

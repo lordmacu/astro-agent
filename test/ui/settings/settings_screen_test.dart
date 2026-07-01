@@ -23,7 +23,7 @@ void main() {
     expect(prefs.getDouble('voiceRate'), isNotNull);
   });
 
-  testWidgets('AI section persists the model on submit', (tester) async {
+  testWidgets('AI section: Modelo dropdown shows presets', (tester) async {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
     await tester.pumpWidget(
@@ -32,12 +32,64 @@ void main() {
         child: const MaterialApp(home: SettingsScreen()),
       ),
     );
-    final modelField = find.widgetWithText(TextField, 'Modelo');
-    expect(modelField, findsOneWidget);
-    await tester.enterText(modelField, 'MiniMax-M3-Turbo');
-    await tester.testTextInput.receiveAction(TextInputAction.done);
-    await tester.pump();
-    expect(prefs.getString('llmModel'), 'MiniMax-M3-Turbo');
+    // The Modelo label should be present via a ListTile.
+    expect(find.text('Modelo'), findsOneWidget);
+    // The dropdown button for the model should be present.
+    expect(find.byType(DropdownButton<String>), findsWidgets);
+  });
+
+  testWidgets('AI section: selecting a model preset persists it', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+        child: const MaterialApp(home: SettingsScreen()),
+      ),
+    );
+
+    // Scroll to make IA section visible.
+    await tester.drag(find.byType(ListView), const Offset(0, -300));
+    await tester.pumpAndSettle();
+
+    // Open the Modelo dropdown by tapping it.
+    // The model dropdown is the one inside the 'Modelo' ListTile.
+    final modelDropdown = find.descendant(
+      of: find.ancestor(
+        of: find.text('Modelo'),
+        matching: find.byType(ListTile),
+      ),
+      matching: find.byType(DropdownButton<String>),
+    );
+    expect(modelDropdown, findsOneWidget);
+
+    await tester.tap(modelDropdown);
+    await tester.pumpAndSettle();
+
+    // The dropdown menu should show 'gpt-4o-mini'.
+    final target = find.text('gpt-4o-mini').last;
+    expect(target, findsOneWidget);
+    await tester.tap(target);
+    await tester.pumpAndSettle();
+
+    expect(prefs.getString('llmModel'), 'gpt-4o-mini');
+  });
+
+  testWidgets('AI section: custom model shows text field', (tester) async {
+    SharedPreferences.setMockInitialValues({'llmModel': 'my-custom-model'});
+    final prefs = await SharedPreferences.getInstance();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+        child: const MaterialApp(home: SettingsScreen()),
+      ),
+    );
+    // When model is not in presets, the custom text tile should appear.
+    await tester.drag(find.byType(ListView), const Offset(0, -300));
+    await tester.pumpAndSettle();
+    expect(find.text('Modelo personalizado'), findsOneWidget);
   });
 
   testWidgets('wake word toggle persists', (tester) async {

@@ -9,6 +9,24 @@ import '../../voice/neural_voice_installer.dart';
 import '../../voice/neural_voice_provider.dart';
 import 'settings_widgets.dart';
 
+/// Preset model identifiers for the LLM dropdown.
+const _modelPresets = [
+  'MiniMax-M3',
+  'gpt-4o',
+  'gpt-4o-mini',
+  'gpt-4.1',
+  'gpt-4.1-mini',
+  'o3-mini',
+  'deepseek-chat',
+  'deepseek-reasoner',
+];
+
+/// Sentinel shown in the dropdown when the stored model is a custom string.
+const _customSentinel = 'custom';
+
+/// Displayed app version. Updated manually on release cuts.
+const _appVersion = '0.1.0';
+
 /// The single place where all runtime configuration lives. Grows section by
 /// section (voice, AI, wake word, memory, permissions, about) across the plan.
 class SettingsScreen extends ConsumerWidget {
@@ -35,6 +53,33 @@ class SettingsScreen extends ConsumerWidget {
                 min: 0.3,
                 max: 1.0,
                 onChanged: notifier.setVoiceRate,
+              ),
+              SettingsSliderTile(
+                label: 'Tono',
+                value: settings.voicePitch,
+                min: 0.5,
+                max: 2.0,
+                onChanged: notifier.setVoicePitch,
+              ),
+              // Language selector (ES / EN).
+              ListTile(
+                title: const Text(
+                  'Idioma',
+                  style: TextStyle(color: DesignTokens.ink),
+                ),
+                trailing: DropdownButton<String>(
+                  value: settings.voiceLanguage,
+                  dropdownColor: const Color(0xFF1a2537),
+                  style: const TextStyle(color: DesignTokens.ink),
+                  underline: const SizedBox.shrink(),
+                  items: const [
+                    DropdownMenuItem(value: 'es', child: Text('Español')),
+                    DropdownMenuItem(value: 'en', child: Text('English')),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) notifier.setVoiceLanguage(v);
+                  },
+                ),
               ),
               // Neural voice: download on demand, then enable.
               Consumer(
@@ -88,11 +133,9 @@ class SettingsScreen extends ConsumerWidget {
           SettingsSection(
             title: 'IA',
             children: [
-              SettingsTextTile(
-                label: 'Modelo',
-                value: settings.llmModel,
-                hint: 'MiniMax-M3',
-                onSubmitted: notifier.setLlmModel,
+              _ModelPickerTile(
+                currentModel: settings.llmModel,
+                onChanged: notifier.setLlmModel,
               ),
               SettingsTextTile(
                 label: 'API key del LLM',
@@ -187,7 +230,8 @@ class SettingsScreen extends ConsumerWidget {
                   style: TextStyle(color: DesignTokens.ink),
                 ),
                 subtitle: Text(
-                  'Voz neuronal: '
+                  'v$_appVersion'
+                  ' · Voz neuronal: '
                   '${settings.neuralVoiceInstalled ? "instalada" : "no instalada"}'
                   ' · Modelo: ${settings.llmModel}',
                   style: const TextStyle(color: DesignTokens.dim),
@@ -198,6 +242,59 @@ class SettingsScreen extends ConsumerWidget {
           const SizedBox(height: 24),
         ],
       ),
+    );
+  }
+}
+
+/// Model picker: a dropdown of preset model names plus a "Personalizado…"
+/// sentinel. When the current value is not in the preset list, the sentinel is
+/// selected and a free-text tile is shown below for editing the custom value.
+class _ModelPickerTile extends StatelessWidget {
+  const _ModelPickerTile({required this.currentModel, required this.onChanged});
+
+  final String currentModel;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final isCustom = !_modelPresets.contains(currentModel);
+    final dropdownValue = isCustom ? _customSentinel : currentModel;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ListTile(
+          title: const Text(
+            'Modelo',
+            style: TextStyle(color: DesignTokens.ink),
+          ),
+          trailing: DropdownButton<String>(
+            value: dropdownValue,
+            dropdownColor: const Color(0xFF1a2537),
+            style: const TextStyle(color: DesignTokens.ink, fontSize: 14),
+            underline: const SizedBox.shrink(),
+            items: [
+              for (final p in _modelPresets)
+                DropdownMenuItem(value: p, child: Text(p)),
+              const DropdownMenuItem(
+                value: _customSentinel,
+                child: Text('Personalizado…'),
+              ),
+            ],
+            onChanged: (v) {
+              if (v == null || v == _customSentinel) return;
+              onChanged(v);
+            },
+          ),
+        ),
+        if (isCustom)
+          SettingsTextTile(
+            label: 'Modelo personalizado',
+            value: currentModel,
+            hint: 'MiniMax-M3',
+            onSubmitted: onChanged,
+          ),
+      ],
     );
   }
 }
