@@ -3,13 +3,21 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../core/config/design_tokens.dart';
+import '../core/l10n/app_lang.dart';
+import '../core/l10n/strings.dart';
 
-/// Text-only mode toggle for the top-left corner: CARRO / NORMAL, the active
+/// Text-only mode toggle for the top-left corner: CAR / NORMAL, the active
 /// label bright and bold, the other dim. Tapping a label selects that mode.
 class ModeSwitch extends StatelessWidget {
-  const ModeSwitch({super.key, required this.carMode, required this.onSelect});
+  const ModeSwitch({
+    super.key,
+    required this.carMode,
+    required this.onSelect,
+    required this.lang,
+  });
 
   final bool carMode;
+  final AppLang lang;
 
   /// Called with `true` for car mode, `false` for normal.
   final ValueChanged<bool> onSelect;
@@ -19,7 +27,7 @@ class ModeSwitch extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _label('CARRO', carMode, () => onSelect(true)),
+        _label(Strings.modeCar(lang), carMode, () => onSelect(true)),
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 8),
           child: Text(
@@ -27,7 +35,7 @@ class ModeSwitch extends StatelessWidget {
             style: TextStyle(color: DesignTokens.dim, fontSize: 12),
           ),
         ),
-        _label('NORMAL', !carMode, () => onSelect(false)),
+        _label(Strings.modeNormal(lang), !carMode, () => onSelect(false)),
       ],
     );
   }
@@ -50,10 +58,16 @@ class ModeSwitch extends StatelessWidget {
 
 /// Big speed readout with unit and source.
 class Speedometer extends StatelessWidget {
-  const Speedometer({super.key, required this.speedKmh, required this.color});
+  const Speedometer({
+    super.key,
+    required this.speedKmh,
+    required this.color,
+    required this.lang,
+  });
 
   final int speedKmh;
   final Color color;
+  final AppLang lang;
 
   @override
   Widget build(BuildContext context) {
@@ -84,11 +98,11 @@ class Speedometer extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 8),
-        const Padding(
-          padding: EdgeInsets.only(bottom: 6),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 6),
           child: Text(
-            '🛰️ GPS + acelerómetro',
-            style: TextStyle(color: Color(0xFF3A4456), fontSize: 10),
+            Strings.speedSource(lang),
+            style: const TextStyle(color: Color(0xFF3A4456), fontSize: 10),
           ),
         ),
       ],

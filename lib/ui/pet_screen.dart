@@ -8,6 +8,9 @@ import '../brain/astro_brain_provider.dart';
 import '../brain/tools/astro_tool.dart';
 import '../core/config/design_tokens.dart';
 import '../core/config/settings_providers.dart';
+import '../core/l10n/app_lang.dart';
+import '../core/l10n/lang_provider.dart';
+import '../core/l10n/strings.dart';
 import '../core/state/app_mode.dart';
 import '../core/state/app_state.dart';
 import '../core/state/app_state_provider.dart';
@@ -37,9 +40,12 @@ class PetScreen extends ConsumerStatefulWidget {
 }
 
 class _PetScreenState extends ConsumerState<PetScreen> {
-  static const _wakeAck = '¡Aquí estoy! ¿Qué necesitas?';
-  static const _notHeard = '¿Me repites? No te escuché bien.';
-  static const _oops = 'Uy, se me enredó la conexión. ¿Probamos otra vez?';
+  /// The language Astro speaks/writes right now (device locale or user override).
+  AppLang get _lang => ref.read(langProvider);
+
+  String get _wakeAck => Strings.wakeAck(_lang);
+  String get _notHeard => Strings.notHeard(_lang);
+  String get _oops => Strings.oops(_lang);
 
   late final WakeWordDetector _wake = ref.read(wakeWordProvider);
   StreamSubscription<void>? _wakeSub;
@@ -140,7 +146,7 @@ class _PetScreenState extends ConsumerState<PetScreen> {
     final completer = Completer<bool>();
     _emailCompleter = completer;
     if (mounted) setState(() => _emailArgs = args);
-    await _say('Revisa el correo y toca enviar.', controller);
+    await _say(Strings.reviewEmailSpoken(_lang), controller);
 
     final ok = await completer.future;
     _emailCompleter = null;
@@ -164,7 +170,9 @@ class _PetScreenState extends ConsumerState<PetScreen> {
     // Already a raw number → confirm as spoken, no lookup.
     if (RegExp(r'^[+0-9][0-9\s\-()]{4,}$').hasMatch(spoken)) {
       final ok = await _confirmYesNo(
-        isMessage ? '¿Le mando el mensaje a $spoken?' : '¿Llamo a $spoken?',
+        isMessage
+            ? Strings.confirmMessage(spoken, _lang)
+            : Strings.confirmCall(spoken, _lang),
       );
       if (ok) _setPhoneOverride(spoken, isMessage);
       return ok;
@@ -172,15 +180,15 @@ class _PetScreenState extends ConsumerState<PetScreen> {
 
     final matches = await const SystemActions().matchingContacts(spoken);
     if (matches.isEmpty) {
-      await _say('No encontré a $spoken en tus contactos.', controller);
+      await _say(Strings.contactNotFound(spoken, _lang), controller);
       return false;
     }
     if (matches.length == 1) {
       _applyContact(args, matches.first);
       final ok = await _confirmYesNo(
         isMessage
-            ? '¿Le escribo a ${matches.first.name}?'
-            : '¿Llamo a ${matches.first.name}?',
+            ? Strings.confirmWrite(matches.first.name, _lang)
+            : Strings.confirmCall(matches.first.name, _lang),
       );
       if (ok) _setPhoneOverride(matches.first.name, isMessage);
       return ok;
@@ -198,8 +206,8 @@ class _PetScreenState extends ConsumerState<PetScreen> {
   /// the real contact name (bypasses the model's name-mangling paraphrase).
   void _setPhoneOverride(String name, bool isMessage) {
     _overrideAnswer = isMessage
-        ? 'Listo, te dejé el mensaje para $name.'
-        : 'Ya estoy llamando a $name.';
+        ? Strings.messageLeft(name, _lang)
+        : Strings.callingNow(name, _lang);
   }
 
   /// Write the resolved contact back into the tool args: the exact number to
@@ -248,7 +256,7 @@ class _PetScreenState extends ConsumerState<PetScreen> {
     });
 
     await _say(
-      isMessage ? '¿A quién le escribo?' : '¿A quién llamo?',
+      isMessage ? Strings.whoToMessage(_lang) : Strings.whoToCall(_lang),
       controller,
     );
 
@@ -273,7 +281,7 @@ class _PetScreenState extends ConsumerState<PetScreen> {
       if (!completer.isCompleted) completer.complete(null);
     });
 
-    await _say('¿A cuál correo?', controller);
+    await _say(Strings.whichEmailSpoken(_lang), controller);
 
     final chosen = await completer.future;
     timeout.cancel();
@@ -295,7 +303,7 @@ class _PetScreenState extends ConsumerState<PetScreen> {
       if (!completer.isCompleted) completer.complete(null);
     });
 
-    await _say('¿En qué calendario lo guardo?', controller);
+    await _say(Strings.whichCalendarSpoken(_lang), controller);
 
     final chosen = await completer.future;
     timeout.cancel();
@@ -313,7 +321,7 @@ class _PetScreenState extends ConsumerState<PetScreen> {
     Completer<bool> completer,
   ) async {
     for (var attempt = 0; attempt < 2 && !completer.isCompleted; attempt++) {
-      await _say(attempt == 0 ? question : '¿Sí o no?', controller);
+      await _say(attempt == 0 ? question : Strings.yesOrNo(_lang), controller);
       if (completer.isCompleted) return; // tapped while speaking
 
       controller.applyPhase(VoicePhase.listening);
@@ -331,12 +339,14 @@ class _PetScreenState extends ConsumerState<PetScreen> {
         return;
       }
     }
-    if (!completer.isCompleted) await _say('Toca sí o no.', controller);
+    if (!completer.isCompleted) {
+      await _say(Strings.tapYesOrNo(_lang), controller);
+    }
   }
 
   /// Question for a generic mutating tool (phone has its own contact-aware flow).
   String _confirmQuestion(AstroTool tool, Map<String, dynamic> args) =>
-      '¿Lo hago?';
+      Strings.doIt(_lang);
 
   bool _isAffirmative(String reply) {
     final r = reply.toLowerCase();
@@ -362,6 +372,19 @@ class _PetScreenState extends ConsumerState<PetScreen> {
       'hagalo',
       'llama',
       'llamar',
+      // English
+      'yes',
+      'yeah',
+      'yep',
+      'yup',
+      'sure',
+      'do it',
+      'go ahead',
+      'okay',
+      'sounds good',
+      'affirmative',
+      'call',
+      'send',
     ];
     return yes.any(r.contains);
   }
@@ -505,7 +528,10 @@ class _PetScreenState extends ConsumerState<PetScreen> {
       final answer = await brain.askStream(
         command,
         model: ref.read(astroModelProvider),
-        system: astroSystemPromptFor(ref.read(appModeProvider)),
+        system: astroSystemPromptFor(
+          ref.read(appModeProvider),
+          ref.read(langProvider),
+        ),
         onSentence: (sentence) {
           // Suppress the model's own words when we'll speak a fixed line (e.g.
           // a call, where the model tends to mangle the contact name).
@@ -585,6 +611,7 @@ class _PetScreenState extends ConsumerState<PetScreen> {
     final appState =
         ref.watch(appStateProvider).valueOrNull ?? const AppState();
     final capturedPhoto = ref.watch(capturedPhotoProvider);
+    final lang = ref.watch(langProvider);
 
     final ambient = AmbientPalette.fromHour(DateTime.now().hour);
     final moodColor = DesignTokens.moodColor[mood.mood];
@@ -623,6 +650,7 @@ class _PetScreenState extends ConsumerState<PetScreen> {
                           Speedometer(
                             speedKmh: appState.speedKmh.round(),
                             color: moodColor ?? DesignTokens.ink,
+                            lang: lang,
                           ),
                           const SizedBox(height: 16),
                         ],
@@ -683,10 +711,13 @@ class _PetScreenState extends ConsumerState<PetScreen> {
                         const SizedBox(height: 16),
                         Text(
                           switch (voice.phase) {
-                            VoicePhase.listening => 'Escuchando…',
-                            VoicePhase.thinking => 'Pensando…',
-                            VoicePhase.speaking => '…',
-                            VoicePhase.idle => 'Di «Astro» o tócala 🎙️',
+                            VoicePhase.listening => Strings.listening(lang),
+                            VoicePhase.thinking => Strings.thinking(lang),
+                            VoicePhase.speaking => Strings.statusSpeaking(lang),
+                            VoicePhase.idle => Strings.wakeHint(
+                              ref.read(settingsProvider).wakeWord,
+                              lang,
+                            ),
                           },
                           textAlign: TextAlign.center,
                           style: const TextStyle(
@@ -713,6 +744,7 @@ class _PetScreenState extends ConsumerState<PetScreen> {
                 ),
                 child: ModeSwitch(
                   carMode: carMode,
+                  lang: lang,
                   onSelect: (car) => ref
                       .read(appModeProvider.notifier)
                       .set(car ? AppMode.car : AppMode.normal),
@@ -743,6 +775,7 @@ class _PetScreenState extends ConsumerState<PetScreen> {
             _EmailConfirm(
               args: _emailArgs!,
               accent: accent,
+              lang: lang,
               onSend: () => _emailCompleter?.complete(true),
               onCancel: () => _emailCompleter?.complete(false),
             ),
@@ -765,10 +798,10 @@ class _PetScreenState extends ConsumerState<PetScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Text(
-                  '¿A cuál?',
+                Text(
+                  Strings.which(_lang),
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: DesignTokens.ink,
                     fontSize: 22,
                     fontWeight: FontWeight.w600,
@@ -811,10 +844,10 @@ class _PetScreenState extends ConsumerState<PetScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Text(
-                  '¿En qué calendario?',
+                Text(
+                  Strings.whichCalendar(_lang),
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: DesignTokens.ink,
                     fontSize: 22,
                     fontWeight: FontWeight.w600,
@@ -852,7 +885,7 @@ class _PetScreenState extends ConsumerState<PetScreen> {
   /// A calendar row in the picker. [option] null renders a Cancel button.
   Widget _calendarButton(CalendarOption? option, Color color) {
     final label = option == null
-        ? 'Cancelar'
+        ? Strings.cancel(_lang)
         : (option.account.isEmpty
               ? option.name
               : '${option.name}\n${option.account}');
@@ -903,7 +936,7 @@ class _PetScreenState extends ConsumerState<PetScreen> {
           borderRadius: BorderRadius.circular(16),
         ),
         child: Text(
-          contact?.name ?? 'Cancelar',
+          contact?.name ?? Strings.cancel(_lang),
           textAlign: TextAlign.center,
           style: TextStyle(
             color: color,
@@ -928,10 +961,10 @@ class _PetScreenState extends ConsumerState<PetScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Text(
-                  '¿A cuál correo?',
+                Text(
+                  Strings.whichEmail(_lang),
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: DesignTokens.ink,
                     fontSize: 22,
                     fontWeight: FontWeight.w600,
@@ -965,7 +998,7 @@ class _PetScreenState extends ConsumerState<PetScreen> {
   /// An email row in the picker: name over address. [option] null → Cancel.
   Widget _emailButton(EmailCandidate? option, Color color) {
     final label = option == null
-        ? 'Cancelar'
+        ? Strings.cancel(_lang)
         : '${option.name}\n${option.email}';
     return GestureDetector(
       onTap: () {
@@ -1020,10 +1053,16 @@ class _PetScreenState extends ConsumerState<PetScreen> {
                 const SizedBox(height: 24),
                 Row(
                   children: [
-                    Expanded(child: _confirmButton('Sí', true, accent)),
+                    Expanded(
+                      child: _confirmButton(Strings.yes(_lang), true, accent),
+                    ),
                     const SizedBox(width: 16),
                     Expanded(
-                      child: _confirmButton('No', false, DesignTokens.dim),
+                      child: _confirmButton(
+                        Strings.no(_lang),
+                        false,
+                        DesignTokens.dim,
+                      ),
                     ),
                   ],
                 ),
@@ -1087,12 +1126,12 @@ class _PetScreenState extends ConsumerState<PetScreen> {
                     height: 200,
                     width: 268,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => const SizedBox(
+                    errorBuilder: (_, __, ___) => SizedBox(
                       height: 200,
                       child: Center(
                         child: Text(
-                          'Sin vista previa',
-                          style: TextStyle(color: DesignTokens.dim),
+                          Strings.noPreview(_lang),
+                          style: const TextStyle(color: DesignTokens.dim),
                         ),
                       ),
                     ),
@@ -1111,9 +1150,12 @@ class _PetScreenState extends ConsumerState<PetScreen> {
                           ),
                         );
                       },
-                      child: const Text('Ver'),
+                      child: Text(Strings.view(_lang)),
                     ),
-                    TextButton(onPressed: close, child: const Text('Cerrar')),
+                    TextButton(
+                      onPressed: close,
+                      child: Text(Strings.close(_lang)),
+                    ),
                   ],
                 ),
               ],
@@ -1132,12 +1174,14 @@ class _EmailConfirm extends StatefulWidget {
   const _EmailConfirm({
     required this.args,
     required this.accent,
+    required this.lang,
     required this.onSend,
     required this.onCancel,
   });
 
   final Map<String, dynamic> args;
   final Color accent;
+  final AppLang lang;
   final VoidCallback onSend;
   final VoidCallback onCancel;
 
@@ -1197,10 +1241,10 @@ class _EmailConfirmState extends State<_EmailConfirm> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Text(
-                  'Revisa el correo',
+                Text(
+                  Strings.reviewEmail(widget.lang),
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: DesignTokens.ink,
                     fontSize: 22,
                     fontWeight: FontWeight.w600,
@@ -1212,9 +1256,13 @@ class _EmailConfirmState extends State<_EmailConfirm> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        _field('Para', _to),
-                        _field('Asunto', _subject),
-                        _field('Mensaje', _body, maxLines: 5),
+                        _field(Strings.to(widget.lang), _to),
+                        _field(Strings.subject(widget.lang), _subject),
+                        _field(
+                          Strings.message(widget.lang),
+                          _body,
+                          maxLines: 5,
+                        ),
                       ],
                     ),
                   ),
@@ -1225,7 +1273,7 @@ class _EmailConfirmState extends State<_EmailConfirm> {
                     Expanded(
                       child: OutlinedButton(
                         onPressed: widget.onCancel,
-                        child: const Text('Cancelar'),
+                        child: Text(Strings.cancel(widget.lang)),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -1235,7 +1283,7 @@ class _EmailConfirmState extends State<_EmailConfirm> {
                         style: FilledButton.styleFrom(
                           backgroundColor: widget.accent,
                         ),
-                        child: const Text('Enviar'),
+                        child: Text(Strings.send(widget.lang)),
                       ),
                     ),
                   ],

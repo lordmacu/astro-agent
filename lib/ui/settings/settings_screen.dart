@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/l10n/app_lang.dart';
 import '../../core/l10n/lang_provider.dart';
+import '../../core/l10n/strings.dart';
 
 import '../../brain/astro_brain_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -47,10 +48,11 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsProvider);
     final notifier = ref.read(settingsProvider.notifier);
+    final lang = ref.watch(langProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Configuración'),
+        title: Text(Strings.settingsTitle(lang)),
         backgroundColor: Colors.transparent,
       ),
       body: ListView(
@@ -58,27 +60,27 @@ class SettingsScreen extends ConsumerWidget {
           _languageSection(ref),
           const SizedBox(height: 24),
           SettingsSection(
-            title: 'Voz',
+            title: Strings.voiceSection(lang),
             children: [
               SettingsSliderTile(
-                label: 'Velocidad',
+                label: Strings.rateLabel(lang),
                 value: settings.voiceRate,
                 min: 0.3,
                 max: 1.0,
                 onChanged: notifier.setVoiceRate,
               ),
               SettingsSliderTile(
-                label: 'Tono',
+                label: Strings.pitchLabel(lang),
                 value: settings.voicePitch,
                 min: 0.5,
                 max: 2.0,
                 onChanged: notifier.setVoicePitch,
               ),
-              // Language selector (ES / EN).
+              // Voice-language selector (ES / EN) for the TTS engine.
               ListTile(
-                title: const Text(
-                  'Idioma',
-                  style: TextStyle(color: DesignTokens.ink),
+                title: Text(
+                  Strings.language(lang),
+                  style: const TextStyle(color: DesignTokens.ink),
                 ),
                 trailing: DropdownButton<String>(
                   value: settings.voiceLanguage,
@@ -103,19 +105,29 @@ class SettingsScreen extends ConsumerWidget {
                     data: (s) => switch (s) {
                       Installing(:final progress) =>
                         progress < 0
-                            ? 'Descargando…'
-                            : 'Descargando ${(progress * 100).round()}%',
-                      InstallError(:final message) => 'Error: $message',
-                      Installed() => 'Lista',
+                            ? Strings.downloading(lang)
+                            : Strings.downloadingPct(
+                                (progress * 100).round(),
+                                lang,
+                              ),
+                      InstallError(:final message) => Strings.errorPrefix(
+                        message,
+                        lang,
+                      ),
+                      Installed() => Strings.ready(lang),
                       NotInstalled() =>
-                        installed ? 'Instalada' : 'No descargada',
+                        installed
+                            ? Strings.installed(lang)
+                            : Strings.notDownloaded(lang),
                     },
-                    orElse: () => installed ? 'Instalada' : 'No descargada',
+                    orElse: () => installed
+                        ? Strings.installed(lang)
+                        : Strings.notDownloaded(lang),
                   );
                   return ListTile(
-                    title: const Text(
-                      'Voz neuronal (offline)',
-                      style: TextStyle(color: DesignTokens.ink),
+                    title: Text(
+                      Strings.neuralVoice(lang),
+                      style: const TextStyle(color: DesignTokens.ink),
                     ),
                     subtitle: Text(
                       subtitle,
@@ -127,14 +139,14 @@ class SettingsScreen extends ConsumerWidget {
                             onPressed: () => ref
                                 .read(neuralVoiceInstallerProvider)
                                 .install(),
-                            child: const Text('Descargar'),
+                            child: Text(Strings.download(lang)),
                           ),
                   );
                 },
               ),
               SettingsSwitchTile(
-                label: 'Usar voz neuronal',
-                subtitle: 'Requiere descargarla primero',
+                label: Strings.useNeuralVoice(lang),
+                subtitle: Strings.neuralVoiceHint(lang),
                 value: settings.neuralVoiceEnabled,
                 onChanged: settings.neuralVoiceInstalled
                     ? notifier.setNeuralVoiceEnabled
@@ -144,20 +156,21 @@ class SettingsScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 24),
           SettingsSection(
-            title: 'IA',
+            title: Strings.aiSection(lang),
             children: [
               _ModelPickerTile(
                 currentModel: settings.llmModel,
+                lang: lang,
                 onChanged: notifier.setLlmModel,
               ),
               SettingsTextTile(
-                label: 'API key del LLM',
+                label: Strings.llmApiKey(lang),
                 value: settings.llmApiKey,
                 obscure: true,
                 onSubmitted: notifier.setLlmApiKey,
               ),
               SettingsTextTile(
-                label: 'API key de búsqueda web',
+                label: Strings.searchApiKey(lang),
                 value: settings.searchApiKey,
                 obscure: true,
                 onSubmitted: notifier.setSearchApiKey,
@@ -165,19 +178,19 @@ class SettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 24),
-          const _EmailSection(),
+          _EmailSection(lang: lang),
           const SizedBox(height: 24),
           SettingsSection(
-            title: 'Wake word y sensores',
+            title: Strings.wakeSensorsSection(lang),
             children: [
               SettingsSwitchTile(
-                label: 'Palabra clave «${settings.wakeWord}»',
-                subtitle: 'Escuchar siempre para responder por voz',
+                label: Strings.wakeWordLabel(settings.wakeWord, lang),
+                subtitle: Strings.wakeWordHint(lang),
                 value: settings.wakeWordEnabled,
                 onChanged: notifier.setWakeWordEnabled,
               ),
               SettingsTextTile(
-                label: 'Frase para despertar',
+                label: Strings.wakePhraseLabel(lang),
                 hint: 'hola astro',
                 value: settings.wakeWord,
                 onSubmitted: (v) async {
@@ -189,7 +202,7 @@ class SettingsScreen extends ConsumerWidget {
                 },
               ),
               SettingsSliderTile(
-                label: 'Sensibilidad',
+                label: Strings.sensitivity(lang),
                 value: settings.wakeWordSensitivity,
                 min: 0.0,
                 max: 1.0,
@@ -208,10 +221,10 @@ class SettingsScreen extends ConsumerWidget {
                   final permAsync = ref.watch(navPermissionProvider);
                   final hasPermission = permAsync.valueOrNull ?? true;
                   final subtitle = settings.navListenerEnabled && !hasPermission
-                      ? 'Sin acceso a notificaciones — toca para conceder'
-                      : 'Reaccionar a las indicaciones de Google Maps';
+                      ? Strings.navGrantHint(lang)
+                      : Strings.navOnHint(lang);
                   return SettingsSwitchTile(
-                    label: 'Navegación (Maps)',
+                    label: Strings.navLabel(lang),
                     subtitle: subtitle,
                     value: settings.navListenerEnabled,
                     onChanged: (on) async {
@@ -227,8 +240,8 @@ class SettingsScreen extends ConsumerWidget {
                 },
               ),
               SettingsSwitchTile(
-                label: 'Brillo automático',
-                subtitle: 'Ajustar el brillo con la luz del ambiente',
+                label: Strings.autoBrightness(lang),
+                subtitle: Strings.autoBrightnessHint(lang),
                 value: settings.autoBrightnessEnabled,
                 onChanged: notifier.setAutoBrightnessEnabled,
               ),
@@ -240,20 +253,20 @@ class SettingsScreen extends ConsumerWidget {
           const _MemorySection(),
           const SizedBox(height: 24),
           SettingsSection(
-            title: 'Permisos',
+            title: Strings.permissionsSection(lang),
             children: [
               ListTile(
-                title: const Text(
-                  'Micrófono',
-                  style: TextStyle(color: DesignTokens.ink),
+                title: Text(
+                  Strings.micPermission(lang),
+                  style: const TextStyle(color: DesignTokens.ink),
                 ),
                 trailing: const Icon(Icons.mic, color: DesignTokens.dim),
                 onTap: () => const Permissions().requestMicrophone(),
               ),
               ListTile(
-                title: const Text(
-                  'Notificaciones',
-                  style: TextStyle(color: DesignTokens.ink),
+                title: Text(
+                  Strings.notificationsPermission(lang),
+                  style: const TextStyle(color: DesignTokens.ink),
                 ),
                 trailing: const Icon(
                   Icons.notifications,
@@ -262,9 +275,9 @@ class SettingsScreen extends ConsumerWidget {
                 onTap: () => const Permissions().requestNotifications(),
               ),
               ListTile(
-                title: const Text(
-                  'Ubicación',
-                  style: TextStyle(color: DesignTokens.ink),
+                title: Text(
+                  Strings.locationPermission(lang),
+                  style: const TextStyle(color: DesignTokens.ink),
                 ),
                 trailing: const Icon(
                   Icons.location_on,
@@ -276,7 +289,7 @@ class SettingsScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 24),
           SettingsSection(
-            title: 'Acerca de',
+            title: Strings.aboutSection(lang),
             children: [
               ListTile(
                 title: const Text(
@@ -284,10 +297,12 @@ class SettingsScreen extends ConsumerWidget {
                   style: TextStyle(color: DesignTokens.ink),
                 ),
                 subtitle: Text(
-                  'v$_appVersion'
-                  ' · Voz neuronal: '
-                  '${settings.neuralVoiceInstalled ? "instalada" : "no instalada"}'
-                  ' · Modelo: ${settings.llmModel}',
+                  Strings.aboutSubtitle(
+                    _appVersion,
+                    settings.neuralVoiceInstalled,
+                    settings.llmModel,
+                    lang,
+                  ),
                   style: const TextStyle(color: DesignTokens.dim),
                 ),
               ),
@@ -335,10 +350,15 @@ class SettingsScreen extends ConsumerWidget {
 /// chosen again. Also shown automatically when the stored model is already a
 /// non-preset value (so existing custom values open in custom mode).
 class _ModelPickerTile extends StatefulWidget {
-  const _ModelPickerTile({required this.currentModel, required this.onChanged});
+  const _ModelPickerTile({
+    required this.currentModel,
+    required this.onChanged,
+    required this.lang,
+  });
 
   final String currentModel;
   final ValueChanged<String> onChanged;
+  final AppLang lang;
 
   @override
   State<_ModelPickerTile> createState() => _ModelPickerTileState();
@@ -375,9 +395,9 @@ class _ModelPickerTileState extends State<_ModelPickerTile> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         ListTile(
-          title: const Text(
-            'Modelo',
-            style: TextStyle(color: DesignTokens.ink),
+          title: Text(
+            Strings.modelLabel(widget.lang),
+            style: const TextStyle(color: DesignTokens.ink),
           ),
           trailing: DropdownButton<String>(
             value: dropdownValue,
@@ -387,9 +407,9 @@ class _ModelPickerTileState extends State<_ModelPickerTile> {
             items: [
               for (final p in _modelPresets)
                 DropdownMenuItem(value: p, child: Text(p)),
-              const DropdownMenuItem(
+              DropdownMenuItem(
                 value: _customSentinel,
-                child: Text('Personalizado…'),
+                child: Text(Strings.customModel(widget.lang)),
               ),
             ],
             onChanged: (v) {
@@ -407,7 +427,7 @@ class _ModelPickerTileState extends State<_ModelPickerTile> {
         ),
         if (_customMode)
           SettingsTextTile(
-            label: 'Modelo personalizado',
+            label: Strings.customModelLabel(widget.lang),
             value: widget.currentModel,
             hint: 'MiniMax-M3',
             onSubmitted: widget.onChanged,
@@ -420,13 +440,13 @@ class _ModelPickerTileState extends State<_ModelPickerTile> {
 /// Tools section: one switch per brain tool the driver can turn on/off. A
 /// disabled tool is dropped from the brain (the model can't call it). When an
 /// enabled tool needs an OS permission it lacks, a tappable "grant" line shows.
-class _ToolsSection extends StatelessWidget {
+class _ToolsSection extends ConsumerWidget {
   const _ToolsSection();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return SettingsSection(
-      title: 'Herramientas',
+      title: Strings.toolsSection(ref.watch(langProvider)),
       children: [for (final info in kToolCatalog) _ToolTile(info: info)],
     );
   }
@@ -487,7 +507,10 @@ class _ToolTileState extends ConsumerState<_ToolTile> {
               child: Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: Text(
-                  'Falta permiso de ${info.permissionLabel} — toca para conceder',
+                  Strings.missingPermission(
+                    info.permissionLabel ?? '',
+                    ref.watch(langProvider),
+                  ),
                   style: const TextStyle(
                     color: Color(0xFFFF4D57),
                     fontWeight: FontWeight.w600,
@@ -518,30 +541,34 @@ class _MemorySection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final memoryAsync = ref.watch(memoryProvider);
+    final lang = ref.watch(langProvider);
     return SettingsSection(
-      title: 'Memoria',
+      title: Strings.memorySection(lang),
       children: [
         memoryAsync.when(
-          loading: () => const ListTile(
-            title: Text('Memoria', style: TextStyle(color: DesignTokens.ink)),
-            trailing: SizedBox(
+          loading: () => ListTile(
+            title: Text(
+              Strings.memorySection(lang),
+              style: const TextStyle(color: DesignTokens.ink),
+            ),
+            trailing: const SizedBox(
               width: 18,
               height: 18,
               child: CircularProgressIndicator(strokeWidth: 2),
             ),
           ),
-          error: (_, __) => const ListTile(
+          error: (_, __) => ListTile(
             title: Text(
-              'Memoria no disponible',
-              style: TextStyle(color: DesignTokens.dim),
+              Strings.memoryUnavailable(lang),
+              style: const TextStyle(color: DesignTokens.dim),
             ),
           ),
           data: (memory) {
             if (memory == null) {
-              return const ListTile(
+              return ListTile(
                 title: Text(
-                  'Memoria no disponible',
-                  style: TextStyle(color: DesignTokens.dim),
+                  Strings.memoryUnavailable(lang),
+                  style: const TextStyle(color: DesignTokens.dim),
                 ),
               );
             }
@@ -549,9 +576,9 @@ class _MemorySection extends ConsumerWidget {
             // new memory (the extractor invalidates memoryCountProvider).
             final n = ref.watch(memoryCountProvider).valueOrNull ?? 0;
             return ListTile(
-              title: const Text(
-                'Recuerdos guardados',
-                style: TextStyle(color: DesignTokens.ink),
+              title: Text(
+                Strings.savedMemories(lang),
+                style: const TextStyle(color: DesignTokens.ink),
               ),
               subtitle: Text(
                 '$n',
@@ -562,18 +589,16 @@ class _MemorySection extends ConsumerWidget {
                   final ok = await showDialog<bool>(
                     context: context,
                     builder: (ctx) => AlertDialog(
-                      title: const Text('¿Borrar la memoria?'),
-                      content: const Text(
-                        'Astro olvidará todo lo que recuerda de ti.',
-                      ),
+                      title: Text(Strings.clearMemoryTitle(lang)),
+                      content: Text(Strings.clearMemoryBody(lang)),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(ctx, false),
-                          child: const Text('Cancelar'),
+                          child: Text(Strings.cancel(lang)),
                         ),
                         TextButton(
                           onPressed: () => Navigator.pop(ctx, true),
-                          child: const Text('Borrar'),
+                          child: Text(Strings.delete(lang)),
                         ),
                       ],
                     ),
@@ -583,7 +608,7 @@ class _MemorySection extends ConsumerWidget {
                     ref.invalidate(memoryCountProvider); // refresh the counter
                   }
                 },
-                child: const Text('Borrar'),
+                child: Text(Strings.delete(lang)),
               ),
             );
           },
@@ -598,7 +623,9 @@ class _MemorySection extends ConsumerWidget {
 /// isolated). Each field commits on submit. For Gmail: smtp.gmail.com : 587,
 /// your address as the user, and a 16-char app password (needs 2FA on).
 class _EmailSection extends StatefulWidget {
-  const _EmailSection();
+  const _EmailSection({required this.lang});
+
+  final AppLang lang;
 
   @override
   State<_EmailSection> createState() => _EmailSectionState();
@@ -655,9 +682,9 @@ class _EmailSectionState extends State<_EmailSection> {
     final uri = Uri.parse('https://myaccount.google.com/apppasswords');
     final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!ok && mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('No pude abrir el enlace.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(Strings.cantOpenLink(widget.lang))),
+      );
     }
   }
 
@@ -676,7 +703,7 @@ class _EmailSectionState extends State<_EmailSection> {
     if (mounted) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Correo guardado')));
+      ).showSnackBar(SnackBar(content: Text(Strings.emailSaved(widget.lang))));
     }
   }
 
@@ -714,28 +741,37 @@ class _EmailSectionState extends State<_EmailSection> {
 
   @override
   Widget build(BuildContext context) {
+    final lang = widget.lang;
     if (!_loaded) {
-      return const SettingsSection(
-        title: 'Email (SMTP)',
+      return SettingsSection(
+        title: Strings.emailSection(lang),
         children: [
           ListTile(
-            title: Text('Cargando…', style: TextStyle(color: DesignTokens.dim)),
+            title: Text(
+              Strings.loading(lang),
+              style: const TextStyle(color: DesignTokens.dim),
+            ),
           ),
         ],
       );
     }
     return SettingsSection(
-      title: 'Email (SMTP)',
+      title: Strings.emailSection(lang),
       children: [
-        _field('Servidor SMTP', _host, hint: 'smtp.gmail.com'),
-        _field('Puerto', _port, hint: '587', keyboard: TextInputType.number),
+        _field(Strings.smtpServer(lang), _host, hint: 'smtp.gmail.com'),
         _field(
-          'Usuario (correo)',
+          Strings.port(lang),
+          _port,
+          hint: '587',
+          keyboard: TextInputType.number,
+        ),
+        _field(
+          Strings.emailUser(lang),
           _user,
           hint: 'tucorreo@gmail.com',
           keyboard: TextInputType.emailAddress,
         ),
-        _field('Contraseña o app password', _pass, obscure: true),
+        _field(Strings.passwordOrAppPassword(lang), _pass, obscure: true),
         ListTile(
           dense: true,
           leading: const Icon(
@@ -743,20 +779,20 @@ class _EmailSectionState extends State<_EmailSection> {
             color: DesignTokens.accent,
             size: 18,
           ),
-          title: const Text(
-            'Crear app password de Gmail',
-            style: TextStyle(color: DesignTokens.accent, fontSize: 13),
+          title: Text(
+            Strings.createGmailAppPassword(lang),
+            style: const TextStyle(color: DesignTokens.accent, fontSize: 13),
           ),
-          subtitle: const Text(
-            'Requiere verificación en dos pasos. Se abre en el navegador.',
-            style: TextStyle(color: DesignTokens.dim, fontSize: 11),
+          subtitle: Text(
+            Strings.appPasswordHint(lang),
+            style: const TextStyle(color: DesignTokens.dim, fontSize: 11),
           ),
           onTap: _openAppPasswordHelp,
         ),
-        _field('Nombre del remitente (opcional)', _from, hint: 'Astro'),
-        _field('Servidor IMAP (para leer)', _imapHost, hint: 'imap.gmail.com'),
+        _field(Strings.senderName(lang), _from, hint: 'Astro'),
+        _field(Strings.imapServer(lang), _imapHost, hint: 'imap.gmail.com'),
         _field(
-          'Puerto IMAP',
+          Strings.imapPort(lang),
           _imapPort,
           hint: '993',
           keyboard: TextInputType.number,
@@ -765,7 +801,10 @@ class _EmailSectionState extends State<_EmailSection> {
           padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
           child: SizedBox(
             width: double.infinity,
-            child: FilledButton(onPressed: _save, child: const Text('Guardar')),
+            child: FilledButton(
+              onPressed: _save,
+              child: Text(Strings.save(lang)),
+            ),
           ),
         ),
       ],

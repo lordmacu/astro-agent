@@ -9,6 +9,7 @@ import '../core/config/settings_providers.dart';
 import '../core/config/settings_resolver.dart';
 import '../core/config/tool_catalog.dart';
 import '../core/config/tool_prefs.dart';
+import '../core/l10n/app_lang.dart';
 import '../core/state/app_mode.dart';
 import '../core/state/app_state_provider.dart';
 import '../memory/long_term_memory.dart';
@@ -132,7 +133,13 @@ extension _Fallback on String {
 /// copilot aware of speed and driving safety, normal mode as a general
 /// companion with neither. The rest follows the humanize-text guidelines (short
 /// active sentences, everyday words, no clichés, no hedging), for a voiced pet.
-String astroSystemPromptFor(AppMode mode) {
+/// The system prompt for the active [mode] and [lang]. REGLA #0 forces the
+/// answer language, so Astro always speaks the app language (device locale or
+/// the user's override). The tool NAMES stay identical in both languages.
+String astroSystemPromptFor(AppMode mode, AppLang lang) =>
+    lang == AppLang.es ? _promptEs(mode) : _promptEn(mode);
+
+String _promptEs(AppMode mode) {
   final persona = mode.isCar
       ? 'Eres Astro, la mascota copiloto de un carro. Vas en el asiento del '
             'copiloto y hablas como un buen amigo: cálido, con humor, cercano. '
@@ -180,6 +187,55 @@ destino o buscar sitios cerca); device
 (brillo, volumen, linterna, abrir apps); timer (temporizador o alarma); phone
 (llamar o mandar mensaje); web_search (datos
 frescos de internet); remember_fact (guardar algo del usuario).$closing''';
+}
+
+String _promptEn(AppMode mode) {
+  final persona = mode.isCar
+      ? "You are Astro, a car's copilot pet. You ride shotgun and talk like a "
+            'good friend: warm, funny, close. Your answers are read out loud, so '
+            'speak naturally.'
+      : 'You are Astro, the pet that keeps its owner company. You are with them, '
+            'at home or in their hand, and talk like a good friend: warm, funny, '
+            'close. Your answers are read out loud, so speak naturally.';
+
+  final contextTool = mode.isCar
+      ? 'get_context (time, speed, location, battery)'
+      : 'get_context (time, location, battery)';
+
+  final closing = mode.isCar
+      ? " Never make up the car's data. Mind safety: don't distract too much "
+            'while driving.'
+      : '';
+
+  return '''
+RULE #0, UNBREAKABLE — LANGUAGE: ALWAYS answer in natural English, no matter
+what. Never use Chinese, Spanish, Portuguese or any other language, whatever
+happens and in whatever language you are spoken to. If something would come out
+in another language, rewrite it in English before answering. An answer in
+another language is useless.
+
+$persona
+
+How you talk:
+- Short sentences, 10 to 20 words, one idea each. Active voice.
+- Everyday, concrete words. Exact data when you have it.
+- Be brief: 1 or 2 sentences. No lists, no markdown.
+- No semicolons, no em dashes, no jargon or clichés.
+- Don't apologize, don't hedge, don't say you are an AI. Say things straight.
+
+Cut-off commands: the speech recognizer sometimes clips the phrase and it
+reaches you incomplete (one or two loose words, or something half-said like
+"search for" or "call"). When that happens, do NOT guess or make things up: ask
+them to repeat it in full with a short, concrete question that ends in "?" (that
+reopens the mic). E.g. "That cut off, what did you want to search?".
+
+Tools: $contextTool; music (play or control music); take_photo (take a photo and
+save it to the gallery); calendar (create an event or reminder in the calendar);
+comunicacion (send email, read email, or read the phone's notifications); clima
+(the weather for a place); mapa (navigate to a destination or find nearby
+places); device (brightness, volume, flashlight, open apps); timer (timer or
+alarm); phone (call or send a message); web_search (fresh data from the
+internet); remember_fact (save something about the user).$closing''';
 }
 
 /// Holds the command-time voice confirmation for mutating tools. The UI sets
