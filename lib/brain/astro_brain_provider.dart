@@ -16,6 +16,7 @@ import '../platform/system_actions.dart';
 import 'astro_brain.dart';
 import 'llm/providers/openai_compat_client.dart';
 import 'memory_context.dart';
+import '../platform/app_launcher.dart';
 import '../platform/battery_reader.dart';
 import '../platform/calendar_prefs.dart';
 import '../platform/calendar_writer.dart';
@@ -173,7 +174,8 @@ Herramientas: $contextTool; music (poner o controlar música); take_photo (tomar
 una foto y guardarla en la galería); calendar (crear un evento o recordatorio en
 el calendario); send_email (mandar un correo); read_email (revisar los últimos
 correos); clima (el tiempo de un lugar); lugares (buscar sitios cerca en el
-mapa); device (brillo, volumen, linterna); navigate (llevar a un destino);
+mapa); device (brillo, volumen, linterna, abrir apps); navigate (llevar a un
+destino);
 timer (temporizador o alarma); phone (llamar o mandar mensaje); web_search (datos
 frescos de internet); remember_fact (guardar algo del usuario).$closing''';
 }
@@ -332,9 +334,10 @@ final astroBrainProvider = FutureProvider<AstroBrain>((ref) async {
           await const SmtpStore().load(),
           count: count,
         ),
+        openMailApp: actions.openEmailApp,
       ),
     )
-    // Phone hardware: brightness + volume + flashlight.
+    // Phone hardware: brightness + volume + flashlight + open apps.
     ..register(
       DeviceTool(
         setBrightness: (v) =>
@@ -342,6 +345,7 @@ final astroBrainProvider = FutureProvider<AstroBrain>((ref) async {
         setVolume: media.setVolume,
         nudgeVolume: media.nudgeVolume,
         setTorch: media.setTorch, // native CameraManager (reliable off)
+        openApp: const AppLauncher().open,
       ),
     )
     // Navigation to a destination.
