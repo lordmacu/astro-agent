@@ -69,12 +69,12 @@ dependencies:
   vosk_flutter_2: ^1.0.5
   permission_handler: ^11.4.0
 
-  # Offline NEURAL TTS (sherpa-onnx + Piper) — the later upgrade, kept off for
-  # fast dev builds. Uncomment to switch (see lib/voice/tts_provider.dart).
-  # sherpa_onnx: ^1.10.0
-  # path_provider: ^2.1.4
-  # audioplayers: ^6.1.0
-  # archive: ^3.6.1
+  # Offline NEURAL TTS (sherpa-onnx + Piper) — loads from a downloaded model
+  # directory (see lib/voice/sherpa_tts.dart, lib/voice/tts_provider.dart).
+  sherpa_onnx: ^1.10.0
+  path_provider: ^2.1.4
+  audioplayers: ^6.1.0
+  archive: ^3.6.1
 
 dev_dependencies:
   flutter_test:
