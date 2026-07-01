@@ -49,6 +49,10 @@ void main() {
         child: const MaterialApp(home: SettingsScreen()),
       ),
     );
+    // Scroll to reveal the wake-word tile (the Voz section now has extra items
+    // above it that push the wake-word section below the initial viewport).
+    await tester.drag(find.byType(ListView), const Offset(0, -400));
+    await tester.pumpAndSettle();
     final tile = find.widgetWithText(SwitchListTile, 'Palabra clave «Astro»');
     expect(tile, findsOneWidget);
     await tester.tap(tile);

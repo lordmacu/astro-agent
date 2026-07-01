@@ -5,6 +5,8 @@ import '../../brain/astro_brain_provider.dart';
 import '../../core/config/design_tokens.dart';
 import '../../core/config/settings_providers.dart';
 import '../../platform/permissions.dart';
+import '../../voice/neural_voice_installer.dart';
+import '../../voice/neural_voice_provider.dart';
 import 'settings_widgets.dart';
 
 /// The single place where all runtime configuration lives. Grows section by
@@ -33,6 +35,52 @@ class SettingsScreen extends ConsumerWidget {
                 min: 0.3,
                 max: 1.0,
                 onChanged: notifier.setVoiceRate,
+              ),
+              // Neural voice: download on demand, then enable.
+              Consumer(
+                builder: (context, ref, _) {
+                  final installState = ref.watch(voiceInstallStateProvider);
+                  final installed = settings.neuralVoiceInstalled;
+                  final subtitle = installState.maybeWhen(
+                    data: (s) => switch (s) {
+                      Installing(:final progress) =>
+                        progress < 0
+                            ? 'Descargando…'
+                            : 'Descargando ${(progress * 100).round()}%',
+                      InstallError(:final message) => 'Error: $message',
+                      Installed() => 'Lista',
+                      NotInstalled() =>
+                        installed ? 'Instalada' : 'No descargada',
+                    },
+                    orElse: () => installed ? 'Instalada' : 'No descargada',
+                  );
+                  return ListTile(
+                    title: const Text(
+                      'Voz neuronal (offline)',
+                      style: TextStyle(color: DesignTokens.ink),
+                    ),
+                    subtitle: Text(
+                      subtitle,
+                      style: const TextStyle(color: DesignTokens.dim),
+                    ),
+                    trailing: installed
+                        ? null
+                        : TextButton(
+                            onPressed: () => ref
+                                .read(neuralVoiceInstallerProvider)
+                                .install(),
+                            child: const Text('Descargar'),
+                          ),
+                  );
+                },
+              ),
+              SettingsSwitchTile(
+                label: 'Usar voz neuronal',
+                subtitle: 'Requiere descargarla primero',
+                value: settings.neuralVoiceEnabled,
+                onChanged: settings.neuralVoiceInstalled
+                    ? notifier.setNeuralVoiceEnabled
+                    : (_) {},
               ),
             ],
           ),
