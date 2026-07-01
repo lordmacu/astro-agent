@@ -10,9 +10,12 @@ import '../core/config/settings_providers.dart';
 import '../core/state/app_mode.dart';
 import '../core/state/app_state.dart';
 import '../core/state/app_state_provider.dart';
+import '../platform/contact_match.dart';
+import '../platform/system_actions.dart';
 import '../voice/stt_provider.dart';
 import '../voice/voice_interfaces.dart';
 import '../voice/wake_word_provider.dart';
+import '../voice/sherpa_tts.dart';
 import '../voice/tts_provider.dart';
 import '../voice/voice_controller.dart';
 import '../voice/voice_pipeline.dart';
@@ -47,6 +50,16 @@ class _PetScreenState extends ConsumerState<PetScreen> {
   String? _confirmPrompt;
   Completer<bool>? _confirmCompleter;
 
+  /// When a spoken name matches several contacts: the choices to show, and the
+  /// pending pick (resolved by tapping a contact).
+  List<ContactCandidate>? _pickContacts;
+  Completer<ContactCandidate?>? _pickCompleter;
+
+  /// For calls/messages: the fixed line Astro should say with the REAL contact
+  /// name, spoken by the app instead of the model's paraphrase (which mangles
+  /// the name). Set during confirmation, consumed by [_answerStreaming].
+  String? _overrideAnswer;
+
   @override
   void initState() {
     super.initState();
@@ -57,6 +70,10 @@ class _PetScreenState extends ConsumerState<PetScreen> {
     final recognizer = ref.read(speechRecognizerProvider);
     unawaited(recognizer.warmUp());
     recognizer.onListening = () => ref.read(mediaControllerProvider).beep();
+    final tts = ref.read(ttsProvider);
+    if (tts is SherpaTts) {
+      unawaited(tts.warmUp());
+    }
     _wakeSub = _wake.onWake.listen((_) {
       if (!_busy) _converse();
     });
@@ -65,18 +82,82 @@ class _PetScreenState extends ConsumerState<PetScreen> {
     }
   }
 
-  /// Confirmation for a mutating tool. Shows SÍ/NO buttons AND listens for a
-  /// spoken yes/no — whichever comes first wins. The buttons make it reliable
-  /// even when the mic misses a short "sí" right after Astro speaks. Times out
-  /// to "no" if the driver does nothing.
+  /// Confirmation gate for a mutating tool. Phone gets a contact-aware flow;
+  /// everything else gets a plain yes/no.
   Future<bool> _confirmTool(AstroTool tool, Map<String, dynamic> args) async {
+    if (tool.name == 'phone') return _confirmPhone(args);
+    return _confirmYesNo(_confirmQuestion(tool, args));
+  }
+
+  /// Phone confirmation with fuzzy contact resolution:
+  ///  - 0 matches → say it wasn't found, deny.
+  ///  - 1 match  → confirm the REAL contact name (yes/no).
+  ///  - 2+ match → show a picker; tapping a contact confirms it.
+  /// On confirm/pick, the resolved number is written back into [args] so the
+  /// tool dials the right person, not the misheard name.
+  Future<bool> _confirmPhone(Map<String, dynamic> args) async {
     final controller = ref.read(voiceControllerProvider.notifier);
-    final question = _confirmQuestion(tool, args);
+    final spoken = (args['contact'] as String?)?.trim() ?? '';
+    final isMessage =
+        (args['action'] as String?)?.trim().toLowerCase() == 'message';
+
+    // Already a raw number → confirm as spoken, no lookup.
+    if (RegExp(r'^[+0-9][0-9\s\-()]{4,}$').hasMatch(spoken)) {
+      final ok = await _confirmYesNo(
+        isMessage ? '¿Le mando el mensaje a $spoken?' : '¿Llamo a $spoken?',
+      );
+      if (ok) _setPhoneOverride(spoken, isMessage);
+      return ok;
+    }
+
+    final matches = await const SystemActions().matchingContacts(spoken);
+    if (matches.isEmpty) {
+      await _say('No encontré a $spoken en tus contactos.', controller);
+      return false;
+    }
+    if (matches.length == 1) {
+      _applyContact(args, matches.first);
+      final ok = await _confirmYesNo(
+        isMessage
+            ? '¿Le escribo a ${matches.first.name}?'
+            : '¿Llamo a ${matches.first.name}?',
+      );
+      if (ok) _setPhoneOverride(matches.first.name, isMessage);
+      return ok;
+    }
+
+    // Several close matches → let the driver tap the right one.
+    final chosen = await _pickContact(matches, isMessage);
+    if (chosen == null) return false;
+    _applyContact(args, chosen);
+    _setPhoneOverride(chosen.name, isMessage);
+    return true;
+  }
+
+  /// The exact line the app will speak after the call/message goes out, using
+  /// the real contact name (bypasses the model's name-mangling paraphrase).
+  void _setPhoneOverride(String name, bool isMessage) {
+    _overrideAnswer = isMessage
+        ? 'Listo, te dejé el mensaje para $name.'
+        : 'Ya estoy llamando a $name.';
+  }
+
+  /// Write the resolved contact back into the tool args: the exact number to
+  /// dial, plus the real contact name so Astro reports the right person.
+  void _applyContact(Map<String, dynamic> args, ContactCandidate c) {
+    args['number'] = c.number;
+    args['contact'] = c.name;
+  }
+
+  /// Show SÍ/NO buttons AND listen for a spoken yes/no — whichever comes first
+  /// wins. The buttons make it reliable even when the mic misses a short "sí"
+  /// right after Astro speaks. Times out to "no" if the driver does nothing.
+  Future<bool> _confirmYesNo(String question) async {
+    final controller = ref.read(voiceControllerProvider.notifier);
     final completer = Completer<bool>();
     _confirmCompleter = completer;
     if (mounted) setState(() => _confirmPrompt = question);
 
-    // Safety net: never hang waiting for an answer.
     final timeout = Timer(const Duration(seconds: 20), () {
       if (!completer.isCompleted) completer.complete(false);
     });
@@ -89,6 +170,34 @@ class _PetScreenState extends ConsumerState<PetScreen> {
     if (mounted) setState(() => _confirmPrompt = null);
     controller.applyPhase(VoicePhase.thinking);
     return result;
+  }
+
+  /// Show a contact picker; tapping a contact resolves the pick. Returns null on
+  /// timeout / dismissal.
+  Future<ContactCandidate?> _pickContact(
+    List<ContactCandidate> contacts,
+    bool isMessage,
+  ) async {
+    final controller = ref.read(voiceControllerProvider.notifier);
+    final completer = Completer<ContactCandidate?>();
+    _pickCompleter = completer;
+    if (mounted) setState(() => _pickContacts = contacts);
+
+    final timeout = Timer(const Duration(seconds: 20), () {
+      if (!completer.isCompleted) completer.complete(null);
+    });
+
+    await _say(
+      isMessage ? '¿A quién le escribo?' : '¿A quién llamo?',
+      controller,
+    );
+
+    final chosen = await completer.future;
+    timeout.cancel();
+    _pickCompleter = null;
+    if (mounted) setState(() => _pickContacts = null);
+    controller.applyPhase(VoicePhase.thinking);
+    return chosen;
   }
 
   /// Speak the question and listen for a spoken yes/no (short-reply mode), up to
@@ -120,16 +229,9 @@ class _PetScreenState extends ConsumerState<PetScreen> {
     if (!completer.isCompleted) await _say('Toca sí o no.', controller);
   }
 
-  String _confirmQuestion(AstroTool tool, Map<String, dynamic> args) {
-    if (tool.name == 'phone') {
-      final contact = (args['contact'] as String?)?.trim() ?? 'ese contacto';
-      final action = (args['action'] as String?)?.trim().toLowerCase();
-      return action == 'message'
-          ? '¿Le mando el mensaje a $contact?'
-          : '¿Llamo a $contact?';
-    }
-    return '¿Lo hago?';
-  }
+  /// Question for a generic mutating tool (phone has its own contact-aware flow).
+  String _confirmQuestion(AstroTool tool, Map<String, dynamic> args) =>
+      '¿Lo hago?';
 
   bool _isAffirmative(String reply) {
     final r = reply.toLowerCase();
@@ -219,6 +321,7 @@ class _PetScreenState extends ConsumerState<PetScreen> {
       return _wakeAck;
     }
     controller.applyPhase(VoicePhase.thinking);
+    _overrideAnswer = null; // reset; a phone confirm may set it mid-turn
 
     var started = false;
     Future<void> ttsChain = Future.value();
@@ -240,6 +343,9 @@ class _PetScreenState extends ConsumerState<PetScreen> {
         model: ref.read(astroModelProvider),
         system: astroSystemPromptFor(ref.read(appModeProvider)),
         onSentence: (sentence) {
+          // Suppress the model's own words when we'll speak a fixed line (e.g.
+          // a call, where the model tends to mangle the contact name).
+          if (_overrideAnswer != null) return;
           // Queue each sentence so they play in order, one after another.
           ttsChain = ttsChain.then((_) async {
             ensureSpeaking();
@@ -249,6 +355,15 @@ class _PetScreenState extends ConsumerState<PetScreen> {
         },
       );
       await ttsChain; // let all queued speech finish
+
+      // A call/message went out → say the app's line with the real name.
+      final override = _overrideAnswer;
+      if (override != null) {
+        _overrideAnswer = null;
+        _visemeTimer?.cancel();
+        await _say(override, controller);
+        return override;
+      }
       return answer;
     } catch (e) {
       await ttsChain;
@@ -322,7 +437,7 @@ class _PetScreenState extends ConsumerState<PetScreen> {
     final appState =
         ref.watch(appStateProvider).valueOrNull ?? const AppState();
 
-    final ambient = AmbientPalette.fromLux(appState.lux);
+    final ambient = AmbientPalette.fromHour(DateTime.now().hour);
     final moodColor = DesignTokens.moodColor[mood.mood];
     final bodyColor = moodColor ?? ambient.body;
     final accent = moodColor ?? ambient.accent;
@@ -354,8 +469,6 @@ class _PetScreenState extends ConsumerState<PetScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        AmbientChip(ambient: ambient, lux: appState.lux),
-                        const SizedBox(height: 16),
                         // Speed readout + ring only in car mode.
                         if (carMode) ...[
                           Speedometer(
@@ -366,6 +479,14 @@ class _PetScreenState extends ConsumerState<PetScreen> {
                         ],
                         GestureDetector(
                           onTap: () => _speakStandalone(_greeting),
+                          // Press-and-hold to pet Astro (the caress reaction),
+                          // since this phone has no usable proximity sensor.
+                          onLongPressStart: (_) =>
+                              ref.read(pettingProvider.notifier).state = true,
+                          onLongPressEnd: (_) =>
+                              ref.read(pettingProvider.notifier).state = false,
+                          onLongPressCancel: () =>
+                              ref.read(pettingProvider.notifier).state = false,
                           child: carMode
                               ? VelocityRing(
                                   speedKmh: appState.speedKmh,
@@ -391,12 +512,6 @@ class _PetScreenState extends ConsumerState<PetScreen> {
                               fontSize: 17,
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 16),
-                        EventRow(
-                          event: eventLabel(mood.mood),
-                          eventColor: accent,
-                          near: appState.proximityNear,
                         ),
                         const SizedBox(height: 16),
                         Text(
@@ -454,7 +569,75 @@ class _PetScreenState extends ConsumerState<PetScreen> {
             ),
           ),
           if (_confirmPrompt != null) _confirmOverlay(accent),
+          if (_pickContacts != null) _pickOverlay(accent),
         ],
+      ),
+    );
+  }
+
+  /// Full-screen contact picker: a button per matching contact; tapping one
+  /// resolves the pick (and calls / messages that person).
+  Widget _pickOverlay(Color accent) {
+    final contacts = _pickContacts ?? const [];
+    return Positioned.fill(
+      child: ColoredBox(
+        color: Colors.black.withValues(alpha: 0.72),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                const Text(
+                  '¿A cuál?',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: DesignTokens.ink,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                for (final c in contacts) ...[
+                  _contactButton(c, accent),
+                  const SizedBox(height: 12),
+                ],
+                _contactButton(null, DesignTokens.dim), // Cancel
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// A contact row in the picker. [contact] null renders a Cancel button.
+  Widget _contactButton(ContactCandidate? contact, Color color) {
+    return GestureDetector(
+      onTap: () {
+        if (_pickCompleter?.isCompleted == false) {
+          _pickCompleter!.complete(contact);
+        }
+      },
+      child: Container(
+        width: double.infinity,
+        height: 60,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.18),
+          border: Border.all(color: color, width: 2),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Text(
+          contact?.name ?? 'Cancelar',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: color,
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ),
     );
   }
