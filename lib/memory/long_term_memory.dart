@@ -6,15 +6,15 @@ import 'package:uuid/uuid.dart';
 import 'embedding/embedding_provider.dart';
 import 'memory_entry.dart';
 
-/// Default agent id. Chispa is a single pet, so one bucket is enough; the
+/// Default agent id. Astro is a single pet, so one bucket is enough; the
 /// column stays for parity with the nexo-rs schema and future multi-agent use.
-const String kDefaultAgentId = 'chispa';
+const String kDefaultAgentId = 'astro';
 
 /// SQLite-backed long-term memory. Ported from the nexo-rs `LongTermMemory`,
 /// trimmed to the core store: write memories and recall them by full-text
 /// search (FTS5). Vector/embedding recall and the dreaming sweep come later.
 class LongTermMemory {
-  LongTermMemory._(this._db, this.agentId, this._embedder);
+  LongTermMemory._(this._db, this.agentId, this._embedder, this._ftsAvailable);
 
   final Database _db;
   final String agentId;
@@ -23,9 +23,15 @@ class LongTermMemory {
   /// vectors and `recallSemantic` works.
   final EmbeddingProvider? _embedder;
 
+  /// Whether the device's SQLite has the FTS5 module. Some Android builds ship
+  /// SQLite without it (`no such module: fts5`); there, recall falls back to a
+  /// plain LIKE search so memory still works.
+  final bool _ftsAvailable;
+
   static const _uuid = Uuid();
 
   bool get hasEmbedder => _embedder != null;
+  bool get hasFullTextSearch => _ftsAvailable;
 
   /// Open (and migrate) the database. Pass a [factory] — the device's
   /// `databaseFactory` in the app, or `databaseFactoryFfi` in tests. Use
@@ -33,16 +39,19 @@ class LongTermMemory {
   /// enable semantic recall.
   static Future<LongTermMemory> open({
     required DatabaseFactory factory,
-    String path = 'chispa_memory.db',
+    String path = 'astro_memory.db',
     String agentId = kDefaultAgentId,
     EmbeddingProvider? embedder,
+    bool forceNoFts = false, // test hook: simulate SQLite without FTS5
   }) async {
     final db = await factory.openDatabase(path);
-    await _createSchema(db);
-    return LongTermMemory._(db, agentId, embedder);
+    final fts = await _createSchema(db, allowFts: !forceNoFts);
+    return LongTermMemory._(db, agentId, embedder, fts);
   }
 
-  static Future<void> _createSchema(Database db) async {
+  /// Create the schema. Returns whether the FTS5 virtual table was created —
+  /// false on devices whose SQLite lacks the module (or when [allowFts] is off).
+  static Future<bool> _createSchema(Database db, {bool allowFts = true}) async {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS memories (
         id          TEXT PRIMARY KEY,
@@ -57,13 +66,6 @@ class LongTermMemory {
       CREATE INDEX IF NOT EXISTS idx_memories_agent
         ON memories(agent_id, created_at DESC)
     ''');
-    await db.execute('''
-      CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
-        content,
-        id UNINDEXED,
-        agent_id UNINDEXED
-      )
-    ''');
     // Vectors live in a plain table; similarity is computed in Dart since the
     // sqlite-vec extension is not available under sqflite.
     await db.execute('''
@@ -73,6 +75,20 @@ class LongTermMemory {
         embedding TEXT NOT NULL
       )
     ''');
+    if (!allowFts) return false;
+    try {
+      await db.execute('''
+        CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
+          content,
+          id UNINDEXED,
+          agent_id UNINDEXED
+        )
+      ''');
+      return true;
+    } catch (_) {
+      // Device SQLite without FTS5 — recall uses a LIKE fallback instead.
+      return false;
+    }
   }
 
   /// Store a memory and return it.
@@ -98,11 +114,13 @@ class LongTermMemory {
       'memory_type': entry.type,
       'created_at': entry.createdAt.millisecondsSinceEpoch,
     });
-    await _db.insert('memories_fts', {
-      'content': entry.content,
-      'id': entry.id,
-      'agent_id': entry.agentId,
-    });
+    if (_ftsAvailable) {
+      await _db.insert('memories_fts', {
+        'content': entry.content,
+        'id': entry.id,
+        'agent_id': entry.agentId,
+      });
+    }
 
     if (_embedder != null) {
       final vector = await _embedder.embedOne(entry.content);
@@ -117,11 +135,13 @@ class LongTermMemory {
   }
 
   /// Recall memories matching [query] (and optional [tags]), best match first.
+  /// Uses FTS5 when available, else a LIKE fallback on the same tokens.
   Future<List<MemoryEntry>> recall(
     String query, {
     List<String> tags = const [],
     int limit = 5,
   }) async {
+    if (!_ftsAvailable) return _recallLike(query, tags: tags, limit: limit);
     final rows = await _db.rawQuery(
       '''
       SELECT m.id, m.agent_id, m.content, m.tags, m.memory_type, m.created_at
@@ -132,6 +152,37 @@ class LongTermMemory {
       LIMIT ?
       ''',
       [buildFtsMatch(query, tags), agentId, limit],
+    );
+    return rows.map(_rowToEntry).toList();
+  }
+
+  /// FTS5-free recall: match memories whose content contains any query token
+  /// (case-insensitive), newest first. Coarser than FTS ranking, but keeps
+  /// memory usable on devices without the module.
+  Future<List<MemoryEntry>> _recallLike(
+    String query, {
+    List<String> tags = const [],
+    int limit = 5,
+  }) async {
+    final tokens = <String>{
+      ..._tokenize(query),
+      for (final t in tags) t.toLowerCase().trim(),
+    }..removeWhere((t) => t.isEmpty);
+    if (tokens.isEmpty) return recent(limit: limit);
+
+    final likes = List.filled(
+      tokens.length,
+      'LOWER(content) LIKE ?',
+    ).join(' OR ');
+    final rows = await _db.rawQuery(
+      '''
+      SELECT id, agent_id, content, tags, memory_type, created_at
+      FROM memories
+      WHERE agent_id = ? AND ($likes)
+      ORDER BY created_at DESC
+      LIMIT ?
+      ''',
+      [agentId, for (final t in tokens) '%$t%', limit],
     );
     return rows.map(_rowToEntry).toList();
   }
@@ -200,6 +251,18 @@ class LongTermMemory {
     return (rows.first['n'] as int?) ?? 0;
   }
 
+  /// Remove every memory for this agent. Returns how many rows were deleted.
+  Future<int> clearAll() async {
+    final removed = await _db.delete(
+      'memories',
+      where: 'agent_id = ?',
+      whereArgs: [agentId],
+    );
+    await _db.delete('memories_fts');
+    await _db.delete('memory_vectors');
+    return removed;
+  }
+
   /// Delete a memory by id. Returns true if a row was removed.
   Future<bool> forget(String id) async {
     final removed = await _db.delete(
@@ -207,7 +270,9 @@ class LongTermMemory {
       where: 'id = ?',
       whereArgs: [id],
     );
-    await _db.delete('memories_fts', where: 'id = ?', whereArgs: [id]);
+    if (_ftsAvailable) {
+      await _db.delete('memories_fts', where: 'id = ?', whereArgs: [id]);
+    }
     await _db.delete('memory_vectors', where: 'memory_id = ?', whereArgs: [id]);
     return removed > 0;
   }
@@ -222,8 +287,7 @@ class LongTermMemory {
       content: row['content'] as String,
       tags: (jsonDecode(tagsJson) as List).cast<String>(),
       type: row['memory_type'] as String?,
-      createdAt:
-          DateTime.fromMillisecondsSinceEpoch(row['created_at'] as int),
+      createdAt: DateTime.fromMillisecondsSinceEpoch(row['created_at'] as int),
     );
   }
 }
@@ -257,11 +321,55 @@ Iterable<String> _tokenize(String query) sync* {
 /// Common English function words dropped from recall queries so they don't
 /// match every memory.
 const Set<String> _stopwords = {
-  'the', 'a', 'an', 'and', 'or', 'of', 'to', 'in', 'on', 'at', 'for', 'is',
-  'are', 'was', 'were', 'be', 'am', 'do', 'does', 'did', 'how', 'what',
-  'which', 'where', 'when', 'why', 'who', 'it', 'its', 'this', 'that', 'these',
-  'those', 'i', 'you', 'he', 'she', 'we', 'they', 'me', 'my', 'your', 'our',
-  'their', 'with', 'as', 'by', 'from', 'about',
+  'the',
+  'a',
+  'an',
+  'and',
+  'or',
+  'of',
+  'to',
+  'in',
+  'on',
+  'at',
+  'for',
+  'is',
+  'are',
+  'was',
+  'were',
+  'be',
+  'am',
+  'do',
+  'does',
+  'did',
+  'how',
+  'what',
+  'which',
+  'where',
+  'when',
+  'why',
+  'who',
+  'it',
+  'its',
+  'this',
+  'that',
+  'these',
+  'those',
+  'i',
+  'you',
+  'he',
+  'she',
+  'we',
+  'they',
+  'me',
+  'my',
+  'your',
+  'our',
+  'their',
+  'with',
+  'as',
+  'by',
+  'from',
+  'about',
 };
 
 /// Escape a term as an FTS5 phrase: double internal quotes, then wrap in

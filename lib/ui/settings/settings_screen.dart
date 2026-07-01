@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../brain/astro_brain_provider.dart';
+import '../../core/config/design_tokens.dart';
 import '../../core/config/settings_providers.dart';
 import 'settings_widgets.dart';
 
@@ -89,8 +91,98 @@ class SettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 24),
+          const _MemorySection(),
+          const SizedBox(height: 24),
         ],
       ),
+    );
+  }
+}
+
+/// Memory section: shows the stored-memory count and offers a destructive
+/// "clear" with confirmation. Reads the shared memory instance from the brain
+/// provider; degrades to a disabled row if memory failed to open.
+class _MemorySection extends ConsumerWidget {
+  const _MemorySection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final memoryAsync = ref.watch(memoryProvider);
+    return SettingsSection(
+      title: 'Memoria',
+      children: [
+        memoryAsync.when(
+          loading: () => const ListTile(
+            title: Text('Memoria', style: TextStyle(color: DesignTokens.ink)),
+            trailing: SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+          error: (_, __) => const ListTile(
+            title: Text(
+              'Memoria no disponible',
+              style: TextStyle(color: DesignTokens.dim),
+            ),
+          ),
+          data: (memory) {
+            if (memory == null) {
+              return const ListTile(
+                title: Text(
+                  'Memoria no disponible',
+                  style: TextStyle(color: DesignTokens.dim),
+                ),
+              );
+            }
+            return FutureBuilder<int>(
+              future: memory.count(),
+              builder: (context, snap) {
+                final n = snap.data ?? 0;
+                return ListTile(
+                  title: const Text(
+                    'Recuerdos guardados',
+                    style: TextStyle(color: DesignTokens.ink),
+                  ),
+                  subtitle: Text(
+                    '$n',
+                    style: const TextStyle(color: DesignTokens.dim),
+                  ),
+                  trailing: TextButton(
+                    onPressed: () async {
+                      final ok = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('¿Borrar la memoria?'),
+                          content: const Text(
+                            'Astro olvidará todo lo que recuerda de ti.',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx, false),
+                              child: const Text('Cancelar'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx, true),
+                              child: const Text('Borrar'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (ok == true) {
+                        await memory.clearAll();
+                        // Rebuild the FutureBuilder by nudging the provider.
+                        ref.invalidate(memoryProvider);
+                      }
+                    },
+                    child: const Text('Borrar'),
+                  ),
+                );
+              },
+            );
+          },
+        ),
+      ],
     );
   }
 }
