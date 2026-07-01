@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +11,7 @@ import '../core/config/settings_providers.dart';
 import '../core/state/app_mode.dart';
 import '../core/state/app_state.dart';
 import '../core/state/app_state_provider.dart';
+import '../platform/calendar_writer.dart';
 import '../platform/contact_match.dart';
 import '../platform/system_actions.dart';
 import '../voice/stt_provider.dart';
@@ -21,6 +23,7 @@ import '../voice/voice_controller.dart';
 import '../voice/voice_pipeline.dart';
 import 'astro_character.dart';
 import 'hud.dart';
+import 'photo_viewer_screen.dart';
 import 'settings/settings_screen.dart';
 
 /// The full pet screen: ambient chip, speedometer, the velocity ring around the
@@ -34,7 +37,6 @@ class PetScreen extends ConsumerStatefulWidget {
 }
 
 class _PetScreenState extends ConsumerState<PetScreen> {
-  static const _greeting = '¡Hola! Soy Astro, tu copiloto. ¿Listo para rodar?';
   static const _wakeAck = '¡Aquí estoy! ¿Qué necesitas?';
   static const _notHeard = '¿Me repites? No te escuché bien.';
   static const _oops = 'Uy, se me enredó la conexión. ¿Probamos otra vez?';
@@ -43,6 +45,7 @@ class _PetScreenState extends ConsumerState<PetScreen> {
   StreamSubscription<void>? _wakeSub;
   Timer? _visemeTimer;
   bool _busy = false;
+  bool _cancelRequested = false; // tap-to-cancel while listening
   String _spokenText = '';
 
   /// When a mutating tool asks for confirmation: the question to show, and the
@@ -55,6 +58,11 @@ class _PetScreenState extends ConsumerState<PetScreen> {
   List<ContactCandidate>? _pickContacts;
   Completer<ContactCandidate?>? _pickCompleter;
 
+  /// The first time Astro creates a calendar event: the calendars to choose
+  /// from, and the pending pick (resolved by tapping one). Remembered after.
+  List<CalendarOption>? _calendarOptions;
+  Completer<CalendarOption?>? _calendarCompleter;
+
   /// For calls/messages: the fixed line Astro should say with the REAL contact
   /// name, spoken by the app instead of the model's paraphrase (which mangles
   /// the name). Set during confirmation, consumed by [_answerStreaming].
@@ -65,6 +73,8 @@ class _PetScreenState extends ConsumerState<PetScreen> {
     super.initState();
     // Let the brain ask us to confirm mutating tools (e.g. calls) by voice.
     ref.read(toolConfirmerProvider).confirmer = _confirmTool;
+    // Let the brain ask the user to pick a calendar the first time.
+    ref.read(calendarChooserProvider).choose = _pickCalendar;
     // Warm up speech recognition so the first listen doesn't miss the first
     // word, and beep the moment the mic is live so the driver knows to speak.
     final recognizer = ref.read(speechRecognizerProvider);
@@ -200,6 +210,28 @@ class _PetScreenState extends ConsumerState<PetScreen> {
     return chosen;
   }
 
+  /// Show the calendar picker (first event only) and resolve on tap. Speaks a
+  /// short prompt. Returns null on cancel / timeout (→ primary calendar).
+  Future<CalendarOption?> _pickCalendar(List<CalendarOption> options) async {
+    final controller = ref.read(voiceControllerProvider.notifier);
+    final completer = Completer<CalendarOption?>();
+    _calendarCompleter = completer;
+    if (mounted) setState(() => _calendarOptions = options);
+
+    final timeout = Timer(const Duration(seconds: 30), () {
+      if (!completer.isCompleted) completer.complete(null);
+    });
+
+    await _say('¿En qué calendario lo guardo?', controller);
+
+    final chosen = await completer.future;
+    timeout.cancel();
+    _calendarCompleter = null;
+    if (mounted) setState(() => _calendarOptions = null);
+    controller.applyPhase(VoicePhase.thinking);
+    return chosen;
+  }
+
   /// Speak the question and listen for a spoken yes/no (short-reply mode), up to
   /// two tries. Bails out the moment a button tap resolves [completer].
   Future<void> _voiceConfirm(
@@ -268,8 +300,13 @@ class _PetScreenState extends ConsumerState<PetScreen> {
   Future<void> _converse() async {
     if (_busy) return;
     _busy = true;
+    _cancelRequested = false;
     final controller = ref.read(voiceControllerProvider.notifier);
     await _wake.pause(); // free the mic + don't let Astro hear herself
+
+    // Startle reaction on being summoned, a beat before it starts listening.
+    controller.surprise();
+    await Future<void>.delayed(const Duration(milliseconds: 650));
 
     try {
       for (var turn = 0; turn < 6; turn++) {
@@ -281,8 +318,10 @@ class _PetScreenState extends ConsumerState<PetScreen> {
         await Future<void>.delayed(
           Duration(milliseconds: turn == 0 ? 300 : 650),
         );
+        if (_cancelRequested) break; // tapped to cancel before listening
         final capSw = Stopwatch()..start();
         final command = await ref.read(speechRecognizerProvider).listen();
+        if (_cancelRequested) break; // tapped to cancel — end quietly
         debugPrint(
           '[Astro] 🎙️ heard (${capSw.elapsedMilliseconds}ms): '
           '${command ?? '(nothing)'}',
@@ -301,6 +340,15 @@ class _PetScreenState extends ConsumerState<PetScreen> {
       _busy = false;
       await _wake.resume();
     }
+  }
+
+  /// Tap while a conversation is in progress cancels the current listen: only
+  /// while actually listening (not mid-answer). Stopping the recognizer unblocks
+  /// the pending `listen()`, and the flag makes the loop end quietly.
+  void _cancelListening() {
+    if (ref.read(voiceControllerProvider).phase != VoicePhase.listening) return;
+    _cancelRequested = true;
+    ref.read(speechRecognizerProvider).stop();
   }
 
   /// True when Astro's answer ends with a question, i.e. it expects a reply.
@@ -407,22 +455,6 @@ class _PetScreenState extends ConsumerState<PetScreen> {
     }
   }
 
-  /// One-shot line with no listening (the tap greeting). Manages the wake mic.
-  Future<void> _speakStandalone(String text) async {
-    if (_busy) return;
-    _busy = true;
-    final controller = ref.read(voiceControllerProvider.notifier);
-    await _wake.pause();
-    try {
-      await _say(text, controller);
-    } finally {
-      controller.applyPhase(VoicePhase.idle);
-      if (mounted) setState(() => _spokenText = '');
-      _busy = false;
-      await _wake.resume();
-    }
-  }
-
   @override
   void dispose() {
     _visemeTimer?.cancel();
@@ -436,6 +468,7 @@ class _PetScreenState extends ConsumerState<PetScreen> {
     final voice = ref.watch(voiceControllerProvider);
     final appState =
         ref.watch(appStateProvider).valueOrNull ?? const AppState();
+    final capturedPhoto = ref.watch(capturedPhotoProvider);
 
     final ambient = AmbientPalette.fromHour(DateTime.now().hour);
     final moodColor = DesignTokens.moodColor[mood.mood];
@@ -478,7 +511,15 @@ class _PetScreenState extends ConsumerState<PetScreen> {
                           const SizedBox(height: 16),
                         ],
                         GestureDetector(
-                          onTap: () => _speakStandalone(_greeting),
+                          // Tap starts a conversation (like the wake word); tap
+                          // again while it's listening to cancel.
+                          onTap: () {
+                            if (_busy) {
+                              _cancelListening();
+                            } else {
+                              _converse();
+                            }
+                          },
                           // Press-and-hold to pet Astro (the caress reaction),
                           // since this phone has no usable proximity sensor.
                           onLongPressStart: (_) =>
@@ -502,14 +543,24 @@ class _PetScreenState extends ConsumerState<PetScreen> {
                                 ),
                         ),
                         const SizedBox(height: 16),
-                        SizedBox(
-                          height: 26,
-                          child: Text(
-                            _spokenText,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: DesignTokens.ink,
-                              fontSize: 17,
+                        // Min height keeps the layout from jumping when empty;
+                        // the text wraps, and a max height + scroll keeps a long
+                        // reply fully readable without pushing the pet off-screen.
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(
+                            minHeight: 26,
+                            maxHeight: 150,
+                          ),
+                          child: SingleChildScrollView(
+                            child: Text(
+                              _spokenText,
+                              textAlign: TextAlign.center,
+                              softWrap: true,
+                              style: const TextStyle(
+                                color: DesignTokens.ink,
+                                fontSize: 17,
+                                height: 1.3,
+                              ),
                             ),
                           ),
                         ),
@@ -570,6 +621,8 @@ class _PetScreenState extends ConsumerState<PetScreen> {
           ),
           if (_confirmPrompt != null) _confirmOverlay(accent),
           if (_pickContacts != null) _pickOverlay(accent),
+          if (_calendarOptions != null) _calendarOverlay(accent),
+          if (capturedPhoto != null) _photoOverlay(context, capturedPhoto),
         ],
       ),
     );
@@ -586,7 +639,7 @@ class _PetScreenState extends ConsumerState<PetScreen> {
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.end,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Text(
                   '¿A cuál?',
@@ -598,14 +651,110 @@ class _PetScreenState extends ConsumerState<PetScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                for (final c in contacts) ...[
-                  _contactButton(c, accent),
-                  const SizedBox(height: 12),
-                ],
-                _contactButton(null, DesignTokens.dim), // Cancel
+                // Scrolls when there are many matches, so it never overflows.
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (final c in contacts) ...[
+                          _contactButton(c, accent),
+                          const SizedBox(height: 12),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                _contactButton(null, DesignTokens.dim), // Cancel (always shown)
                 const SizedBox(height: 8),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _calendarOverlay(Color accent) {
+    final options = _calendarOptions ?? const [];
+    return Positioned.fill(
+      child: ColoredBox(
+        color: Colors.black.withValues(alpha: 0.72),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text(
+                  '¿En qué calendario?',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: DesignTokens.ink,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                // Scrolls when there are many calendars, so it never overflows.
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (final o in options) ...[
+                          _calendarButton(o, accent),
+                          const SizedBox(height: 12),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                _calendarButton(
+                  null,
+                  DesignTokens.dim,
+                ), // Cancel (always shown)
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// A calendar row in the picker. [option] null renders a Cancel button.
+  Widget _calendarButton(CalendarOption? option, Color color) {
+    final label = option == null
+        ? 'Cancelar'
+        : (option.account.isEmpty
+              ? option.name
+              : '${option.name}\n${option.account}');
+    return GestureDetector(
+      onTap: () {
+        if (_calendarCompleter?.isCompleted == false) {
+          _calendarCompleter!.complete(option);
+        }
+      },
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        constraints: const BoxConstraints(minHeight: 60),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.18),
+          border: Border.all(color: color, width: 2),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: color,
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ),
@@ -703,6 +852,67 @@ class _PetScreenState extends ConsumerState<PetScreen> {
             color: color,
             fontSize: 24,
             fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Popup shown right after a photo is taken: a thumbnail with Ver / Cerrar.
+  Widget _photoOverlay(BuildContext context, String path) {
+    void close() => ref.read(capturedPhotoProvider.notifier).state = null;
+    return Positioned.fill(
+      child: ColoredBox(
+        color: Colors.black54,
+        child: Center(
+          child: Container(
+            width: 300,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: DesignTokens.bgBottomFallback,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.file(
+                    File(path),
+                    height: 200,
+                    width: 268,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => const SizedBox(
+                      height: 200,
+                      child: Center(
+                        child: Text(
+                          'Sin vista previa',
+                          style: TextStyle(color: DesignTokens.dim),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    TextButton(
+                      onPressed: () {
+                        close();
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => PhotoViewerScreen(path: path),
+                          ),
+                        );
+                      },
+                      child: const Text('Ver'),
+                    ),
+                    TextButton(onPressed: close, child: const Text('Cerrar')),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
