@@ -267,8 +267,8 @@ class AstroBrain {
       );
     }
 
-    // Policy gate: mutating tools require confirmation.
-    if (tool.mutates) {
+    // Policy gate: tools that ask for confirmation for this call.
+    if (await tool.requiresConfirmation(call.arguments)) {
       final allowed =
           await (confirm?.call(tool, call.arguments) ?? Future.value(true));
       if (!allowed) {
