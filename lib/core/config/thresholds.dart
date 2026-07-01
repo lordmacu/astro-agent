@@ -1,3 +1,12 @@
+/// Default download source for the neural Piper voice model zip. Overridable via
+/// `.env` (TTS_MODEL_URL). The zip must contain the .onnx, tokens.txt, and
+/// espeak-ng-data at its root.
+const String kDefaultNeuralVoiceUrl =
+    'https://github.com/lordmacu/aipet/releases/download/tts-v1/vits-piper-es_ES-davefx-medium.zip';
+
+/// Folder name the model unzips into under app support dir.
+const String kNeuralVoiceModelName = 'vits-piper-es_ES-davefx-medium';
+
 /// All numeric thresholds used by the mood cascade live here, in one place.
 /// Never hard-code a magic number in `MoodResolver` — read it from this object.
 class Thresholds {
@@ -36,7 +45,7 @@ class Thresholds {
   /// Coolant temperature above this raises worry.
   final double coolantHighC = 112.0;
 
-  /// How long the car must be still before Chispa falls asleep.
+  /// How long the car must be still before Astro falls asleep.
   final Duration sleepAfter = const Duration(seconds: 8);
 
   /// Distance to the next maneuver below which attention is heightened.
