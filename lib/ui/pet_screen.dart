@@ -6,11 +6,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../brain/astro_brain_provider.dart';
 import '../brain/tools/astro_tool.dart';
 import '../core/config/design_tokens.dart';
+import '../core/config/settings_providers.dart';
 import '../core/state/app_mode.dart';
 import '../core/state/app_state.dart';
 import '../core/state/app_state_provider.dart';
 import '../voice/stt_provider.dart';
-import '../voice/stt_recognizer.dart';
 import '../voice/voice_interfaces.dart';
 import '../voice/wake_word_provider.dart';
 import '../voice/tts_provider.dart';
@@ -55,14 +55,14 @@ class _PetScreenState extends ConsumerState<PetScreen> {
     // Warm up speech recognition so the first listen doesn't miss the first
     // word, and beep the moment the mic is live so the driver knows to speak.
     final recognizer = ref.read(speechRecognizerProvider);
-    if (recognizer is SttSpeechRecognizer) {
-      unawaited(recognizer.warmUp());
-      recognizer.onListening = () => ref.read(mediaControllerProvider).beep();
-    }
+    unawaited(recognizer.warmUp());
+    recognizer.onListening = () => ref.read(mediaControllerProvider).beep();
     _wakeSub = _wake.onWake.listen((_) {
       if (!_busy) _converse();
     });
-    _wake.start();
+    if (ref.read(settingsProvider).wakeWordEnabled) {
+      _wake.start();
+    }
   }
 
   /// Confirmation for a mutating tool. Shows SÍ/NO buttons AND listens for a

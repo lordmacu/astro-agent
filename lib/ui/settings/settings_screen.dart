@@ -58,6 +58,37 @@ class SettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 24),
+          SettingsSection(
+            title: 'Wake word y sensores',
+            children: [
+              SettingsSwitchTile(
+                label: 'Palabra clave «Astro»',
+                subtitle: 'Escuchar siempre para responder por voz',
+                value: settings.wakeWordEnabled,
+                onChanged: notifier.setWakeWordEnabled,
+              ),
+              SettingsSliderTile(
+                label: 'Sensibilidad',
+                value: settings.wakeWordSensitivity,
+                min: 0.0,
+                max: 1.0,
+                onChanged: notifier.setWakeWordSensitivity,
+              ),
+              SettingsSwitchTile(
+                label: 'Navegación (Maps)',
+                subtitle: 'Reaccionar a las indicaciones de Google Maps',
+                value: settings.navListenerEnabled,
+                onChanged: notifier.setNavListenerEnabled,
+              ),
+              SettingsSwitchTile(
+                label: 'Brillo automático',
+                subtitle: 'Ajustar el brillo con la luz del ambiente',
+                value: settings.autoBrightnessEnabled,
+                onChanged: notifier.setAutoBrightnessEnabled,
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
         ],
       ),
     );

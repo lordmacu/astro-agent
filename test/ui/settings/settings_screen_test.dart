@@ -39,4 +39,20 @@ void main() {
     await tester.pump();
     expect(prefs.getString('llmModel'), 'MiniMax-M3-Turbo');
   });
+
+  testWidgets('wake word toggle persists', (tester) async {
+    SharedPreferences.setMockInitialValues({'wakeWordEnabled': true});
+    final prefs = await SharedPreferences.getInstance();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+        child: const MaterialApp(home: SettingsScreen()),
+      ),
+    );
+    final tile = find.widgetWithText(SwitchListTile, 'Palabra clave «Astro»');
+    expect(tile, findsOneWidget);
+    await tester.tap(tile);
+    await tester.pump();
+    expect(prefs.getBool('wakeWordEnabled'), false);
+  });
 }
