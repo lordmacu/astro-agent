@@ -144,18 +144,30 @@ void main() {
   testWidgets('wake word toggle persists', (tester) async {
     SharedPreferences.setMockInitialValues({'wakeWordEnabled': true});
     final prefs = await SharedPreferences.getInstance();
+    // Tall viewport so the lazy ListView builds enough sections to reach the
+    // wake-word tile without depending on scroll offsets (the screen grows as
+    // more config sections are added above it).
+    tester.view.physicalSize = const Size(1000, 6000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(
       ProviderScope(
         overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
         child: const MaterialApp(home: SettingsScreen()),
       ),
     );
-    // Scroll to reveal the wake-word tile (the Voz section now has extra items
-    // above it that push the wake-word section below the initial viewport).
-    await tester.drag(find.byType(ListView), const Offset(0, -400));
-    await tester.pumpAndSettle();
-    final tile = find.widgetWithText(SwitchListTile, 'Palabra clave «Astro»');
+    // Match by prefix: the label embeds the configurable wake word
+    // ('Palabra clave «<word>»'), so don't hard-code the word here.
+    final tile = find.byWidgetPredicate(
+      (w) =>
+          w is SwitchListTile &&
+          w.title is Text &&
+          ((w.title as Text).data ?? '').startsWith('Palabra clave'),
+    );
     expect(tile, findsOneWidget);
+    await tester.ensureVisible(tile);
+    await tester.pump();
     await tester.tap(tile);
     await tester.pump();
     expect(prefs.getBool('wakeWordEnabled'), false);
