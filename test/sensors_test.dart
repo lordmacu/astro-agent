@@ -1,12 +1,24 @@
-import 'package:chispa/core/state/app_state_provider.dart';
-import 'package:chispa/sensors/light/light_service.dart';
-import 'package:chispa/sensors/location/speed_service.dart';
-import 'package:chispa/sensors/motion/motion_service.dart';
-import 'package:chispa/sensors/proximity/proximity_service.dart';
+import 'package:astro/core/config/settings_providers.dart';
+import 'package:astro/core/state/app_mode.dart';
+import 'package:astro/core/state/app_state_provider.dart';
+import 'package:astro/sensors/light/light_service.dart';
+import 'package:astro/sensors/location/speed_service.dart';
+import 'package:astro/sensors/motion/motion_service.dart';
+import 'package:astro/sensors/proximity/proximity_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+/// Starts the app in car mode, where the speed sensor runs and driving moods
+/// fire. The default AppModeNotifier starts in normal mode (speed gated to 0).
+class _CarModeNotifier extends AppModeNotifier {
+  @override
+  AppMode build() => AppMode.car;
+}
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('LightService', () {
     test('smooths lux toward the latest reading', () async {
       final service = LightService(
@@ -66,8 +78,12 @@ void main() {
 
   group('appStateProvider combiner', () {
     test('merges all four sensor streams into the latest AppState', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
       final container = ProviderContainer(
         overrides: [
+          sharedPreferencesProvider.overrideWithValue(prefs),
+          appModeProvider.overrideWith(_CarModeNotifier.new),
           motionServiceProvider.overrideWithValue(
             MotionService(
               source: Stream.value(const AccelSample(0, 0, 9.80665)),

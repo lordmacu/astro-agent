@@ -7,12 +7,16 @@ import '../../sensors/light/light_service.dart';
 import '../../sensors/location/speed_fusion.dart';
 import '../../sensors/location/speed_service.dart';
 import '../../sensors/motion/motion_service.dart';
+import '../../sensors/navigation/nav_reading.dart';
+import '../../sensors/navigation/nav_service.dart';
 import '../../sensors/proximity/proximity_service.dart';
 import '../../voice/speech_catalog.dart';
+import '../config/settings_providers.dart';
 import '../config/thresholds.dart';
 import '../util/calibration.dart';
 import '../util/calibration_store.dart';
 import 'agent_controller.dart';
+import 'app_mode.dart';
 import 'app_state.dart';
 import 'mood.dart';
 import 'mood_resolver.dart';
@@ -33,7 +37,7 @@ final lightServiceProvider = Provider<LightService>(
   (ref) => LightService.fromPlugin(),
 );
 final proximityServiceProvider = Provider<ProximityService>(
-  (ref) => ProximityService.fromPlugin(),
+  (ref) => ProximityService.fromChannel(),
 );
 final speedServiceProvider = Provider<SpeedService>(
   (ref) => SpeedService.fromGeolocator(),
@@ -76,7 +80,10 @@ AppState buildSensorState({
   required double lux,
   required bool proximityNear,
   required double speedKmh,
+  bool carMode = false,
+  NavReading nav = NavReading.none,
 }) => AppState(
+  carMode: carMode,
   longitudinalG: motion.longitudinalG,
   verticalG: motion.verticalG,
   lateralG: motion.lateralG,
@@ -84,6 +91,9 @@ AppState buildSensorState({
   lux: lux,
   proximityNear: proximityNear,
   speedKmh: speedKmh,
+  arrived: nav.arrived,
+  turnDirection: nav.turnDirection,
+  turnDistanceM: nav.distanceM,
 );
 
 const MotionReading _restMotion = MotionReading(
@@ -101,6 +111,7 @@ const double _gravity = 9.80665;
 /// missing/failing sensor never takes down the rest.
 final appStateProvider = StreamProvider<AppState>((ref) {
   final t = ref.watch(thresholdsProvider);
+  final carMode = ref.watch(appModeProvider).isCar;
 
   // Motion is shared: it feeds both the g-force fields and the speed fusion's
   // dead-reckoning input, off a single sensor subscription.
@@ -121,40 +132,76 @@ final appStateProvider = StreamProvider<AppState>((ref) {
       .onErrorReturn(false)
       .startWith(false);
 
-  // Speed = GPS Doppler anchored, accelerometer fills the gaps (see
-  // SpeedFusion). A ForwardCalibrator learns which device axis is "forward" so
-  // dead reckoning works regardless of how the phone is mounted; each GPS fix
+  // Speed only exists in car mode. Normal mode never subscribes to the GPS (no
+  // location permission, no battery draw) and reports a constant 0.
+  //
+  // In car mode: speed = GPS Doppler anchored, accelerometer fills the gaps
+  // (see SpeedFusion). A ForwardCalibrator learns which device axis is "forward"
+  // so dead reckoning works regardless of how the phone is mounted; each GPS fix
   // both feeds that learning and corrects the filter.
-  final calibrator = ref.watch(forwardCalibratorProvider);
-  final gps = ref
-      .watch(speedServiceProvider)
-      .samples()
-      .onErrorReturn(const GpsSpeedSample(speedMps: 0, accuracyMps: 0))
-      .doOnData((s) => calibrator.addGpsSpeed(s.speedMps, DateTime.now()));
-  final accel = motion.map(
-    (m) => AccelInput(
-      calibrator.longitudinal([
-        m.lateralG * _gravity,
-        m.verticalG * _gravity,
-        m.longitudinalG * _gravity,
-      ]),
-      quiet:
-          m.longitudinalG.abs() < t.quietG &&
-          m.lateralG.abs() < t.quietG &&
-          m.verticalG.abs() < t.quietG,
-    ),
-  );
-  final speed = fuseSpeed(gps: gps, accel: accel).onErrorReturn(0).startWith(0);
+  final Stream<double> speed;
+  if (carMode) {
+    final calibrator = ref.watch(forwardCalibratorProvider);
+    final gps = ref
+        .watch(speedServiceProvider)
+        .samples()
+        .onErrorReturn(const GpsSpeedSample(speedMps: 0, accuracyMps: 0))
+        .doOnData((s) => calibrator.addGpsSpeed(s.speedMps, DateTime.now()));
+    final accel = motion.map(
+      (m) => AccelInput(
+        calibrator.longitudinal([
+          m.lateralG * _gravity,
+          m.verticalG * _gravity,
+          m.longitudinalG * _gravity,
+        ]),
+        quiet:
+            m.longitudinalG.abs() < t.quietG &&
+            m.lateralG.abs() < t.quietG &&
+            m.verticalG.abs() < t.quietG,
+      ),
+    );
+    speed = fuseSpeed(gps: gps, accel: accel).onErrorReturn(0).startWith(0);
+  } else {
+    speed = Stream<double>.value(0);
+  }
 
-  return Rx.combineLatest4(
+  // Navigation: parsed Google Maps notifications, only when the user enabled it.
+  // Disabled (or no notification access) → a constant neutral reading, so the
+  // nav fields stay at their defaults and the app behaves exactly as today.
+  final navEnabled = ref.watch(
+    settingsProvider.select((s) => s.navListenerEnabled),
+  );
+  final Stream<NavReading> nav = navEnabled
+      ? ref
+            .watch(navServiceProvider)
+            .readings()
+            .onErrorReturn(NavReading.none)
+            .startWith(NavReading.none)
+      : Stream<NavReading>.value(NavReading.none);
+
+  return Rx.combineLatest5(
     motion,
     lux,
     near,
     speed,
-    (MotionReading m, double l, bool n, double s) =>
-        buildSensorState(motion: m, lux: l, proximityNear: n, speedKmh: s),
+    nav,
+    (MotionReading m, double l, bool n, double s, NavReading nv) =>
+        buildSensorState(
+          motion: m,
+          lux: l,
+          proximityNear: n,
+          speedKmh: s,
+          carMode: carMode,
+          nav: nv,
+        ),
   );
 });
+
+/// True while the user is petting Astro by touch (press-and-hold on screen).
+/// Feeds the caress reaction so it works on devices without a usable proximity
+/// sensor — the physical one is often walled behind an OEM permission, leaving
+/// only a "Palm" gesture sensor that never reports a static cover.
+final pettingProvider = StateProvider<bool>((_) => false);
 
 /// The single resolved mood the UI and character render. Combines the sensor
 /// `AppState` with the live agent phase (from voice / brain) before resolving.
@@ -162,18 +209,21 @@ final moodStateProvider = Provider<MoodState>((ref) {
   final resolver = ref.watch(moodResolverProvider);
   final base = ref.watch(appStateProvider).valueOrNull ?? const AppState();
   final agent = ref.watch(agentControllerProvider);
+  final petting = ref.watch(pettingProvider);
   final state = base.copyWith(
     agentPhase: agent.phase,
     activeToolName: agent.activeToolName,
+    // Touch petting counts as a caress, same as the proximity sensor.
+    proximityNear: base.proximityNear || petting,
   );
   return resolver.resolve(state);
 });
 
-/// The language Chispa speaks. Defaults to Spanish (the driver's language);
+/// The language Astro speaks. Defaults to Spanish (the driver's language);
 /// switch to English here or from settings later.
 final speechLangProvider = StateProvider<SpeechLang>((_) => SpeechLang.es);
 
-/// The current spoken line rendered to text, or null when Chispa is quiet.
+/// The current spoken line rendered to text, or null when Astro is quiet.
 final speechTextProvider = Provider<String?>((ref) {
   final line = ref.watch(moodStateProvider).line;
   if (line == null) return null;
