@@ -63,6 +63,13 @@ class SettingsNotifier extends Notifier<AppSettings> {
     state = state.copyWith(wakeWordEnabled: v);
   }
 
+  Future<void> setWakeWord(String v) async {
+    final word = v.trim();
+    if (word.isEmpty) return; // never allow an empty wake phrase
+    await _store.setString(SettingKey.wakeWord, word);
+    state = state.copyWith(wakeWord: word);
+  }
+
   Future<void> setWakeWordSensitivity(double v) async {
     await _store.setDouble(SettingKey.wakeWordSensitivity, v);
     state = state.copyWith(wakeWordSensitivity: v);

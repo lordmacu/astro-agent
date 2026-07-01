@@ -1,5 +1,5 @@
-import 'package:chispa/memory/embedding/embedding_provider.dart';
-import 'package:chispa/memory/long_term_memory.dart';
+import 'package:astro/memory/embedding/embedding_provider.dart';
+import 'package:astro/memory/long_term_memory.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -17,8 +17,9 @@ class HashingEmbeddingProvider implements EmbeddingProvider {
       (await embed([text])).first;
 
   @override
-  Future<List<List<double>>> embed(List<String> texts) async =>
-      [for (final t in texts) _vectorize(t)];
+  Future<List<List<double>>> embed(List<String> texts) async => [
+    for (final t in texts) _vectorize(t),
+  ];
 
   List<double> _vectorize(String text) {
     final vector = List<double>.filled(dim, 0);
@@ -34,10 +35,10 @@ void main() {
   setUpAll(sqfliteFfiInit);
 
   Future<LongTermMemory> openWithEmbedder() => LongTermMemory.open(
-        factory: databaseFactoryFfi,
-        path: inMemoryDatabasePath,
-        embedder: HashingEmbeddingProvider(),
-      );
+    factory: databaseFactoryFfi,
+    path: inMemoryDatabasePath,
+    embedder: HashingEmbeddingProvider(),
+  );
 
   test('recallSemantic ranks the topically closest memory first', () async {
     final mem = await openWithEmbedder();

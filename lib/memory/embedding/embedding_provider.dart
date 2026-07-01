@@ -11,8 +11,8 @@ abstract interface class EmbeddingProvider {
   Future<List<List<double>>> embed(List<String> texts);
 
   /// Convenience: embed a single text.
-  Future<List<double>> embedOne(String text) async => (await embed([text]))
-      .first;
+  Future<List<double>> embedOne(String text) async =>
+      (await embed([text])).first;
 }
 
 /// Cosine similarity in [-1, 1]; 0 when either vector is empty, zero, or the

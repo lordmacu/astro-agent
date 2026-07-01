@@ -1,11 +1,11 @@
-import '../chispa_tool.dart';
+import '../astro_tool.dart';
 import 'web_search_provider.dart';
 import 'web_search_types.dart';
 
 /// Lets the brain look up fresh, external facts. Read-only, so it runs without
 /// confirmation. The provider (Tavily, Brave, ...) is injected, keeping the
 /// tool decoupled from any one search API.
-class WebSearchTool extends ChispaTool {
+class WebSearchTool extends AstroTool {
   WebSearchTool(this.provider, {this.defaultCount = 5});
 
   final WebSearchProvider provider;
@@ -16,30 +16,27 @@ class WebSearchTool extends ChispaTool {
 
   @override
   String get description =>
-      'Search the web for current, factual information Chispa does not already '
+      'Search the web for current, factual information Astro does not already '
       'know: weather, news, places, opening hours, prices. Use only when the '
       'answer needs fresh facts from the internet.';
 
   @override
   Map<String, dynamic> get inputSchema => {
-        'type': 'object',
-        'properties': {
-          'query': {
-            'type': 'string',
-            'description': 'What to search for.',
-          },
-          'count': {
-            'type': 'integer',
-            'description': 'How many results to return (1-10).',
-          },
-          'freshness': {
-            'type': 'string',
-            'enum': ['day', 'week', 'month', 'year'],
-            'description': 'Restrict to recent results.',
-          },
-        },
-        'required': ['query'],
-      };
+    'type': 'object',
+    'properties': {
+      'query': {'type': 'string', 'description': 'What to search for.'},
+      'count': {
+        'type': 'integer',
+        'description': 'How many results to return (1-10).',
+      },
+      'freshness': {
+        'type': 'string',
+        'enum': ['day', 'week', 'month', 'year'],
+        'description': 'Restrict to recent results.',
+      },
+    },
+    'required': ['query'],
+  };
 
   @override
   Future<ToolResult> run(Map<String, dynamic> args) async {

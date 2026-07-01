@@ -1,15 +1,18 @@
 import 'dart:convert';
 
-import 'package:chispa/brain/chispa_brain.dart';
-import 'package:chispa/brain/llm/llm_client.dart';
-import 'package:chispa/brain/llm/llm_message.dart';
-import 'package:chispa/brain/tools/tool_registry.dart';
-import 'package:chispa/brain/tools/web_search/providers/brave_provider.dart';
-import 'package:chispa/brain/tools/web_search/providers/tavily_provider.dart';
-import 'package:chispa/brain/tools/web_search/sanitise.dart';
-import 'package:chispa/brain/tools/web_search/web_search_provider.dart';
-import 'package:chispa/brain/tools/web_search/web_search_tool.dart';
-import 'package:chispa/brain/tools/web_search/web_search_types.dart';
+import 'package:astro/brain/astro_brain.dart';
+import 'package:astro/brain/llm/llm_client.dart';
+import 'package:astro/brain/llm/llm_message.dart';
+import 'package:astro/brain/tools/tool_registry.dart';
+import 'package:astro/brain/tools/web_search/providers/brave_provider.dart';
+import 'package:astro/brain/tools/web_search/providers/duckduckgo_provider.dart';
+import 'package:astro/brain/tools/web_search/providers/fallback_provider.dart';
+import 'package:astro/brain/tools/web_search/providers/minimax_provider.dart';
+import 'package:astro/brain/tools/web_search/providers/tavily_provider.dart';
+import 'package:astro/brain/tools/web_search/sanitise.dart';
+import 'package:astro/brain/tools/web_search/web_search_provider.dart';
+import 'package:astro/brain/tools/web_search/web_search_tool.dart';
+import 'package:astro/brain/tools/web_search/web_search_types.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -31,6 +34,26 @@ class FakeProvider implements WebSearchProvider {
   }
 }
 
+/// A provider that returns a fixed list or throws, and counts its calls. For
+/// exercising the fallback chain.
+class ScriptedProvider implements WebSearchProvider {
+  ScriptedProvider(this.id, {this.hits = const [], this.error});
+  @override
+  final String id;
+  final List<WebSearchHit> hits;
+  final WebSearchException? error;
+  int calls = 0;
+
+  @override
+  bool get requiresCredential => error == null && hits.isEmpty ? false : true;
+  @override
+  Future<List<WebSearchHit>> search(WebSearchArgs args) async {
+    calls++;
+    if (error != null) throw error!;
+    return hits;
+  }
+}
+
 class FakeLlmClient implements LlmClient {
   FakeLlmClient(this._script);
   final List<LlmResponse> _script;
@@ -40,6 +63,9 @@ class FakeLlmClient implements LlmClient {
   String get providerId => 'fake';
   @override
   Future<LlmResponse> complete(LlmRequest request) async => _script[_turn++];
+  @override
+  Stream<LlmStreamChunk> completeStream(LlmRequest request) =>
+      streamViaComplete(complete(request));
 }
 
 void main() {
@@ -78,10 +104,10 @@ void main() {
         );
       });
 
-      final provider =
-          TavilyProvider(apiKey: 'tvly-key', httpClient: mock);
+      final provider = TavilyProvider(apiKey: 'tvly-key', httpClient: mock);
       final hits = await provider.search(
-          const WebSearchArgs(query: 'weather bogota', count: 3));
+        const WebSearchArgs(query: 'weather bogota', count: 3),
+      );
 
       final body = jsonDecode(captured.body) as Map<String, dynamic>;
       expect(captured.url.toString(), 'https://api.tavily.com/search');
@@ -98,8 +124,13 @@ void main() {
       final provider = TavilyProvider(apiKey: 'bad', httpClient: mock);
       expect(
         () => provider.search(const WebSearchArgs(query: 'x')),
-        throwsA(isA<WebSearchException>()
-            .having((e) => e.statusCode, 'statusCode', 401)),
+        throwsA(
+          isA<WebSearchException>().having(
+            (e) => e.statusCode,
+            'statusCode',
+            401,
+          ),
+        ),
       );
     });
   });
@@ -127,8 +158,9 @@ void main() {
       });
 
       final provider = BraveProvider(apiKey: 'brave-key', httpClient: mock);
-      final hits = await provider
-          .search(const WebSearchArgs(query: 'news', count: 2));
+      final hits = await provider.search(
+        const WebSearchArgs(query: 'news', count: 2),
+      );
 
       expect(captured.url.path, '/res/v1/web/search');
       expect(captured.url.queryParameters['q'], 'news');
@@ -142,6 +174,202 @@ void main() {
       final mock = MockClient((_) async => http.Response('{}', 200));
       final provider = BraveProvider(apiKey: 'k', httpClient: mock);
       expect(await provider.search(const WebSearchArgs(query: 'x')), isEmpty);
+    });
+  });
+
+  group('MiniMaxSearchProvider', () {
+    test('posts {q} with a Bearer key and maps organic to hits', () async {
+      late http.Request captured;
+      final mock = MockClient((req) async {
+        captured = req;
+        return http.Response(
+          jsonEncode({
+            'organic': [
+              {
+                'title': 'Bogota weather',
+                'snippet': 'Sunny, 19C.',
+                'link': 'https://weather.com/bogota',
+                'date': '2026-06-30',
+              },
+            ],
+          }),
+          200,
+        );
+      });
+
+      final provider = MiniMaxSearchProvider(
+        apiKey: 'mm-key',
+        httpClient: mock,
+      );
+      final hits = await provider.search(
+        const WebSearchArgs(query: 'weather bogota'),
+      );
+
+      final body = jsonDecode(captured.body) as Map<String, dynamic>;
+      expect(
+        captured.url.toString(),
+        'https://api.minimax.io/v1/coding_plan/search',
+      );
+      expect(captured.headers['authorization'], 'Bearer mm-key');
+      expect(body, {'q': 'weather bogota'});
+      expect(hits.single.url, 'https://weather.com/bogota');
+      expect(hits.single.title, 'Bogota weather');
+      expect(hits.single.snippet, 'Sunny, 19C.');
+      expect(hits.single.siteName, 'weather.com');
+      expect(hits.single.publishedAt, '2026-06-30');
+    });
+
+    test('a 4xx throws WebSearchException with the status', () async {
+      final mock = MockClient((_) async => http.Response('nope', 429));
+      final provider = MiniMaxSearchProvider(apiKey: 'k', httpClient: mock);
+      expect(
+        () => provider.search(const WebSearchArgs(query: 'x')),
+        throwsA(
+          isA<WebSearchException>().having(
+            (e) => e.statusCode,
+            'statusCode',
+            429,
+          ),
+        ),
+      );
+    });
+
+    test('a body without organic yields no hits', () async {
+      final mock = MockClient((_) async => http.Response('{}', 200));
+      final provider = MiniMaxSearchProvider(apiKey: 'k', httpClient: mock);
+      expect(await provider.search(const WebSearchArgs(query: 'x')), isEmpty);
+    });
+  });
+
+  group('DuckDuckGoProvider', () {
+    const html = '''
+      <div class="result">
+        <a rel="nofollow" class="result__a"
+           href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com%2Fpage&rut=z">
+           Example <b>Title</b></a>
+        <a class="result__snippet"
+           href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com%2Fpage">
+           A <b>snippet</b> here.</a>
+      </div>''';
+
+    test('scrapes results, decodes uddg links and strips tags', () async {
+      late http.Request captured;
+      final mock = MockClient((req) async {
+        captured = req;
+        return http.Response(html, 200);
+      });
+      final provider = DuckDuckGoProvider(httpClient: mock);
+      final hits = await provider.search(const WebSearchArgs(query: 'example'));
+
+      expect(captured.url.host, 'html.duckduckgo.com');
+      expect(captured.url.queryParameters['q'], 'example');
+      expect(captured.headers['user-agent'], contains('Mozilla/5.0'));
+      expect(hits.single.url, 'https://example.com/page');
+      expect(hits.single.title, 'Example Title');
+      expect(hits.single.snippet, 'A snippet here.');
+      expect(hits.single.siteName, 'example.com');
+    });
+
+    test('passes a freshness window as df', () async {
+      late http.Request captured;
+      final mock = MockClient((req) async {
+        captured = req;
+        return http.Response('', 200);
+      });
+      await DuckDuckGoProvider(
+        httpClient: mock,
+      ).search(const WebSearchArgs(query: 'x', freshness: Freshness.week));
+      expect(captured.url.queryParameters['df'], 'w');
+    });
+
+    test('an empty page yields no hits (no throw)', () async {
+      final mock = MockClient((_) async => http.Response('<html></html>', 200));
+      final provider = DuckDuckGoProvider(httpClient: mock);
+      expect(await provider.search(const WebSearchArgs(query: 'x')), isEmpty);
+    });
+  });
+
+  group('FallbackSearchProvider', () {
+    final oneHit = [
+      const WebSearchHit(url: 'https://a.com', title: 'A', snippet: 's'),
+    ];
+
+    test('returns the first non-empty result and skips the rest', () async {
+      final first = ScriptedProvider('first', hits: oneHit);
+      final second = ScriptedProvider('second', hits: oneHit);
+      final chain = FallbackSearchProvider([first, second]);
+
+      final hits = await chain.search(const WebSearchArgs(query: 'x'));
+      expect(hits, oneHit);
+      expect(first.calls, 1);
+      expect(second.calls, 0);
+    });
+
+    test('falls through when the first throws', () async {
+      final first = ScriptedProvider(
+        'first',
+        error: const WebSearchException('down', provider: 'first'),
+      );
+      final second = ScriptedProvider('second', hits: oneHit);
+      final chain = FallbackSearchProvider([first, second]);
+
+      expect(await chain.search(const WebSearchArgs(query: 'x')), oneHit);
+      expect(first.calls, 1);
+      expect(second.calls, 1);
+    });
+
+    test('falls through when the first returns empty', () async {
+      final first = ScriptedProvider('first');
+      final second = ScriptedProvider('second', hits: oneHit);
+      final chain = FallbackSearchProvider([first, second]);
+
+      expect(await chain.search(const WebSearchArgs(query: 'x')), oneHit);
+      expect(second.calls, 1);
+    });
+
+    test(
+      'empty (not error) when a leg succeeded but all found nothing',
+      () async {
+        final first = ScriptedProvider(
+          'first',
+          error: const WebSearchException('down', provider: 'first'),
+        );
+        final second = ScriptedProvider('second'); // succeeds, empty
+        final chain = FallbackSearchProvider([first, second]);
+
+        expect(await chain.search(const WebSearchArgs(query: 'x')), isEmpty);
+      },
+    );
+
+    test('rethrows the last error when every leg throws', () async {
+      final first = ScriptedProvider(
+        'first',
+        error: const WebSearchException('a', provider: 'first'),
+      );
+      final second = ScriptedProvider(
+        'second',
+        error: const WebSearchException('b', provider: 'second'),
+      );
+      final chain = FallbackSearchProvider([first, second]);
+
+      expect(
+        () => chain.search(const WebSearchArgs(query: 'x')),
+        throwsA(
+          isA<WebSearchException>().having(
+            (e) => e.provider,
+            'provider',
+            'second',
+          ),
+        ),
+      );
+    });
+
+    test('is keyless when any leg is keyless', () {
+      final chain = FallbackSearchProvider([
+        MiniMaxSearchProvider(apiKey: 'k'),
+        DuckDuckGoProvider(),
+      ]);
+      expect(chain.requiresCredential, isFalse);
     });
   });
 
@@ -160,14 +388,16 @@ void main() {
     });
 
     test('formats hits into model-friendly text', () async {
-      final tool = WebSearchTool(FakeProvider(const [
-        WebSearchHit(
-          url: 'https://a.com',
-          title: 'Alpha',
-          snippet: 'first',
-          siteName: 'a.com',
-        ),
-      ]));
+      final tool = WebSearchTool(
+        FakeProvider(const [
+          WebSearchHit(
+            url: 'https://a.com',
+            title: 'Alpha',
+            snippet: 'first',
+            siteName: 'a.com',
+          ),
+        ]),
+      );
       final result = await tool.run({'query': 'alpha'});
       expect(result.isError, isFalse);
       expect(result.content, contains('Alpha'));
@@ -186,16 +416,19 @@ void main() {
     ]);
     final registry = ToolRegistry()..register(WebSearchTool(provider));
 
-    final brain = ChispaBrain(
+    final brain = AstroBrain(
       client: FakeLlmClient([
         LlmResponse(
-          message: LlmMessage(role: Role.assistant, blocks: const [
-            ToolUseBlock(
-              id: 'call_1',
-              name: 'web_search',
-              arguments: {'query': 'weather in Bogota'},
-            ),
-          ]),
+          message: LlmMessage(
+            role: Role.assistant,
+            blocks: const [
+              ToolUseBlock(
+                id: 'call_1',
+                name: 'web_search',
+                arguments: {'query': 'weather in Bogota'},
+              ),
+            ],
+          ),
           stopReason: StopReason.toolUse,
         ),
         LlmResponse(

@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:chispa/voice/oww_wake_word.dart';
+import 'package:astro/voice/oww_wake_word.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -17,8 +17,8 @@ void main() {
     final wakes = <void>[];
     final sub = detector.onWake.listen((_) => wakes.add(null));
 
-    events.add('oye_chispa');
-    events.add('chispa');
+    events.add('oye_astro');
+    events.add('astro');
     await Future<void>.delayed(Duration.zero);
 
     expect(wakes.length, 2);
@@ -42,7 +42,7 @@ void main() {
     await detector.start();
     await detector.pause();
     await detector.resume();
-    await detector.setThreshold('chispa', 0.7);
+    await detector.setThreshold('astro', 0.7);
     await detector.stop();
 
     expect(calls.map((c) => c.method).toList(), [
@@ -52,7 +52,7 @@ void main() {
       'setThreshold',
       'stop',
     ]);
-    expect(calls[3].arguments, {'phrase': 'chispa', 'value': 0.7});
+    expect(calls[3].arguments, {'phrase': 'astro', 'value': 0.7});
 
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, null);

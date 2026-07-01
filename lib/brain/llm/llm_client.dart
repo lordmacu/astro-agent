@@ -11,6 +11,43 @@ abstract interface class LlmClient {
   /// Run one completion turn. Adapters translate `LlmRequest` to provider JSON
   /// and the provider reply back into an `LlmResponse`.
   Future<LlmResponse> complete(LlmRequest request);
+
+  /// Stream one completion turn: emit [LlmTextDelta]s as text arrives and a
+  /// final [LlmDone] carrying the assembled response (text + tool calls).
+  /// Adapters that don't stream natively delegate to [streamViaComplete].
+  Stream<LlmStreamChunk> completeStream(LlmRequest request);
+}
+
+/// A piece of a streamed completion.
+sealed class LlmStreamChunk {
+  const LlmStreamChunk();
+}
+
+/// Incremental assistant text, as it is generated.
+class LlmTextDelta extends LlmStreamChunk {
+  const LlmTextDelta(this.text);
+  final String text;
+}
+
+/// The turn finished; carries the fully assembled response so the agentic loop
+/// can inspect tool calls and stop reason.
+class LlmDone extends LlmStreamChunk {
+  const LlmDone(this.response);
+  final LlmResponse response;
+}
+
+/// Fallback streaming for clients that don't stream natively: run the normal
+/// completion, emit its text as one delta, then the done event.
+Stream<LlmStreamChunk> streamViaComplete(
+  Future<LlmResponse> completion,
+) async* {
+  final response = await completion;
+  final text = response.message.blocks
+      .whereType<TextBlock>()
+      .map((b) => b.text)
+      .join('\n');
+  if (text.isNotEmpty) yield LlmTextDelta(text);
+  yield LlmDone(response);
 }
 
 /// Raised when a provider call fails (HTTP error, malformed body, etc.).

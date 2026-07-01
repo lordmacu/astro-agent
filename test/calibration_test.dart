@@ -1,4 +1,4 @@
-import 'package:chispa/core/util/calibration.dart';
+import 'package:astro/core/util/calibration.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 final DateTime _epoch = DateTime.utc(2026);

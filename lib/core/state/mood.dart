@@ -4,7 +4,7 @@ import 'speech_line.dart';
 
 part 'mood.freezed.dart';
 
-/// The single resolved mood for Chispa, produced by `MoodResolver` from the
+/// The single resolved mood for Astro, produced by `MoodResolver` from the
 /// combined `AppState`. Exactly one mood is active at a time; the navigation
 /// posture is layered on top via `MoodState` and never competes in the cascade.
 enum Mood {
@@ -18,6 +18,7 @@ enum Mood {
   lean,
   bump,
   pet,
+  surprised,
   thinking,
   answering,
 }
@@ -26,14 +27,14 @@ enum Mood {
 enum TurnDirection { none, left, right }
 
 /// The output of the resolver: one mood plus the navigation posture overlay
-/// (gaze/tilt toward the turn) and the line Chispa should say. All speech is
+/// (gaze/tilt toward the turn) and the line Astro should say. All speech is
 /// English; Spanish, if ever wanted, goes through localization.
 @freezed
 class MoodState with _$MoodState {
   const factory MoodState({
     required Mood mood,
 
-    /// Where Chispa looks: toward the side of the upcoming turn.
+    /// Where Astro looks: toward the side of the upcoming turn.
     @Default(TurnDirection.none) TurnDirection gaze,
 
     /// Body lean in the range -1..1 (negative left, positive right).

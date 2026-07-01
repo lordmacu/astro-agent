@@ -1,4 +1,4 @@
-# Chispa — AI Pet para el carro (Flutter)
+# Astro — AI Pet para el carro (Flutter)
 
 App Flutter (Android, **sin root**) de una mascota virtual con IA que vive en un celular montado
 en el tablero. Lee sensores del carro y del teléfono, reacciona con animaciones y voz, y consulta
@@ -28,7 +28,7 @@ sensor  ->  filtro/umbral  ->  estado  ->  ánimo (cascada)  ->  animación + fr
 ## Stack y decisiones fijas
 
 > **Idioma del código: SOLO inglés.** Identificadores, comentarios, docs y nombres de archivo,
-> todo en inglés. **Excepción: la voz de Chispa es bilingüe (inglés + español).** Pero nunca como
+> todo en inglés. **Excepción: la voz de Astro es bilingüe (inglés + español).** Pero nunca como
 > strings sueltos en la lógica: el `MoodResolver` emite una **línea semántica** (`SpeechLine`,
 > sin idioma) y `voice/speech_catalog.dart` guarda el texto EN + ES. Agregar un idioma = otra
 > entrada en el catálogo, sin tocar el resolver.
@@ -56,7 +56,7 @@ estado (BLoC, GetX, Provider plano) ni otra de combinación de streams sin justi
 
 ## Voz: TTS simple activo, neural parqueado
 
-Ahora mismo Chispa habla con el **TTS del sistema** (`flutter_tts`, español, probado en device):
+Ahora mismo Astro habla con el **TTS del sistema** (`flutter_tts`, español, probado en device):
 ligero, sin modelo, builds rápidos. El **TTS neuronal offline** (sherpa-onnx + Piper) está listo
 pero **parqueado** porque sus libs (`onnxruntime` ~72 MB ×3 ABIs) + el modelo (65 MB) inflaban el
 APK a ~297 MB. Estado:
@@ -106,9 +106,9 @@ lib/
     tts/                    # sherpa-onnx + visemas
     audio_focus.dart        # ducking de la música al hablar
   brain/
-    chispa_brain.dart       # bucle agéntico (onThinking, onToolUse)
+    astro_brain.dart       # bucle agéntico (onThinking, onToolUse)
     tools/
-      chispa_tool.dart      # contrato: nombre, descripción, schema, run()
+      astro_tool.dart      # contrato: nombre, descripción, schema, run()
       tool_registry.dart    # registro central
       car_tools.dart        # get_speed, get_engine_status, clear_dtc, get_next_turn, set_brightness
       search_music_tools.dart # búsqueda web (Tavily/Brave) + poner/control música (intents)
@@ -164,7 +164,7 @@ thinking, answering`. Cada uno tiene color, ojos, boca y extras definidos en dis
 - **Velocidad = GPS** (`geolocator.speed`). El acelerómetro solo rellena huecos entre lecturas GPS
   (fusión); nunca uses integración de acelerómetro sola como velocidad: acumula error.
 - **Modelos inmutables con `freezed`.** Nada de mutar `AppState` en sitio; siempre `copyWith`.
-- **Código en inglés**: identificadores, comentarios, docs. La voz de Chispa es bilingüe EN+ES, pero
+- **Código en inglés**: identificadores, comentarios, docs. La voz de Astro es bilingüe EN+ES, pero
   vive en `voice/speech_catalog.dart` indexada por `SpeechLine`; el resolver nunca lleva texto crudo.
 - **Async:** `Stream`/`Future` idiomáticos, cancela suscripciones en `dispose`/`ref.onDispose`.
 - Antes de dar algo por terminado: `dart format .` && `flutter analyze` sin warnings.
@@ -214,8 +214,8 @@ del HTML es solo referencia de la sensación, no se porta tal cual.
 usuario -> modelo -> ¿pide tool? -> ejecutas local -> resultado -> modelo -> ... -> respuesta final
 ```
 
-- `ChispaTool`: contrato (nombre, descripción, schema JSON, `run`). `ToolRegistry`: registro central
-  (agregar tool = subclase + registrar). `ChispaBrain`: corre el bucle con callbacks `onThinking` y
+- `AstroTool`: contrato (nombre, descripción, schema JSON, `run`). `ToolRegistry`: registro central
+  (agregar tool = subclase + registrar). `AstroBrain`: corre el bucle con callbacks `onThinking` y
   `onToolUse` para enganchar las animaciones (pensando / "consultando X" / hablando).
 - **Máximo 3–5 tools activas** con descripciones bien distintas; la precisión cae con más. Si crecen,
   agrupa o divide por agente.
@@ -236,10 +236,10 @@ usuario -> modelo -> ¿pide tool? -> ejecutas local -> resultado -> modelo -> ..
 - **Foreground service** tipo `microphone` siempre activo para wake word; pide quitar optimización de batería.
 - **Despertar al cargar:** `BroadcastReceiver` de `ACTION_POWER_CONNECTED`/`DISCONNECTED` registrado
   desde el foreground service (no en el manifest). Distingue carga USB de carga normal; combina
-  señales (USB + movimiento + hora) para no abrir Chispa en casa.
+  señales (USB + movimiento + hora) para no abrir Astro en casa.
 - **Brillo:** ventana propia con `screenBrightness` (sin permiso); sistema con `WRITE_SETTINGS`.
   Regla: brillo por luz ambiente siempre; atenúa con carro quieto (acelerómetro).
-- **Foco de audio:** al hablar Chispa baja la música y la restaura al terminar.
+- **Foco de audio:** al hablar Astro baja la música y la restaura al terminar.
 
 ---
 
@@ -263,7 +263,7 @@ flutter build apk --release
   para cada nivel de la cascada y los empates de prioridad. Es el corazón del comportamiento.
 - Servicios de sensores: testea el parsing (PIDs OBD, deltas de movimiento) con datos fijos; mockea
   el hardware. Los streams se prueban con `StreamController` falsos.
-- `ChispaBrain`: testea el bucle con un cliente HTTP falso que devuelve tool_calls predecibles.
+- `AstroBrain`: testea el bucle con un cliente HTTP falso que devuelve tool_calls predecibles.
 - Usa TDD para lógica nueva no trivial (resolver, parsers, fusión de velocidad).
 
 ---
@@ -277,5 +277,5 @@ flutter build apk --release
 5. OBD BLE (`flutter_blue_plus`), PIDs de lectura.
 6. Navegación: listener de Maps en Kotlin + puente.
 7. Voz: Porcupine → `speech_to_text` → TTS sherpa-onnx con visemas.
-8. Cerebro: `ChispaTool` / `ToolRegistry` / `ChispaBrain`, en la nube (Claude / DeepSeek / OpenAI).
+8. Cerebro: `AstroTool` / `ToolRegistry` / `AstroBrain`, en la nube (Claude / DeepSeek / OpenAI).
 9. Brillo por luz/movimiento y despertar al cargar por USB.

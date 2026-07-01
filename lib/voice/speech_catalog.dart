@@ -1,6 +1,6 @@
 import '../core/state/speech_line.dart';
 
-/// The languages Chispa speaks.
+/// The languages Astro speaks.
 enum SpeechLang { en, es }
 
 /// Bilingual text for every `SpeechLine`. This is the one place where Spanish
@@ -21,10 +21,7 @@ abstract final class SpeechCatalog {
       SpeechLang.en: 'Oof, a bump!',
       SpeechLang.es: '¡Uy, un bache!',
     },
-    SpeechLine.curve: {
-      SpeechLang.en: 'Curve!',
-      SpeechLang.es: '¡Curvaaa!',
-    },
+    SpeechLine.curve: {SpeechLang.en: 'Curve!', SpeechLang.es: '¡Curvaaa!'},
     SpeechLine.engineWarm: {
       SpeechLang.en: 'Easy, the engine is warm.',
       SpeechLang.es: 'Con calma, el motor está caliente.',

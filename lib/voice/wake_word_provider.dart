@@ -5,13 +5,16 @@ import 'voice_interfaces.dart';
 
 /// The active wake-word detector, and the single switch for it.
 ///
-/// Default: the native **openWakeWord** engine (`OwwWakeWord`) — custom
-/// "Oye Chispa" / "Chispa" models, always-on, low-power. The text-matching
-/// `SttWakeWord` stays as a fallback for dev or devices without the models:
-/// override this provider with `SttWakeWord()`.
+/// Uses the native foreground service ([OwwWakeWord] talks to the Kotlin
+/// `WakeWordService`). The service currently runs `SttEngine` — Android's
+/// SpeechRecognizer in a loop — so it detects "Astro" in Spanish, always-on and
+/// in the background, with a persistent notification. (The low-power openWakeWord
+/// engine is parked in the same service until its model detects reliably.)
 ///
-/// App-scoped (not autoDispose): the detector is long-lived, like the
-/// always-on foreground service it controls. Teardown stops it.
+/// The pure-Dart `SttWakeWord` remains as a fallback for tests / devices without
+/// the service.
+///
+/// App-scoped (not autoDispose): the detector is long-lived. Teardown stops it.
 final wakeWordProvider = Provider<WakeWordDetector>((ref) {
   final detector = OwwWakeWord();
   ref.onDispose(detector.stop);

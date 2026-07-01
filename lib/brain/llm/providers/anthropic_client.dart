@@ -66,14 +66,19 @@ class AnthropicClient implements LlmClient {
     }
     return parseAnthropicResponse(decoded);
   }
+
+  @override
+  Stream<LlmStreamChunk> completeStream(LlmRequest request) =>
+      streamViaComplete(complete(request));
 }
 
 /// Build the `/v1/messages` URL from an operator-supplied base, tolerating a
 /// base that already carries `/v1` or the full path so we never land at
 /// `/v1/v1/messages`.
 String buildMessagesUrl(String baseUrl) {
-  final trimmed =
-      baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+  final trimmed = baseUrl.endsWith('/')
+      ? baseUrl.substring(0, baseUrl.length - 1)
+      : baseUrl;
   if (trimmed.endsWith('/v1/messages')) return trimmed;
   if (trimmed.endsWith('/v1')) return '$trimmed/messages';
   return '$trimmed/v1/messages';
@@ -155,11 +160,13 @@ LlmResponse parseAnthropicResponse(Map<String, dynamic> json) {
         final text = block['text'] as String? ?? '';
         if (text.isNotEmpty) blocks.add(TextBlock(text));
       case 'tool_use':
-        blocks.add(ToolUseBlock(
-          id: block['id'] as String,
-          name: block['name'] as String,
-          arguments: (block['input'] as Map?)?.cast<String, dynamic>() ?? {},
-        ));
+        blocks.add(
+          ToolUseBlock(
+            id: block['id'] as String,
+            name: block['name'] as String,
+            arguments: (block['input'] as Map?)?.cast<String, dynamic>() ?? {},
+          ),
+        );
       default:
         break;
     }

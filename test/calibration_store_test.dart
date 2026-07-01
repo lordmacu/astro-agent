@@ -1,4 +1,4 @@
-import 'package:chispa/core/util/calibration_store.dart';
+import 'package:astro/core/util/calibration_store.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 

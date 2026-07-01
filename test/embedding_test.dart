@@ -1,7 +1,7 @@
 import 'dart:convert';
 
-import 'package:chispa/memory/embedding/embedding_provider.dart';
-import 'package:chispa/memory/embedding/openai_embedding_provider.dart';
+import 'package:astro/memory/embedding/embedding_provider.dart';
+import 'package:astro/memory/embedding/openai_embedding_provider.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -29,8 +29,14 @@ void main() {
           jsonEncode({
             'data': [
               // Intentionally out of order; the provider sorts by index.
-              {'index': 1, 'embedding': [0.0, 1.0]},
-              {'index': 0, 'embedding': [1.0, 0.0]},
+              {
+                'index': 1,
+                'embedding': [0.0, 1.0],
+              },
+              {
+                'index': 0,
+                'embedding': [1.0, 0.0],
+              },
             ],
           }),
           200,

@@ -1,20 +1,25 @@
 import 'dart:async';
 
-import 'package:chispa/brain/chispa_brain.dart';
-import 'package:chispa/brain/llm/llm_client.dart';
-import 'package:chispa/brain/llm/llm_message.dart';
-import 'package:chispa/brain/tools/tool_registry.dart';
-import 'package:chispa/voice/voice_interfaces.dart';
-import 'package:chispa/voice/voice_pipeline.dart';
+import 'package:astro/brain/astro_brain.dart';
+import 'package:astro/brain/llm/llm_client.dart';
+import 'package:astro/brain/llm/llm_message.dart';
+import 'package:astro/brain/tools/tool_registry.dart';
+import 'package:astro/voice/voice_interfaces.dart';
+import 'package:astro/voice/voice_pipeline.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class FakeRecognizer implements SpeechRecognizer {
   FakeRecognizer(this.utterance);
   final String? utterance;
   @override
-  Future<String?> listen() async => utterance;
+  Future<String?> listen({Duration? pauseFor, bool shortReply = false}) async =>
+      utterance;
   @override
   Future<void> stop() async {}
+  @override
+  Future<bool> warmUp() async => true;
+  @override
+  set onListening(void Function()? cb) {}
 }
 
 class FakeTts implements TextToSpeech {
@@ -38,6 +43,10 @@ class FakeWakeWord implements WakeWordDetector {
   Future<void> pause() async {}
   @override
   Future<void> resume() async {}
+  @override
+  Future<void> setKeyword(String keyword) async {}
+  @override
+  Future<void> setSensitivity(double value) async {}
 }
 
 class FixedLlmClient implements LlmClient {
@@ -50,10 +59,13 @@ class FixedLlmClient implements LlmClient {
     message: LlmMessage.text(Role.assistant, reply),
     stopReason: StopReason.endTurn,
   );
+  @override
+  Stream<LlmStreamChunk> completeStream(LlmRequest request) =>
+      streamViaComplete(complete(request));
 }
 
-ChispaBrain _brain(String reply) =>
-    ChispaBrain(client: FixedLlmClient(reply), registry: ToolRegistry());
+AstroBrain _brain(String reply) =>
+    AstroBrain(client: FixedLlmClient(reply), registry: ToolRegistry());
 
 void main() {
   test('runOnce: listen, ask the brain, speak, with phases in order', () async {

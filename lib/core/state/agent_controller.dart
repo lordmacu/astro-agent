@@ -25,5 +25,6 @@ class AgentController extends Notifier<AgentStatus> {
   void idle() => state = const AgentStatus();
 }
 
-final agentControllerProvider =
-    NotifierProvider<AgentController, AgentStatus>(AgentController.new);
+final agentControllerProvider = NotifierProvider<AgentController, AgentStatus>(
+  AgentController.new,
+);

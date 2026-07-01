@@ -28,6 +28,11 @@ class FakeWake implements WakeWordDetector {
   Future<void> pause() async => calls.add('pause');
   @override
   Future<void> resume() async => calls.add('resume');
+  @override
+  Future<void> setKeyword(String keyword) async =>
+      calls.add('keyword:$keyword');
+  @override
+  Future<void> setSensitivity(double value) async => calls.add('sens:$value');
 }
 
 /// No-op recognizer so PetScreen.initState doesn't build the real platform

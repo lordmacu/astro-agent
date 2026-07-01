@@ -49,3 +49,7 @@ nexo-rs/
 
 # Superpowers SDD scratch (ledger, briefs, diffs)
 .superpowers/
+
+# Secrets and build artifacts (do not commit)
+.env
+/android/build/

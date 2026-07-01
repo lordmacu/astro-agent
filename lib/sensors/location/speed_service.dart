@@ -1,5 +1,7 @@
 import 'package:geolocator/geolocator.dart';
 
+import '../stream_share.dart';
+
 /// One GPS speed reading: the chip-computed speed plus its reported accuracy.
 ///
 /// Speed comes from the GNSS chip (Doppler on modern chipsets), not from
@@ -29,7 +31,7 @@ class SpeedService {
   final Stream<GpsSpeedSample> source;
 
   factory SpeedService.fromGeolocator() =>
-      SpeedService(source: _geolocatorSamples());
+      SpeedService(source: shareForever(_geolocatorSamples()));
 
   /// Raw GPS samples, for the fusion filter.
   Stream<GpsSpeedSample> samples() => source;

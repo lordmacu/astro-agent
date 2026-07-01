@@ -1,6 +1,7 @@
 import 'package:light/light.dart';
 
 import '../../core/util/low_pass.dart';
+import '../stream_share.dart';
 
 /// Ambient light in lux, smoothed so the background does not flicker (e.g. when
 /// passing under a bridge). Android only; on a device without the sensor the
@@ -14,9 +15,11 @@ class LightService {
   final double smoothing;
 
   factory LightService.fromPlugin({double smoothing = 0.1}) => LightService(
-        source: Light().lightSensorStream.map((lux) => lux.toDouble()),
-        smoothing: smoothing,
-      );
+    source: shareForever(
+      Light().lightSensorStream.map((lux) => lux.toDouble()),
+    ),
+    smoothing: smoothing,
+  );
 
   Stream<double> lux() {
     final lp = LowPass(factor: smoothing, initial: 12000);

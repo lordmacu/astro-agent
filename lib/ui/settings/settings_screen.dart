@@ -1,13 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import '../../core/l10n/app_lang.dart';
+import '../../core/l10n/lang_provider.dart';
 
 import '../../brain/astro_brain_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
+
 import '../../core/config/design_tokens.dart';
 import '../../core/config/settings_providers.dart';
+import '../../core/config/tool_catalog.dart';
+import '../../core/config/tool_prefs.dart';
 import '../../platform/permissions.dart';
+import '../../platform/smtp_store.dart';
 import '../../sensors/navigation/nav_service.dart';
 import '../../voice/neural_voice_installer.dart';
 import '../../voice/neural_voice_provider.dart';
+import '../../voice/wake_word_provider.dart';
 import 'settings_widgets.dart';
 
 /// Preset model identifiers for the LLM dropdown.
@@ -45,6 +55,8 @@ class SettingsScreen extends ConsumerWidget {
       ),
       body: ListView(
         children: [
+          _languageSection(ref),
+          const SizedBox(height: 24),
           SettingsSection(
             title: 'Voz',
             children: [
@@ -153,21 +165,43 @@ class SettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 24),
+          const _EmailSection(),
+          const SizedBox(height: 24),
           SettingsSection(
             title: 'Wake word y sensores',
             children: [
               SettingsSwitchTile(
-                label: 'Palabra clave «Astro»',
+                label: 'Palabra clave «${settings.wakeWord}»',
                 subtitle: 'Escuchar siempre para responder por voz',
                 value: settings.wakeWordEnabled,
                 onChanged: notifier.setWakeWordEnabled,
+              ),
+              SettingsTextTile(
+                label: 'Frase para despertar',
+                hint: 'hola astro',
+                value: settings.wakeWord,
+                onSubmitted: (v) async {
+                  await notifier.setWakeWord(v);
+                  // Push the new phrase to the always-on native engine now.
+                  await ref
+                      .read(wakeWordProvider)
+                      .setKeyword(ref.read(settingsProvider).wakeWord);
+                },
               ),
               SettingsSliderTile(
                 label: 'Sensibilidad',
                 value: settings.wakeWordSensitivity,
                 min: 0.0,
                 max: 1.0,
-                onChanged: notifier.setWakeWordSensitivity,
+                onChanged: (v) async {
+                  await notifier.setWakeWordSensitivity(v);
+                  // Retune the always-on native confidence gate live.
+                  await ref
+                      .read(wakeWordProvider)
+                      .setSensitivity(
+                        ref.read(settingsProvider).wakeWordSensitivity,
+                      );
+                },
               ),
               Consumer(
                 builder: (context, ref, _) {
@@ -200,6 +234,8 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ],
           ),
+          const SizedBox(height: 24),
+          const _ToolsSection(),
           const SizedBox(height: 24),
           const _MemorySection(),
           const SizedBox(height: 24),
@@ -260,6 +296,35 @@ class SettingsScreen extends ConsumerWidget {
           const SizedBox(height: 24),
         ],
       ),
+    );
+  }
+
+  /// Language selector: Auto (follow the device), Español, or English.
+  Widget _languageSection(WidgetRef ref) {
+    final pref = ref.watch(langPrefProvider);
+    final lang = ref.watch(langProvider);
+    String label(LangPref p) => switch (p) {
+      LangPref.auto => lang == AppLang.es ? 'Automático' : 'Automatic',
+      LangPref.es => 'Español',
+      LangPref.en => 'English',
+    };
+    return SettingsSection(
+      title: lang == AppLang.es ? 'Idioma' : 'Language',
+      children: [
+        for (final p in LangPref.values)
+          RadioListTile<LangPref>(
+            title: Text(
+              label(p),
+              style: const TextStyle(color: DesignTokens.ink),
+            ),
+            value: p,
+            groupValue: pref,
+            activeColor: DesignTokens.accent,
+            onChanged: (v) {
+              if (v != null) ref.read(langPrefProvider.notifier).set(v);
+            },
+          ),
+      ],
     );
   }
 }
@@ -352,6 +417,102 @@ class _ModelPickerTileState extends State<_ModelPickerTile> {
   }
 }
 
+/// Tools section: one switch per brain tool the driver can turn on/off. A
+/// disabled tool is dropped from the brain (the model can't call it). When an
+/// enabled tool needs an OS permission it lacks, a tappable "grant" line shows.
+class _ToolsSection extends StatelessWidget {
+  const _ToolsSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return SettingsSection(
+      title: 'Herramientas',
+      children: [for (final info in kToolCatalog) _ToolTile(info: info)],
+    );
+  }
+}
+
+/// One tool row: title + description + enable switch, plus a permission prompt
+/// when the tool is on but its permission isn't granted. Tracks its own
+/// permission status and re-checks after a request.
+class _ToolTile extends ConsumerStatefulWidget {
+  const _ToolTile({required this.info});
+
+  final ToolInfo info;
+
+  @override
+  ConsumerState<_ToolTile> createState() => _ToolTileState();
+}
+
+class _ToolTileState extends ConsumerState<_ToolTile> {
+  /// null = unknown/checking; true/false once resolved. Null for permissionless
+  /// tools (nothing to show).
+  bool? _granted;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshPermission();
+  }
+
+  Future<void> _refreshPermission() async {
+    final perm = widget.info.permission;
+    if (perm == null) return;
+    final ok = await perm.status.isGranted;
+    if (mounted) setState(() => _granted = ok);
+  }
+
+  Future<void> _requestPermission() async {
+    final perm = widget.info.permission;
+    if (perm == null) return;
+    final status = await perm.request();
+    if (mounted) setState(() => _granted = status.isGranted);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final info = widget.info;
+    final enabled = !ref.watch(toolPrefsProvider).contains(info.name);
+    final needsGrant =
+        enabled && info.permission != null && _granted == false;
+
+    return ListTile(
+      title: Text(info.label, style: const TextStyle(color: DesignTokens.ink)),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            info.subtitle,
+            style: const TextStyle(color: DesignTokens.dim),
+          ),
+          if (needsGrant)
+            InkWell(
+              onTap: _requestPermission,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  'Falta permiso de ${info.permissionLabel} — toca para conceder',
+                  style: const TextStyle(
+                    color: Color(0xFFFF4D57),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+      trailing: Switch(
+        value: enabled,
+        onChanged: (on) async {
+          await ref.read(toolPrefsProvider.notifier).setEnabled(info.name, on);
+          // Turning a tool on is a good moment to check its permission.
+          if (on) await _refreshPermission();
+        },
+      ),
+    );
+  }
+}
+
 /// Memory section: shows the stored-memory count and offers a destructive
 /// "clear" with confirmation. Reads the shared memory instance from the brain
 /// provider; degrades to a disabled row if memory failed to open.
@@ -388,52 +549,228 @@ class _MemorySection extends ConsumerWidget {
                 ),
               );
             }
-            return FutureBuilder<int>(
-              future: memory.count(),
-              builder: (context, snap) {
-                final n = snap.data ?? 0;
-                return ListTile(
-                  title: const Text(
-                    'Recuerdos guardados',
-                    style: TextStyle(color: DesignTokens.ink),
-                  ),
-                  subtitle: Text(
-                    '$n',
-                    style: const TextStyle(color: DesignTokens.dim),
-                  ),
-                  trailing: TextButton(
-                    onPressed: () async {
-                      final ok = await showDialog<bool>(
-                        context: context,
-                        builder: (ctx) => AlertDialog(
-                          title: const Text('¿Borrar la memoria?'),
-                          content: const Text(
-                            'Astro olvidará todo lo que recuerda de ti.',
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(ctx, false),
-                              child: const Text('Cancelar'),
-                            ),
-                            TextButton(
-                              onPressed: () => Navigator.pop(ctx, true),
-                              child: const Text('Borrar'),
-                            ),
-                          ],
+            // Reactive count: updates on its own when a conversation stores a
+            // new memory (the extractor invalidates memoryCountProvider).
+            final n = ref.watch(memoryCountProvider).valueOrNull ?? 0;
+            return ListTile(
+              title: const Text(
+                'Recuerdos guardados',
+                style: TextStyle(color: DesignTokens.ink),
+              ),
+              subtitle: Text(
+                '$n',
+                style: const TextStyle(color: DesignTokens.dim),
+              ),
+              trailing: TextButton(
+                onPressed: () async {
+                  final ok = await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: const Text('¿Borrar la memoria?'),
+                      content: const Text(
+                        'Astro olvidará todo lo que recuerda de ti.',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx, false),
+                          child: const Text('Cancelar'),
                         ),
-                      );
-                      if (ok == true) {
-                        await memory.clearAll();
-                        // Rebuild the FutureBuilder by nudging the provider.
-                        ref.invalidate(memoryProvider);
-                      }
-                    },
-                    child: const Text('Borrar'),
-                  ),
-                );
-              },
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx, true),
+                          child: const Text('Borrar'),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (ok == true) {
+                    await memory.clearAll();
+                    ref.invalidate(memoryCountProvider); // refresh the counter
+                  }
+                },
+                child: const Text('Borrar'),
+              ),
             );
           },
+        ),
+      ],
+    );
+  }
+}
+
+/// SMTP settings for the send_email tool. Self-contained: loads and saves its
+/// own `SmtpStore` (kept out of the main settings so the credentials stay
+/// isolated). Each field commits on submit. For Gmail: smtp.gmail.com : 587,
+/// your address as the user, and a 16-char app password (needs 2FA on).
+class _EmailSection extends StatefulWidget {
+  const _EmailSection();
+
+  @override
+  State<_EmailSection> createState() => _EmailSectionState();
+}
+
+class _EmailSectionState extends State<_EmailSection> {
+  static const _store = SmtpStore();
+
+  final _host = TextEditingController();
+  final _port = TextEditingController();
+  final _user = TextEditingController();
+  final _pass = TextEditingController();
+  final _from = TextEditingController();
+  final _imapHost = TextEditingController();
+  final _imapPort = TextEditingController();
+  bool _loaded = false;
+  bool _obscure = true;
+
+  List<TextEditingController> get _all => [
+    _host,
+    _port,
+    _user,
+    _pass,
+    _from,
+    _imapHost,
+    _imapPort,
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _store.load().then((c) {
+      if (!mounted) return;
+      _host.text = c.host;
+      _port.text = c.port.toString();
+      _user.text = c.username;
+      _pass.text = c.password;
+      _from.text = c.fromName;
+      _imapHost.text = c.imapHost;
+      _imapPort.text = c.imapPort.toString();
+      setState(() => _loaded = true);
+    });
+  }
+
+  @override
+  void dispose() {
+    for (final c in _all) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  Future<void> _openAppPasswordHelp() async {
+    final uri = Uri.parse('https://myaccount.google.com/apppasswords');
+    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('No pude abrir el enlace.')));
+    }
+  }
+
+  Future<void> _save() async {
+    await _store.save(
+      SmtpConfig(
+        host: _host.text.trim(),
+        port: int.tryParse(_port.text.trim()) ?? 587,
+        username: _user.text.trim(),
+        password: _pass.text,
+        fromName: _from.text.trim(),
+        imapHost: _imapHost.text.trim(),
+        imapPort: int.tryParse(_imapPort.text.trim()) ?? 993,
+      ),
+    );
+    if (mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Correo guardado')));
+    }
+  }
+
+  Widget _field(
+    String label,
+    TextEditingController controller, {
+    String? hint,
+    bool obscure = false,
+    TextInputType? keyboard,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: TextField(
+        controller: controller,
+        obscureText: obscure && _obscure,
+        keyboardType: keyboard,
+        style: const TextStyle(color: DesignTokens.ink),
+        decoration: InputDecoration(
+          labelText: label,
+          hintText: hint,
+          labelStyle: const TextStyle(color: DesignTokens.dim),
+          suffixIcon: obscure
+              ? IconButton(
+                  icon: Icon(
+                    _obscure ? Icons.visibility : Icons.visibility_off,
+                    color: DesignTokens.dim,
+                  ),
+                  onPressed: () => setState(() => _obscure = !_obscure),
+                )
+              : null,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_loaded) {
+      return const SettingsSection(
+        title: 'Email (SMTP)',
+        children: [
+          ListTile(
+            title: Text('Cargando…', style: TextStyle(color: DesignTokens.dim)),
+          ),
+        ],
+      );
+    }
+    return SettingsSection(
+      title: 'Email (SMTP)',
+      children: [
+        _field('Servidor SMTP', _host, hint: 'smtp.gmail.com'),
+        _field('Puerto', _port, hint: '587', keyboard: TextInputType.number),
+        _field(
+          'Usuario (correo)',
+          _user,
+          hint: 'tucorreo@gmail.com',
+          keyboard: TextInputType.emailAddress,
+        ),
+        _field('Contraseña o app password', _pass, obscure: true),
+        ListTile(
+          dense: true,
+          leading: const Icon(
+            Icons.open_in_new,
+            color: DesignTokens.accent,
+            size: 18,
+          ),
+          title: const Text(
+            'Crear app password de Gmail',
+            style: TextStyle(color: DesignTokens.accent, fontSize: 13),
+          ),
+          subtitle: const Text(
+            'Requiere verificación en dos pasos. Se abre en el navegador.',
+            style: TextStyle(color: DesignTokens.dim, fontSize: 11),
+          ),
+          onTap: _openAppPasswordHelp,
+        ),
+        _field('Nombre del remitente (opcional)', _from, hint: 'Astro'),
+        _field('Servidor IMAP (para leer)', _imapHost, hint: 'imap.gmail.com'),
+        _field(
+          'Puerto IMAP',
+          _imapPort,
+          hint: '993',
+          keyboard: TextInputType.number,
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+          child: SizedBox(
+            width: double.infinity,
+            child: FilledButton(onPressed: _save, child: const Text('Guardar')),
+          ),
         ),
       ],
     );

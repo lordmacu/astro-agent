@@ -50,8 +50,7 @@ class ToolResultBlock extends ContentBlock {
 class LlmMessage {
   const LlmMessage({required this.role, required this.blocks});
 
-  LlmMessage.text(this.role, String text)
-      : blocks = [TextBlock(text)];
+  LlmMessage.text(this.role, String text) : blocks = [TextBlock(text)];
 
   final Role role;
   final List<ContentBlock> blocks;
@@ -89,13 +88,13 @@ class LlmRequest {
   final double temperature;
 
   LlmRequest copyWith({List<LlmMessage>? messages}) => LlmRequest(
-        model: model,
-        messages: messages ?? this.messages,
-        system: system,
-        tools: tools,
-        maxTokens: maxTokens,
-        temperature: temperature,
-      );
+    model: model,
+    messages: messages ?? this.messages,
+    system: system,
+    tools: tools,
+    maxTokens: maxTokens,
+    temperature: temperature,
+  );
 }
 
 /// The model's reply.

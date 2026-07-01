@@ -7,9 +7,12 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart' show databaseFactoryFfi;
 import '../core/config/setting_key.dart';
 import '../core/config/settings_providers.dart';
 import '../core/config/settings_resolver.dart';
+import '../core/config/tool_catalog.dart';
+import '../core/config/tool_prefs.dart';
 import '../core/state/app_mode.dart';
 import '../core/state/app_state_provider.dart';
 import '../memory/long_term_memory.dart';
+import '../memory/memory_extractor.dart';
 import '../platform/media_controller.dart';
 import '../sensors/location/place_resolver.dart';
 import '../platform/system_actions.dart';
@@ -28,14 +31,13 @@ import '../platform/smtp_store.dart';
 import '../platform/weather_service.dart';
 import 'tools/calendar_tool.dart';
 import 'tools/camera_tool.dart';
-import 'tools/email_tool.dart';
-import 'tools/read_email_tool.dart';
+import 'tools/communication_tool.dart';
+import '../platform/notifications_reader.dart';
 import 'tools/context_tool.dart';
 import 'tools/device_tool.dart';
 import 'tools/memory_tools.dart';
 import 'tools/music_tool.dart';
-import 'tools/navigate_tool.dart';
-import 'tools/places_tool.dart';
+import 'tools/map_tool.dart';
 import 'tools/phone_tool.dart';
 import 'tools/weather_tool.dart';
 import 'tools/timer_tool.dart';
@@ -172,11 +174,11 @@ micrófono). Ej: "Se cortó, ¿qué querías buscar?".
 
 Herramientas: $contextTool; music (poner o controlar música); take_photo (tomar
 una foto y guardarla en la galería); calendar (crear un evento o recordatorio en
-el calendario); send_email (mandar un correo); read_email (revisar los últimos
-correos); clima (el tiempo de un lugar); lugares (buscar sitios cerca en el
-mapa); device (brillo, volumen, linterna, abrir apps); navigate (llevar a un
-destino);
-timer (temporizador o alarma); phone (llamar o mandar mensaje); web_search (datos
+el calendario); comunicacion (mandar correo, leer correos, o leer las
+notificaciones del teléfono); clima (el tiempo de un lugar); mapa (navegar a un
+destino o buscar sitios cerca); device
+(brillo, volumen, linterna, abrir apps); timer (temporizador o alarma); phone
+(llamar o mandar mensaje); web_search (datos
 frescos de internet); remember_fact (guardar algo del usuario).$closing''';
 }
 
@@ -247,12 +249,37 @@ final memoryProvider = FutureProvider<LongTermMemory?>((ref) async {
   }
 });
 
+/// How many memories are stored, for the Settings counter. Reactive: invalidate
+/// it after saving or clearing memories and the counter updates itself. 0 when
+/// memory is unavailable.
+final memoryCountProvider = FutureProvider<int>((ref) async {
+  final memory = await ref.watch(memoryProvider.future);
+  return memory == null ? 0 : memory.count();
+});
+
+/// Background memory extractor: after a conversation, an LLM pass pulls durable
+/// facts from the transcript and stores them, so Astro learns without the driver
+/// saying "remember this". Null when memory is unavailable or the LLM isn't
+/// configured (no key) — then there is nothing to run.
+final memoryExtractorProvider = FutureProvider<MemoryExtractor?>((ref) async {
+  if (!ref.watch(astroConfiguredProvider)) return null;
+  final memory = await ref.watch(memoryProvider.future);
+  if (memory == null) return null;
+  return MemoryExtractor(
+    client: OpenAiCompatClient.miniMax(apiKey: _miniMaxKey(ref)),
+    memory: memory,
+    model: ref.read(astroModelProvider),
+  );
+});
+
 /// The fully wired brain: MiniMax client + the active tool set + memory recall.
 /// A FutureProvider because opening memory is async.
 final astroBrainProvider = FutureProvider<AstroBrain>((ref) async {
   // Rebuild the brain whenever the key or model changes.
   ref.watch(settingsProvider.select((s) => s.llmApiKey));
   ref.watch(settingsProvider.select((s) => s.searchApiKey));
+  // Rebuild when the driver enables/disables a tool from Settings.
+  final disabledTools = ref.watch(toolPrefsProvider);
   final client = OpenAiCompatClient.miniMax(apiKey: _miniMaxKey(ref));
   final media = ref.read(mediaControllerProvider);
   const actions = SystemActions();
@@ -263,7 +290,7 @@ final astroBrainProvider = FutureProvider<AstroBrain>((ref) async {
   // Above the soft limit of 5 on purpose: MiniMax-M3 has strong tool use and a
   // 1M-token context, so it handles this set well. If selection ever degrades,
   // split into a router / topic agents.
-  final registry = ToolRegistry(softLimit: 14)
+  final registry = ToolRegistry(softLimit: 12)
     // Situational snapshot: time + speed + location + battery.
     ..register(
       ContextTool(
@@ -306,12 +333,13 @@ final astroBrainProvider = FutureProvider<AstroBrain>((ref) async {
             },
       ),
     )
-    // Email over SMTP (mutating → confirmed before sending).
-    // When SMTP is not configured, falls back to a mailto draft via intent.
+    // Communication: send email (confirmed when SMTP sends), read email, read
+    // notifications — one tool with an action to keep the tool count low.
     ..register(
-      EmailTool(
-        isConfigured: () async => (await const SmtpStore().load()).isComplete,
-        send: ({required to, required subject, required body}) async {
+      CommunicationTool(
+        emailConfigured: () async =>
+            (await const SmtpStore().load()).isComplete,
+        sendEmail: ({required to, required subject, required body}) async {
           final ok = await const EmailSender().send(
             config: await const SmtpStore().load(),
             to: to,
@@ -322,19 +350,21 @@ final astroBrainProvider = FutureProvider<AstroBrain>((ref) async {
           if (ok) await const SentEmailsStore().add(to);
           return ok;
         },
-        composeViaIntent: ({required to, required subject, required body}) =>
+        composeEmail: ({required to, required subject, required body}) =>
             actions.composeEmail(to: to, subject: subject, body: body),
-      ),
-    )
-    // Read the inbox over IMAP (read-only).
-    ..register(
-      ReadEmailTool(
-        canRead: () async => (await const SmtpStore().load()).canRead,
-        fetch: ({required count}) async => const EmailReader().fetchRecent(
+        // No-SMTP path: turn a spoken contact name into its saved address.
+        resolveEmail: (query) async {
+          final matches = await actions.matchingContactEmails(query, max: 1);
+          return matches.isEmpty ? null : matches.first.email;
+        },
+        emailCanRead: () async => (await const SmtpStore().load()).canRead,
+        readEmail: ({required count}) async => const EmailReader().fetchRecent(
           await const SmtpStore().load(),
           count: count,
         ),
         openMailApp: actions.openEmailApp,
+        readNotifications: ({required count}) =>
+            const NotificationsReader().recent(count: count),
       ),
     )
     // Phone hardware: brightness + volume + flashlight + open apps.
@@ -348,10 +378,8 @@ final astroBrainProvider = FutureProvider<AstroBrain>((ref) async {
         openApp: const AppLauncher().open,
       ),
     )
-    // Navigation to a destination.
-    ..register(NavigateTool(actions.navigate))
-    // Find places nearby (opens the map).
-    ..register(PlacesTool(actions.nearby))
+    // Maps: navigate to a place or find places nearby.
+    ..register(MapTool(navigate: actions.navigate, nearby: actions.nearby))
     // Current weather (empty place → current location).
     ..register(
       WeatherTool(
@@ -388,6 +416,14 @@ final astroBrainProvider = FutureProvider<AstroBrain>((ref) async {
   final memory = await ref.watch(memoryProvider.future);
   final memRecall = memory != null ? MemoryContext(memory).call : null;
   if (memory != null) registry.register(RememberTool(memory));
+
+  // Drop the tools the driver turned off in Settings (done last so it applies
+  // to the conditionally-registered tools too). Core tools are never removed,
+  // even if a stale preference names one.
+  for (final name in disabledTools) {
+    if (kCoreTools.contains(name)) continue;
+    registry.unregister(name);
+  }
 
   // Recall each turn = long-term memory + the addresses Astro has emailed, so it
   // can reuse a recipient the user references.

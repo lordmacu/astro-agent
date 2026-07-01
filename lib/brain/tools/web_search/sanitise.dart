@@ -42,5 +42,4 @@ String? hostOf(String url) {
   return host.isEmpty ? null : host;
 }
 
-bool _isControl(int rune) =>
-    rune < 0x20 || (rune >= 0x7f && rune < 0xa0);
+bool _isControl(int rune) => rune < 0x20 || (rune >= 0x7f && rune < 0xa0);

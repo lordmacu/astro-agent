@@ -27,6 +27,7 @@ mixin _$AppSettings {
   String get llmApiKey => throw _privateConstructorUsedError;
   String get searchApiKey => throw _privateConstructorUsedError;
   bool get wakeWordEnabled => throw _privateConstructorUsedError;
+  String get wakeWord => throw _privateConstructorUsedError;
   double get wakeWordSensitivity => throw _privateConstructorUsedError;
   bool get navListenerEnabled => throw _privateConstructorUsedError;
   bool get autoBrightnessEnabled => throw _privateConstructorUsedError;
@@ -56,6 +57,7 @@ abstract class $AppSettingsCopyWith<$Res> {
     String llmApiKey,
     String searchApiKey,
     bool wakeWordEnabled,
+    String wakeWord,
     double wakeWordSensitivity,
     bool navListenerEnabled,
     bool autoBrightnessEnabled,
@@ -87,6 +89,7 @@ class _$AppSettingsCopyWithImpl<$Res, $Val extends AppSettings>
     Object? llmApiKey = null,
     Object? searchApiKey = null,
     Object? wakeWordEnabled = null,
+    Object? wakeWord = null,
     Object? wakeWordSensitivity = null,
     Object? navListenerEnabled = null,
     Object? autoBrightnessEnabled = null,
@@ -133,6 +136,10 @@ class _$AppSettingsCopyWithImpl<$Res, $Val extends AppSettings>
                 ? _value.wakeWordEnabled
                 : wakeWordEnabled // ignore: cast_nullable_to_non_nullable
                       as bool,
+            wakeWord: null == wakeWord
+                ? _value.wakeWord
+                : wakeWord // ignore: cast_nullable_to_non_nullable
+                      as String,
             wakeWordSensitivity: null == wakeWordSensitivity
                 ? _value.wakeWordSensitivity
                 : wakeWordSensitivity // ignore: cast_nullable_to_non_nullable
@@ -171,6 +178,7 @@ abstract class _$$AppSettingsImplCopyWith<$Res>
     String llmApiKey,
     String searchApiKey,
     bool wakeWordEnabled,
+    String wakeWord,
     double wakeWordSensitivity,
     bool navListenerEnabled,
     bool autoBrightnessEnabled,
@@ -201,6 +209,7 @@ class __$$AppSettingsImplCopyWithImpl<$Res>
     Object? llmApiKey = null,
     Object? searchApiKey = null,
     Object? wakeWordEnabled = null,
+    Object? wakeWord = null,
     Object? wakeWordSensitivity = null,
     Object? navListenerEnabled = null,
     Object? autoBrightnessEnabled = null,
@@ -247,6 +256,10 @@ class __$$AppSettingsImplCopyWithImpl<$Res>
             ? _value.wakeWordEnabled
             : wakeWordEnabled // ignore: cast_nullable_to_non_nullable
                   as bool,
+        wakeWord: null == wakeWord
+            ? _value.wakeWord
+            : wakeWord // ignore: cast_nullable_to_non_nullable
+                  as String,
         wakeWordSensitivity: null == wakeWordSensitivity
             ? _value.wakeWordSensitivity
             : wakeWordSensitivity // ignore: cast_nullable_to_non_nullable
@@ -278,6 +291,7 @@ class _$AppSettingsImpl implements _AppSettings {
     required this.llmApiKey,
     required this.searchApiKey,
     required this.wakeWordEnabled,
+    required this.wakeWord,
     required this.wakeWordSensitivity,
     required this.navListenerEnabled,
     required this.autoBrightnessEnabled,
@@ -304,6 +318,8 @@ class _$AppSettingsImpl implements _AppSettings {
   @override
   final bool wakeWordEnabled;
   @override
+  final String wakeWord;
+  @override
   final double wakeWordSensitivity;
   @override
   final bool navListenerEnabled;
@@ -312,7 +328,7 @@ class _$AppSettingsImpl implements _AppSettings {
 
   @override
   String toString() {
-    return 'AppSettings(voiceRate: $voiceRate, voicePitch: $voicePitch, voiceLanguage: $voiceLanguage, neuralVoiceEnabled: $neuralVoiceEnabled, neuralVoiceInstalled: $neuralVoiceInstalled, neuralVoicePath: $neuralVoicePath, llmModel: $llmModel, llmApiKey: $llmApiKey, searchApiKey: $searchApiKey, wakeWordEnabled: $wakeWordEnabled, wakeWordSensitivity: $wakeWordSensitivity, navListenerEnabled: $navListenerEnabled, autoBrightnessEnabled: $autoBrightnessEnabled)';
+    return 'AppSettings(voiceRate: $voiceRate, voicePitch: $voicePitch, voiceLanguage: $voiceLanguage, neuralVoiceEnabled: $neuralVoiceEnabled, neuralVoiceInstalled: $neuralVoiceInstalled, neuralVoicePath: $neuralVoicePath, llmModel: $llmModel, llmApiKey: $llmApiKey, searchApiKey: $searchApiKey, wakeWordEnabled: $wakeWordEnabled, wakeWord: $wakeWord, wakeWordSensitivity: $wakeWordSensitivity, navListenerEnabled: $navListenerEnabled, autoBrightnessEnabled: $autoBrightnessEnabled)';
   }
 
   @override
@@ -340,6 +356,8 @@ class _$AppSettingsImpl implements _AppSettings {
                 other.searchApiKey == searchApiKey) &&
             (identical(other.wakeWordEnabled, wakeWordEnabled) ||
                 other.wakeWordEnabled == wakeWordEnabled) &&
+            (identical(other.wakeWord, wakeWord) ||
+                other.wakeWord == wakeWord) &&
             (identical(other.wakeWordSensitivity, wakeWordSensitivity) ||
                 other.wakeWordSensitivity == wakeWordSensitivity) &&
             (identical(other.navListenerEnabled, navListenerEnabled) ||
@@ -361,6 +379,7 @@ class _$AppSettingsImpl implements _AppSettings {
     llmApiKey,
     searchApiKey,
     wakeWordEnabled,
+    wakeWord,
     wakeWordSensitivity,
     navListenerEnabled,
     autoBrightnessEnabled,
@@ -387,6 +406,7 @@ abstract class _AppSettings implements AppSettings {
     required final String llmApiKey,
     required final String searchApiKey,
     required final bool wakeWordEnabled,
+    required final String wakeWord,
     required final double wakeWordSensitivity,
     required final bool navListenerEnabled,
     required final bool autoBrightnessEnabled,
@@ -412,6 +432,8 @@ abstract class _AppSettings implements AppSettings {
   String get searchApiKey;
   @override
   bool get wakeWordEnabled;
+  @override
+  String get wakeWord;
   @override
   double get wakeWordSensitivity;
   @override

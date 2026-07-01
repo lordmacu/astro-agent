@@ -51,8 +51,11 @@ class TavilyProvider implements WebSearchProvider {
     }
 
     if (resp.statusCode >= 400) {
-      throw WebSearchException('http error',
-          provider: 'tavily', statusCode: resp.statusCode);
+      throw WebSearchException(
+        'http error',
+        provider: 'tavily',
+        statusCode: resp.statusCode,
+      );
     }
 
     final decoded =
@@ -65,8 +68,10 @@ class TavilyProvider implements WebSearchProvider {
           WebSearchHit(
             url: sanitiseForPrompt(raw['url'] as String? ?? '', 2 * 1024),
             title: sanitiseForPrompt(raw['title'] as String? ?? '', 512),
-            snippet:
-                sanitiseForPrompt(raw['content'] as String? ?? '', 4 * 1024),
+            snippet: sanitiseForPrompt(
+              raw['content'] as String? ?? '',
+              4 * 1024,
+            ),
             siteName: hostOf(raw['url'] as String? ?? ''),
             publishedAt: raw['published_date'] as String?,
           ),

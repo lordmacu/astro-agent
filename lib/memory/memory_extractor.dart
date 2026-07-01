@@ -7,9 +7,9 @@ import 'memory_entry.dart';
 
 /// System instruction for the extraction pass. Ported in spirit from the
 /// nexo-rs memory-extraction prompt, retargeted from MEMORY.md files to
-/// Chispa's SQLite rows and the in-car domain.
+/// Astro's SQLite rows and the in-car domain.
 const String kMemoryExtractionSystemPrompt = '''
-You are Chispa's memory extractor. From the conversation, pull out durable facts
+You are Astro's memory extractor. From the conversation, pull out durable facts
 worth remembering across future drives: the driver's preferences, names,
 recurring routes or places, car quirks, and anything the driver explicitly asks
 you to remember.
@@ -24,7 +24,11 @@ Return [] when there is nothing worth saving.''';
 
 /// One memory the model proposed to save.
 class ExtractedMemory {
-  const ExtractedMemory({required this.content, this.type, this.tags = const []});
+  const ExtractedMemory({
+    required this.content,
+    this.type,
+    this.tags = const [],
+  });
 
   final String content;
   final String? type;
@@ -32,7 +36,7 @@ class ExtractedMemory {
 }
 
 /// LLM-driven memory extraction: read a conversation, decide what is worth
-/// keeping, and write it to long-term memory. Lets Chispa learn over time
+/// keeping, and write it to long-term memory. Lets Astro learn over time
 /// without the driver saying "remember this".
 class MemoryExtractor {
   MemoryExtractor({
@@ -53,13 +57,17 @@ class MemoryExtractor {
     String transcript, {
     String? existing,
   }) async {
-    final response = await client.complete(LlmRequest(
-      model: model,
-      system: kMemoryExtractionSystemPrompt,
-      messages: [LlmMessage.text(Role.user, _userPrompt(transcript, existing))],
-      maxTokens: 1024,
-      temperature: 0,
-    ));
+    final response = await client.complete(
+      LlmRequest(
+        model: model,
+        system: kMemoryExtractionSystemPrompt,
+        messages: [
+          LlmMessage.text(Role.user, _userPrompt(transcript, existing)),
+        ],
+        maxTokens: 1024,
+        temperature: 0,
+      ),
+    );
 
     final text = response.message.blocks
         .whereType<TextBlock>()
@@ -110,8 +118,8 @@ List<ExtractedMemory> parseExtraction(String text) {
         ExtractedMemory(
           content: (item['content'] as String?)?.trim() ?? '',
           type: item['type'] as String?,
-          tags: (item['tags'] as List?)?.whereType<String>().toList() ??
-              const [],
+          tags:
+              (item['tags'] as List?)?.whereType<String>().toList() ?? const [],
         ),
   ].where((m) => m.content.isNotEmpty).toList();
 }

@@ -12,6 +12,8 @@ import '../../sensors/navigation/nav_service.dart';
 import '../../sensors/proximity/proximity_service.dart';
 import '../../voice/speech_catalog.dart';
 import '../config/settings_providers.dart';
+import '../l10n/app_lang.dart';
+import '../l10n/lang_provider.dart';
 import '../config/thresholds.dart';
 import '../util/calibration.dart';
 import '../util/calibration_store.dart';
@@ -224,9 +226,12 @@ final moodStateProvider = Provider<MoodState>((ref) {
   return resolver.resolve(state);
 });
 
-/// The language Astro speaks. Defaults to Spanish (the driver's language);
-/// switch to English here or from settings later.
-final speechLangProvider = StateProvider<SpeechLang>((_) => SpeechLang.es);
+/// The language Astro speaks, derived from the app language (device locale or
+/// the user's override) — a single source for UI, voice, and prompt.
+final speechLangProvider = Provider<SpeechLang>(
+  (ref) =>
+      ref.watch(langProvider) == AppLang.es ? SpeechLang.es : SpeechLang.en,
+);
 
 /// The current spoken line rendered to text, or null when Astro is quiet.
 final speechTextProvider = Provider<String?>((ref) {

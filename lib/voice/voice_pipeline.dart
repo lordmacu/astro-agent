@@ -1,7 +1,7 @@
-import '../brain/chispa_brain.dart';
+import '../brain/astro_brain.dart';
 import 'voice_interfaces.dart';
 
-/// Coarse voice phases the app maps to Chispa's mood (thinking / answering) and
+/// Coarse voice phases the app maps to Astro's mood (thinking / answering) and
 /// to the speaking animation.
 enum VoicePhase { idle, listening, thinking, speaking }
 
@@ -21,7 +21,7 @@ class VoicePipeline {
 
   final SpeechRecognizer recognizer;
   final TextToSpeech tts;
-  final ChispaBrain brain;
+  final AstroBrain brain;
   final String model;
 
   /// Optional wake-word gate. When set, [awaitWakeThenRun] waits for it.

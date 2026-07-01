@@ -1,43 +1,49 @@
 import 'dart:convert';
 
-import 'package:chispa/brain/llm/llm_client.dart';
-import 'package:chispa/brain/llm/llm_message.dart';
-import 'package:chispa/brain/llm/providers/anthropic_client.dart';
+import 'package:astro/brain/llm/llm_client.dart';
+import 'package:astro/brain/llm/llm_message.dart';
+import 'package:astro/brain/llm/providers/anthropic_client.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
 LlmRequest _request({String model = 'claude-sonnet-4-6'}) => LlmRequest(
-      model: model,
-      system: 'be brief',
-      messages: [LlmMessage.text(Role.user, 'weather in Bogota?')],
-      tools: const [
-        ToolSpec(
-          name: 'get_weather',
-          description: 'Look up the weather.',
-          inputSchema: {
-            'type': 'object',
-            'properties': {
-              'city': {'type': 'string'},
-            },
-          },
-        ),
-      ],
-    );
+  model: model,
+  system: 'be brief',
+  messages: [LlmMessage.text(Role.user, 'weather in Bogota?')],
+  tools: const [
+    ToolSpec(
+      name: 'get_weather',
+      description: 'Look up the weather.',
+      inputSchema: {
+        'type': 'object',
+        'properties': {
+          'city': {'type': 'string'},
+        },
+      },
+    ),
+  ],
+);
 
 void main() {
   group('buildMessagesUrl', () {
     test('appends the full path to a bare base', () {
-      expect(buildMessagesUrl('https://api.anthropic.com'),
-          'https://api.anthropic.com/v1/messages');
+      expect(
+        buildMessagesUrl('https://api.anthropic.com'),
+        'https://api.anthropic.com/v1/messages',
+      );
     });
     test('does not double up an existing /v1', () {
-      expect(buildMessagesUrl('https://proxy.local/v1'),
-          'https://proxy.local/v1/messages');
+      expect(
+        buildMessagesUrl('https://proxy.local/v1'),
+        'https://proxy.local/v1/messages',
+      );
     });
     test('leaves a full path untouched', () {
-      expect(buildMessagesUrl('https://proxy.local/v1/messages/'),
-          'https://proxy.local/v1/messages');
+      expect(
+        buildMessagesUrl('https://proxy.local/v1/messages/'),
+        'https://proxy.local/v1/messages',
+      );
     });
   });
 
@@ -49,30 +55,43 @@ void main() {
       expect(body['system'], 'be brief');
       expect(body['max_tokens'], isA<int>());
       expect(body['messages'][0]['role'], 'user');
-      expect(body['messages'][0]['content'][0],
-          {'type': 'text', 'text': 'weather in Bogota?'});
+      expect(body['messages'][0]['content'][0], {
+        'type': 'text',
+        'text': 'weather in Bogota?',
+      });
       expect(body['tools'][0]['name'], 'get_weather');
       expect(body['tools'][0]['input_schema']['type'], 'object');
     });
 
     test('omits temperature for Opus 4.8 but keeps it for Sonnet', () {
-      expect(buildAnthropicBody(_request(model: 'claude-opus-4-8'))
-          .containsKey('temperature'), isFalse);
-      expect(buildAnthropicBody(_request(model: 'claude-sonnet-4-6'))
-          .containsKey('temperature'), isTrue);
+      expect(
+        buildAnthropicBody(
+          _request(model: 'claude-opus-4-8'),
+        ).containsKey('temperature'),
+        isFalse,
+      );
+      expect(
+        buildAnthropicBody(
+          _request(model: 'claude-sonnet-4-6'),
+        ).containsKey('temperature'),
+        isTrue,
+      );
     });
 
     test('assistant tool use becomes a tool_use block', () {
       final req = LlmRequest(
         model: 'claude-sonnet-4-6',
         messages: [
-          LlmMessage(role: Role.assistant, blocks: const [
-            ToolUseBlock(
-              id: 'tu_1',
-              name: 'get_weather',
-              arguments: {'city': 'Bogota'},
-            ),
-          ]),
+          LlmMessage(
+            role: Role.assistant,
+            blocks: const [
+              ToolUseBlock(
+                id: 'tu_1',
+                name: 'get_weather',
+                arguments: {'city': 'Bogota'},
+              ),
+            ],
+          ),
         ],
       );
 
@@ -87,9 +106,12 @@ void main() {
       final req = LlmRequest(
         model: 'claude-sonnet-4-6',
         messages: [
-          LlmMessage(role: Role.tool, blocks: const [
-            ToolResultBlock(toolUseId: 'tu_1', content: '22C, clear'),
-          ]),
+          LlmMessage(
+            role: Role.tool,
+            blocks: const [
+              ToolResultBlock(toolUseId: 'tu_1', content: '22C, clear'),
+            ],
+          ),
         ],
       );
 
@@ -154,8 +176,7 @@ void main() {
       final client = AnthropicClient(apiKey: 'secret', httpClient: mock);
       final resp = await client.complete(_request());
 
-      expect(captured.url.toString(),
-          'https://api.anthropic.com/v1/messages');
+      expect(captured.url.toString(), 'https://api.anthropic.com/v1/messages');
       expect(captured.headers['x-api-key'], 'secret');
       expect(captured.headers['anthropic-version'], isNotNull);
       expect(resp.message.blocks.whereType<TextBlock>().single.text, 'Sunny.');
@@ -167,8 +188,9 @@ void main() {
 
       expect(
         () => client.complete(_request()),
-        throwsA(isA<LlmException>()
-            .having((e) => e.statusCode, 'statusCode', 400)),
+        throwsA(
+          isA<LlmException>().having((e) => e.statusCode, 'statusCode', 400),
+        ),
       );
     });
   });

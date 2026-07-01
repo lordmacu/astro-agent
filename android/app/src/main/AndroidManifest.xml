@@ -15,6 +15,9 @@
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
     <!-- timer tool: fire SET_TIMER / SET_ALARM intents to the clock app. -->
     <uses-permission android:name="com.android.alarm.permission.SET_ALARM"/>
+    <!-- calendar tool: create events + reminders via the Calendar provider. -->
+    <uses-permission android:name="android.permission.READ_CALENDAR"/>
+    <uses-permission android:name="android.permission.WRITE_CALENDAR"/>
     <application
         android:label="Astro"
         android:name="${applicationName}"
@@ -100,6 +103,11 @@
         </intent>
         <intent>
             <action android:name="android.intent.action.SET_TIMER"/>
+        </intent>
+        <!-- device tool "open_app": see installed launcher apps to match by name. -->
+        <intent>
+            <action android:name="android.intent.action.MAIN"/>
+            <category android:name="android.intent.category.LAUNCHER"/>
         </intent>
         <package android:name="com.google.android.apps.maps"/>
     </queries>

@@ -7,10 +7,10 @@ import 'voice_pipeline.dart';
 
 /// Map a coarse voice phase to the agent phase that drives the mood cascade.
 AgentPhase agentPhaseFor(VoicePhase phase) => switch (phase) {
-      VoicePhase.thinking => AgentPhase.thinking,
-      VoicePhase.speaking => AgentPhase.answering,
-      VoicePhase.listening || VoicePhase.idle => AgentPhase.idle,
-    };
+  VoicePhase.thinking => AgentPhase.thinking,
+  VoicePhase.speaking => AgentPhase.answering,
+  VoicePhase.listening || VoicePhase.idle => AgentPhase.idle,
+};
 
 /// What the UI needs from the voice layer: the current phase and, while
 /// speaking, the active mouth shape.
@@ -46,6 +46,15 @@ class VoiceController extends Notifier<VoiceUiState> {
     }
   }
 
+  /// Brief startle when Astro is summoned (wake word or tap), shown for a beat
+  /// before it starts listening. Drives the top of the mood cascade; the next
+  /// `applyPhase` (listening) clears it.
+  void surprise() {
+    ref.read(agentControllerProvider.notifier).setPhase(AgentPhase.surprised);
+    _visemes.reset();
+    state = const VoiceUiState();
+  }
+
   /// Advance the mouth to the next shape. No-op unless currently speaking.
   void tickViseme() {
     if (state.phase != VoicePhase.speaking) return;
@@ -53,5 +62,6 @@ class VoiceController extends Notifier<VoiceUiState> {
   }
 }
 
-final voiceControllerProvider =
-    NotifierProvider<VoiceController, VoiceUiState>(VoiceController.new);
+final voiceControllerProvider = NotifierProvider<VoiceController, VoiceUiState>(
+  VoiceController.new,
+);

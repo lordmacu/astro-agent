@@ -5,7 +5,9 @@ import 'mood.dart';
 part 'app_state.freezed.dart';
 
 /// What the agentic brain is doing right now. Highest priority in the cascade.
-enum AgentPhase { idle, thinking, answering }
+/// `surprised` is the brief startle when Astro is summoned (wake word or tap),
+/// before it starts listening.
+enum AgentPhase { idle, surprised, thinking, answering }
 
 /// The single immutable snapshot that every data source feeds into. Sensor
 /// services produce streams; `appStateProvider` combines them into this object.
@@ -17,6 +19,11 @@ class AppState with _$AppState {
     // --- Agentic brain (priority 1) ---
     @Default(AgentPhase.idle) AgentPhase agentPhase,
     String? activeToolName,
+
+    // --- Mode: true only in car mode. Gates the speed sensor and every
+    // driving reaction; false (normal mode) collapses the cascade to the
+    // universal moods (agent, caress, sleep, rest). ---
+    @Default(false) bool carMode,
 
     // --- Proximity / caress (priority 2) ---
     @Default(false) bool proximityNear,

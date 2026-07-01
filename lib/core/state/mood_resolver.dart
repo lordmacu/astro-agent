@@ -5,7 +5,7 @@ import 'speech_line.dart';
 
 /// Pure function: `AppState` -> a single `MoodState`.
 ///
-/// This is the heart of Chispa's behaviour and the single place a mood is
+/// This is the heart of Astro's behaviour and the single place a mood is
 /// decided. The mood is chosen by a strict priority cascade; the navigation
 /// posture (gaze/tilt toward the next turn) is layered on top and never
 /// competes with the mood.
@@ -27,12 +27,20 @@ class MoodResolver {
 
   /// The priority cascade, highest to lowest. The first matching rule wins.
   Mood _mood(AppState s) {
-    // 1. Agentic brain.
+    // 1. Agentic brain (surprise on being summoned tops everything).
+    if (s.agentPhase == AgentPhase.surprised) return Mood.surprised;
     if (s.agentPhase == AgentPhase.thinking) return Mood.thinking;
     if (s.agentPhase == AgentPhase.answering) return Mood.answering;
 
     // 2. Caress.
     if (s.proximityNear) return Mood.pet;
+
+    // Normal mode: skip every driving reaction below. Astro is a desk / handheld
+    // companion, so it only sleeps, rests, and reacts to caress and the brain.
+    if (!s.carMode) {
+      if (s.stillFor >= t.sleepAfter) return Mood.sleep;
+      return Mood.rest;
+    }
 
     // 3. Active fault code.
     if (s.dtcPresent == true) return Mood.alarm;
@@ -80,7 +88,7 @@ class MoodResolver {
     return d != null && d <= t.turnImminentM;
   }
 
-  /// Maps a mood to the line Chispa says, or null to stay quiet. The actual
+  /// Maps a mood to the line Astro says, or null to stay quiet. The actual
   /// EN/ES text comes from `SpeechCatalog`.
   SpeechLine? _line(Mood mood) {
     switch (mood) {
@@ -99,6 +107,7 @@ class MoodResolver {
       case Mood.arrival:
         return SpeechLine.arrived;
       case Mood.sleep:
+      case Mood.surprised:
       case Mood.thinking:
       case Mood.answering:
       case Mood.pet:

@@ -1,7 +1,7 @@
-import 'package:chispa/voice/oww_wake_word.dart';
-import 'package:chispa/voice/stt_wake_word.dart';
-import 'package:chispa/voice/voice_interfaces.dart';
-import 'package:chispa/voice/wake_word_provider.dart';
+import 'package:astro/voice/oww_wake_word.dart';
+import 'package:astro/voice/stt_wake_word.dart';
+import 'package:astro/voice/voice_interfaces.dart';
+import 'package:astro/voice/wake_word_provider.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -11,7 +11,7 @@ void main() {
 
   // Mock the platform channel to avoid MissingPluginException in teardown.
   setUpAll(() {
-    const channel = MethodChannel('chispa/wakeword/control');
+    const channel = MethodChannel('astro/wakeword/control');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
           return null;

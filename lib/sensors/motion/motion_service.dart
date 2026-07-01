@@ -2,6 +2,7 @@ import 'package:rxdart/rxdart.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 
 import '../../core/util/low_pass.dart';
+import '../stream_share.dart';
 
 /// Standard gravity, to convert m/s^2 into g.
 const double _g = 9.80665;
@@ -57,11 +58,7 @@ class MotionReading {
 /// (yaw) axis is gyro y. A proper calibration of the gravity/forward axes is a
 /// TODO (pet.md 8.3); until then this is the documented default.
 class MotionService {
-  MotionService({
-    required this.source,
-    this.gyroSource,
-    this.smoothing = 0.2,
-  });
+  MotionService({required this.source, this.gyroSource, this.smoothing = 0.2});
 
   /// Gravity-removed accelerometer samples (e.g. `userAccelerometerEvents`).
   final Stream<AccelSample> source;
@@ -75,10 +72,12 @@ class MotionService {
   /// Phone sensors via sensors_plus (accelerometer + gyroscope).
   factory MotionService.fromSensorsPlus({double smoothing = 0.2}) {
     return MotionService(
-      source: userAccelerometerEventStream()
-          .map((e) => AccelSample(e.x, e.y, e.z)),
-      gyroSource:
-          gyroscopeEventStream().map((e) => GyroSample(e.x, e.y, e.z)),
+      source: shareForever(
+        userAccelerometerEventStream().map((e) => AccelSample(e.x, e.y, e.z)),
+      ),
+      gyroSource: shareForever(
+        gyroscopeEventStream().map((e) => GyroSample(e.x, e.y, e.z)),
+      ),
       smoothing: smoothing,
     );
   }
@@ -91,8 +90,9 @@ class MotionService {
 
     // Seed the gyro with zero so the combined stream emits as soon as the
     // accelerometer does, even when no gyroscope is present (e.g. in tests).
-    final gyro = (gyroSource ?? const Stream<GyroSample>.empty())
-        .startWith(GyroSample.zero);
+    final gyro = (gyroSource ?? const Stream<GyroSample>.empty()).startWith(
+      GyroSample.zero,
+    );
 
     return Rx.combineLatest2<AccelSample, GyroSample, MotionReading>(
       source,

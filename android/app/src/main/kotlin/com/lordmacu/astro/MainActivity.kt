@@ -4,8 +4,11 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import com.lordmacu.astro.apps.AppLauncherChannel
+import com.lordmacu.astro.calendar.CalendarChannel
 import com.lordmacu.astro.media.MediaChannel
 import com.lordmacu.astro.nav.NavChannel
+import com.lordmacu.astro.notifications.NotificationsChannel
 import com.lordmacu.astro.proximity.ProximityChannel
 import com.lordmacu.astro.wakeword.WakeWordChannel
 import io.flutter.embedding.android.FlutterActivity
@@ -16,6 +19,9 @@ class MainActivity : FlutterActivity() {
     private lateinit var mediaChannel: MediaChannel
     private lateinit var proximityChannel: ProximityChannel
     private lateinit var navChannel: NavChannel
+    private lateinit var calendarChannel: CalendarChannel
+    private lateinit var appLauncherChannel: AppLauncherChannel
+    private lateinit var notificationsChannel: NotificationsChannel
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -33,6 +39,17 @@ class MainActivity : FlutterActivity() {
         )
         navChannel = NavChannel(
             applicationContext,
+            flutterEngine.dartExecutor.binaryMessenger,
+        )
+        calendarChannel = CalendarChannel(
+            applicationContext,
+            flutterEngine.dartExecutor.binaryMessenger,
+        )
+        appLauncherChannel = AppLauncherChannel(
+            applicationContext,
+            flutterEngine.dartExecutor.binaryMessenger,
+        )
+        notificationsChannel = NotificationsChannel(
             flutterEngine.dartExecutor.binaryMessenger,
         )
     }

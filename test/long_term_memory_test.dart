@@ -1,4 +1,4 @@
-import 'package:chispa/memory/long_term_memory.dart';
+import 'package:astro/memory/long_term_memory.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -18,8 +18,11 @@ void main() {
 
   group('remember and recall', () {
     test('recalls a memory by keyword and keeps its tags', () async {
-      await mem.remember('The driver prefers cumbia music',
-          tags: ['preference'], type: 'preference');
+      await mem.remember(
+        'The driver prefers cumbia music',
+        tags: ['preference'],
+        type: 'preference',
+      );
 
       final hits = await mem.recall('music');
 
@@ -91,6 +94,41 @@ void main() {
       expect(buildFtsMatch('coffee', ['trip']), '"coffee" OR "trip"');
       expect(buildFtsMatch('', []), '""');
       expect(ftsQuote('say "hi"'), '"say ""hi"""');
+    });
+  });
+
+  group('without FTS5 (LIKE fallback)', () {
+    late LongTermMemory noFts;
+
+    setUp(() async {
+      noFts = await LongTermMemory.open(
+        factory: databaseFactoryFfi,
+        path: inMemoryDatabasePath,
+        forceNoFts: true,
+      );
+    });
+    tearDown(() async => noFts.close());
+
+    test('remember and recall still work by keyword', () async {
+      expect(noFts.hasFullTextSearch, isFalse);
+      await noFts.remember('The driver lives in Usaquen');
+      await noFts.remember('The driver hates reggaeton');
+
+      final hits = await noFts.recall('usaquen');
+      expect(hits, hasLength(1));
+      expect(hits.first.content, contains('Usaquen'));
+    });
+
+    test('a query with no known tokens returns recent memories', () async {
+      await noFts.remember('coffee at dawn');
+      final hits = await noFts.recall('the a of'); // all stopwords
+      expect(hits, hasLength(1));
+    });
+
+    test('forget removes the memory from the LIKE search too', () async {
+      final e = await noFts.remember('temporary note');
+      expect(await noFts.forget(e.id), isTrue);
+      expect(await noFts.recall('temporary'), isEmpty);
     });
   });
 }

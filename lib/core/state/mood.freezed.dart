@@ -19,7 +19,7 @@ final _privateConstructorUsedError = UnsupportedError(
 mixin _$MoodState {
   Mood get mood => throw _privateConstructorUsedError;
 
-  /// Where Chispa looks: toward the side of the upcoming turn.
+  /// Where Astro looks: toward the side of the upcoming turn.
   TurnDirection get gaze => throw _privateConstructorUsedError;
 
   /// Body lean in the range -1..1 (negative left, positive right).
@@ -181,7 +181,7 @@ class _$MoodStateImpl implements _MoodState {
   @override
   final Mood mood;
 
-  /// Where Chispa looks: toward the side of the upcoming turn.
+  /// Where Astro looks: toward the side of the upcoming turn.
   @override
   @JsonKey()
   final TurnDirection gaze;
@@ -244,7 +244,7 @@ abstract class _MoodState implements MoodState {
   @override
   Mood get mood;
 
-  /// Where Chispa looks: toward the side of the upcoming turn.
+  /// Where Astro looks: toward the side of the upcoming turn.
   @override
   TurnDirection get gaze;
 

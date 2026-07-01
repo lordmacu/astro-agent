@@ -1,13 +1,16 @@
 import 'dart:async';
 
-import 'package:chispa/core/state/app_state.dart';
-import 'package:chispa/core/state/app_state_provider.dart';
-import 'package:chispa/ui/pet_screen.dart';
-import 'package:chispa/voice/voice_interfaces.dart';
-import 'package:chispa/voice/wake_word_provider.dart';
+import 'package:astro/core/state/app_state.dart';
+import 'package:astro/core/state/app_state_provider.dart';
+import 'package:astro/ui/pet_screen.dart';
+import 'package:astro/voice/stt_provider.dart';
+import 'package:astro/voice/voice_interfaces.dart';
+import 'package:astro/voice/wake_word_provider.dart';
+import 'package:astro/core/config/settings_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Records lifecycle calls; exposes a controllable wake stream.
 class FakeWake implements WakeWordDetector {
@@ -24,15 +27,38 @@ class FakeWake implements WakeWordDetector {
   Future<void> pause() async => calls.add('pause');
   @override
   Future<void> resume() async => calls.add('resume');
+  @override
+  Future<void> setKeyword(String keyword) async =>
+      calls.add('keyword:$keyword');
+  @override
+  Future<void> setSensitivity(double value) async => calls.add('sens:$value');
+}
+
+/// No-op recognizer so PetScreen.initState doesn't build the real platform
+/// recognizer (Vosk), which throws UnsupportedError in the test VM.
+class FakeRecognizer implements SpeechRecognizer {
+  @override
+  Future<String?> listen({Duration? pauseFor, bool shortReply = false}) async =>
+      null;
+  @override
+  Future<void> stop() async {}
+  @override
+  Future<bool> warmUp() async => true;
+  @override
+  set onListening(void Function()? cb) {}
 }
 
 void main() {
   testWidgets('starts the wake detector from the provider', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
     final fake = FakeWake();
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          sharedPreferencesProvider.overrideWithValue(prefs),
           wakeWordProvider.overrideWithValue(fake),
+          speechRecognizerProvider.overrideWithValue(FakeRecognizer()),
           appStateProvider.overrideWith(
             (ref) => Stream.value(const AppState()),
           ),

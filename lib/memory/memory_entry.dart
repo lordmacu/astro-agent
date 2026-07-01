@@ -1,5 +1,5 @@
 /// One stored memory. Ported from the nexo-rs `MemoryEntry`, trimmed to what
-/// Chispa needs (no concept_tags / embeddings yet).
+/// Astro needs (no concept_tags / embeddings yet).
 class MemoryEntry {
   const MemoryEntry({
     required this.id,

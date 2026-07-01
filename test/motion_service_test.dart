@@ -1,27 +1,31 @@
-import 'package:chispa/sensors/motion/motion_service.dart';
+import 'package:astro/sensors/motion/motion_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const _g = 9.80665;
 
 void main() {
-  test('maps device axes to car frame (x→lateral, y→vertical, z→longitudinal)',
-      () async {
-    // factor 1.0 = no smoothing, value jumps straight to the target.
-    final service = MotionService(
-      source: Stream.fromIterable([const AccelSample(_g, 0, 0)]),
-      smoothing: 1.0,
-    );
+  test(
+    'maps device axes to car frame (x→lateral, y→vertical, z→longitudinal)',
+    () async {
+      // factor 1.0 = no smoothing, value jumps straight to the target.
+      final service = MotionService(
+        source: Stream.fromIterable([const AccelSample(_g, 0, 0)]),
+        smoothing: 1.0,
+      );
 
-    final reading = (await service.readings().toList()).single;
+      final reading = (await service.readings().toList()).single;
 
-    expect(reading.lateralG, closeTo(1.0, 1e-9));
-    expect(reading.verticalG, 0);
-    expect(reading.longitudinalG, 0);
-  });
+      expect(reading.lateralG, closeTo(1.0, 1e-9));
+      expect(reading.verticalG, 0);
+      expect(reading.longitudinalG, 0);
+    },
+  );
 
   test('converts m/s^2 to g and smooths toward steady acceleration', () async {
-    final samples =
-        List.generate(60, (_) => const AccelSample(0, 0, _g)); // 1g forward
+    final samples = List.generate(
+      60,
+      (_) => const AccelSample(0, 0, _g),
+    ); // 1g forward
     final service = MotionService(
       source: Stream.fromIterable(samples),
       smoothing: 0.2,
@@ -36,7 +40,10 @@ void main() {
   });
 
   test('hard braking shows as negative longitudinal g', () async {
-    final samples = List.generate(60, (_) => const AccelSample(0, 0, -0.6 * _g));
+    final samples = List.generate(
+      60,
+      (_) => const AccelSample(0, 0, -0.6 * _g),
+    );
     final service = MotionService(
       source: Stream.fromIterable(samples),
       smoothing: 0.3,

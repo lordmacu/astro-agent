@@ -1,4 +1,4 @@
-import 'package:chispa/core/util/low_pass.dart';
+import 'package:astro/core/util/low_pass.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

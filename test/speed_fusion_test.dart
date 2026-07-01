@@ -1,5 +1,5 @@
-import 'package:chispa/sensors/location/speed_fusion.dart';
-import 'package:chispa/sensors/location/speed_service.dart';
+import 'package:astro/sensors/location/speed_fusion.dart';
+import 'package:astro/sensors/location/speed_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Helper: a GPS event at `t` seconds with the given speed (m/s) and accuracy.

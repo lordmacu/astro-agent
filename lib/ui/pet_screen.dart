@@ -63,6 +63,16 @@ class _PetScreenState extends ConsumerState<PetScreen> {
   List<CalendarOption>? _calendarOptions;
   Completer<CalendarOption?>? _calendarCompleter;
 
+  /// Before sending an email: the draft args to review/edit in a popup, and the
+  /// pending send/cancel. Editing writes the corrected values back into args.
+  Map<String, dynamic>? _emailArgs;
+  Completer<bool>? _emailCompleter;
+
+  /// When a spoken recipient matches several contact emails: the choices to show
+  /// and the pending pick (resolved by tapping one). Used to prefill the "to".
+  List<EmailCandidate>? _emailPickOptions;
+  Completer<EmailCandidate?>? _emailPickCompleter;
+
   /// For calls/messages: the fixed line Astro should say with the REAL contact
   /// name, spoken by the app instead of the model's paraphrase (which mangles
   /// the name). Set during confirmation, consumed by [_answerStreaming].
@@ -87,7 +97,12 @@ class _PetScreenState extends ConsumerState<PetScreen> {
     _wakeSub = _wake.onWake.listen((_) {
       if (!_busy) _converse();
     });
-    if (ref.read(settingsProvider).wakeWordEnabled) {
+    final settings = ref.read(settingsProvider);
+    // Tell the native engine which phrase to listen for (default "hola astro",
+    // user-configurable in Settings) and how sensitive to be, before it starts.
+    unawaited(_wake.setKeyword(settings.wakeWord));
+    unawaited(_wake.setSensitivity(settings.wakeWordSensitivity));
+    if (settings.wakeWordEnabled) {
       _wake.start();
     }
   }
@@ -96,7 +111,42 @@ class _PetScreenState extends ConsumerState<PetScreen> {
   /// everything else gets a plain yes/no.
   Future<bool> _confirmTool(AstroTool tool, Map<String, dynamic> args) async {
     if (tool.name == 'phone') return _confirmPhone(args);
+    // Only the send-email action of `comunicacion` reaches here (it's the only
+    // one that requests confirmation).
+    if (tool.name == 'comunicacion') return _confirmEmail(args);
     return _confirmYesNo(_confirmQuestion(tool, args));
+  }
+
+  /// Show the email draft (what Astro understood) in an editable popup. The user
+  /// fixes the recipient / subject / body and taps Enviar; the corrected values
+  /// are written back into [args] so the tool sends exactly what's on screen.
+  Future<bool> _confirmEmail(Map<String, dynamic> args) async {
+    final controller = ref.read(voiceControllerProvider.notifier);
+
+    // The recognizer often mangles a spoken address. If what we heard resembles
+    // a saved contact, prefill the form with that contact's real email so the
+    // driver doesn't have to fix it by hand.
+    final heard = (args['to'] as String?)?.trim() ?? '';
+    if (heard.isNotEmpty) {
+      final matches = await const SystemActions().matchingContactEmails(heard);
+      if (matches.length == 1) {
+        args['to'] = matches.first.email;
+      } else if (matches.length > 1) {
+        final chosen = await _pickEmail(matches);
+        if (chosen != null) args['to'] = chosen.email;
+      }
+    }
+
+    final completer = Completer<bool>();
+    _emailCompleter = completer;
+    if (mounted) setState(() => _emailArgs = args);
+    await _say('Revisa el correo y toca enviar.', controller);
+
+    final ok = await completer.future;
+    _emailCompleter = null;
+    if (mounted) setState(() => _emailArgs = null);
+    controller.applyPhase(VoicePhase.thinking);
+    return ok;
   }
 
   /// Phone confirmation with fuzzy contact resolution:
@@ -210,6 +260,29 @@ class _PetScreenState extends ConsumerState<PetScreen> {
     return chosen;
   }
 
+  /// Show the email-recipient picker (several contacts/addresses matched what
+  /// was heard) and resolve on tap. Returns null on cancel / timeout, leaving
+  /// the recipient as the model gave it.
+  Future<EmailCandidate?> _pickEmail(List<EmailCandidate> options) async {
+    final controller = ref.read(voiceControllerProvider.notifier);
+    final completer = Completer<EmailCandidate?>();
+    _emailPickCompleter = completer;
+    if (mounted) setState(() => _emailPickOptions = options);
+
+    final timeout = Timer(const Duration(seconds: 20), () {
+      if (!completer.isCompleted) completer.complete(null);
+    });
+
+    await _say('¿A cuál correo?', controller);
+
+    final chosen = await completer.future;
+    timeout.cancel();
+    _emailPickCompleter = null;
+    if (mounted) setState(() => _emailPickOptions = null);
+    controller.applyPhase(VoicePhase.thinking);
+    return chosen;
+  }
+
   /// Show the calendar picker (first event only) and resolve on tap. Speaks a
   /// short prompt. Returns null on cancel / timeout (→ primary calendar).
   Future<CalendarOption?> _pickCalendar(List<CalendarOption> options) async {
@@ -308,6 +381,10 @@ class _PetScreenState extends ConsumerState<PetScreen> {
     controller.surprise();
     await Future<void>.delayed(const Duration(milliseconds: 650));
 
+    // Collected across the turns of this one conversation, then handed to the
+    // background memory extractor once it ends.
+    final exchanges = <String>[];
+
     try {
       for (var turn = 0; turn < 6; turn++) {
         controller.applyPhase(VoicePhase.listening);
@@ -332,6 +409,8 @@ class _PetScreenState extends ConsumerState<PetScreen> {
         }
 
         final answer = await _answerStreaming(command, controller);
+        exchanges.add('Conductor: $command');
+        if (answer.trim().isNotEmpty) exchanges.add('Astro: $answer');
         if (!_invitesReply(answer)) break; // Astro didn't ask anything back
       }
     } finally {
@@ -339,6 +418,43 @@ class _PetScreenState extends ConsumerState<PetScreen> {
       if (mounted) setState(() => _spokenText = '');
       _busy = false;
       await _wake.resume();
+      // Learn from the conversation in the background (never blocks the mic).
+      unawaited(_extractMemories(exchanges));
+    }
+  }
+
+  /// After a conversation, harvest durable facts in the background so Astro
+  /// learns over time (preferences, names, routes) without the driver saying
+  /// "remember this". Skips trivial turns (a handful of words) to avoid needless
+  /// LLM calls; the extractor itself also saves nothing when there's nothing
+  /// worth keeping, and dedupes against recent memories.
+  Future<void> _extractMemories(List<String> exchanges) async {
+    if (exchanges.isEmpty) return;
+    final driverWords = exchanges
+        .where((e) => e.startsWith('Conductor: '))
+        .map((e) => e.substring('Conductor: '.length))
+        .join(' ')
+        .split(RegExp(r'\s+'))
+        .where((w) => w.isNotEmpty)
+        .length;
+    if (driverWords < 4) return; // one-word commands / yes-no → nothing durable
+
+    try {
+      final extractor = await ref.read(memoryExtractorProvider.future);
+      if (extractor == null) return;
+      final recent = await extractor.memory.recent(limit: 20);
+      final existing = recent.map((m) => m.content).join('\n');
+      final stored = await extractor.extractAndStore(
+        exchanges.join('\n'),
+        existing: existing,
+      );
+      if (stored.isNotEmpty) {
+        debugPrint('[Astro] 🧠 learned ${stored.length} memory(ies)');
+        // Refresh the Settings counter live (harmless if that screen is closed).
+        if (mounted) ref.invalidate(memoryCountProvider);
+      }
+    } catch (e) {
+      debugPrint('[Astro] memory extraction failed: $e');
     }
   }
 
@@ -479,7 +595,7 @@ class _PetScreenState extends ConsumerState<PetScreen> {
       mood: mood,
       color: bodyColor,
       viseme: voice.viseme,
-      size: 200,
+      size: 260,
     );
 
     return Scaffold(
@@ -532,13 +648,13 @@ class _PetScreenState extends ConsumerState<PetScreen> {
                               ? VelocityRing(
                                   speedKmh: appState.speedKmh,
                                   color: accent,
-                                  size: 260,
+                                  size: 330,
                                   child: character,
                                 )
-                              // Same 260 box (no ring) so the layout doesn't jump.
+                              // Same 330 box (no ring) so the layout doesn't jump.
                               : SizedBox(
-                                  width: 260,
-                                  height: 260,
+                                  width: 330,
+                                  height: 330,
                                   child: Center(child: character),
                                 ),
                         ),
@@ -622,6 +738,14 @@ class _PetScreenState extends ConsumerState<PetScreen> {
           if (_confirmPrompt != null) _confirmOverlay(accent),
           if (_pickContacts != null) _pickOverlay(accent),
           if (_calendarOptions != null) _calendarOverlay(accent),
+          if (_emailPickOptions != null) _emailPickOverlay(accent),
+          if (_emailArgs != null)
+            _EmailConfirm(
+              args: _emailArgs!,
+              accent: accent,
+              onSend: () => _emailCompleter?.complete(true),
+              onCancel: () => _emailCompleter?.complete(false),
+            ),
           if (capturedPhoto != null) _photoOverlay(context, capturedPhoto),
         ],
       ),
@@ -791,6 +915,87 @@ class _PetScreenState extends ConsumerState<PetScreen> {
     );
   }
 
+  /// Full-screen email-recipient picker: a button per matching contact (name +
+  /// address); tapping one prefills the "to". Scrolls so it never overflows.
+  Widget _emailPickOverlay(Color accent) {
+    final options = _emailPickOptions ?? const [];
+    return Positioned.fill(
+      child: ColoredBox(
+        color: Colors.black.withValues(alpha: 0.72),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text(
+                  '¿A cuál correo?',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: DesignTokens.ink,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (final o in options) ...[
+                          _emailButton(o, accent),
+                          const SizedBox(height: 12),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                _emailButton(null, DesignTokens.dim), // Cancel (always shown)
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// An email row in the picker: name over address. [option] null → Cancel.
+  Widget _emailButton(EmailCandidate? option, Color color) {
+    final label = option == null
+        ? 'Cancelar'
+        : '${option.name}\n${option.email}';
+    return GestureDetector(
+      onTap: () {
+        if (_emailPickCompleter?.isCompleted == false) {
+          _emailPickCompleter!.complete(option);
+        }
+      },
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        constraints: const BoxConstraints(minHeight: 60),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.18),
+          border: Border.all(color: color, width: 2),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: color,
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+
   /// Full-screen confirmation: the question plus big SÍ / NO buttons that
   /// resolve the pending confirmation immediately.
   Widget _confirmOverlay(Color accent) {
@@ -909,6 +1114,130 @@ class _PetScreenState extends ConsumerState<PetScreen> {
                       child: const Text('Ver'),
                     ),
                     TextButton(onPressed: close, child: const Text('Cerrar')),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Editable review of the email Astro understood, before sending. Its own
+/// controllers keep the edits; on Enviar it writes the corrected values back
+/// into [args] (the same map the tool reads) and calls [onSend].
+class _EmailConfirm extends StatefulWidget {
+  const _EmailConfirm({
+    required this.args,
+    required this.accent,
+    required this.onSend,
+    required this.onCancel,
+  });
+
+  final Map<String, dynamic> args;
+  final Color accent;
+  final VoidCallback onSend;
+  final VoidCallback onCancel;
+
+  @override
+  State<_EmailConfirm> createState() => _EmailConfirmState();
+}
+
+class _EmailConfirmState extends State<_EmailConfirm> {
+  late final _to = TextEditingController(
+    text: (widget.args['to'] as String?) ?? '',
+  );
+  late final _subject = TextEditingController(
+    text: (widget.args['subject'] as String?) ?? '',
+  );
+  late final _body = TextEditingController(
+    text: (widget.args['body'] as String?) ?? '',
+  );
+
+  @override
+  void dispose() {
+    _to.dispose();
+    _subject.dispose();
+    _body.dispose();
+    super.dispose();
+  }
+
+  void _send() {
+    // Write the corrected values back so the tool sends what's on screen.
+    widget.args['to'] = _to.text.trim();
+    widget.args['subject'] = _subject.text.trim();
+    widget.args['body'] = _body.text.trim();
+    widget.onSend();
+  }
+
+  Widget _field(String label, TextEditingController c, {int maxLines = 1}) =>
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: TextField(
+          controller: c,
+          maxLines: maxLines,
+          style: const TextStyle(color: DesignTokens.ink),
+          decoration: InputDecoration(
+            labelText: label,
+            labelStyle: const TextStyle(color: DesignTokens.dim),
+          ),
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: ColoredBox(
+        color: Colors.black.withValues(alpha: 0.82),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text(
+                  'Revisa el correo',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: DesignTokens.ink,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _field('Para', _to),
+                        _field('Asunto', _subject),
+                        _field('Mensaje', _body, maxLines: 5),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: widget.onCancel,
+                        child: const Text('Cancelar'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: _send,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: widget.accent,
+                        ),
+                        child: const Text('Enviar'),
+                      ),
+                    ),
                   ],
                 ),
               ],

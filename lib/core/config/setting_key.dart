@@ -11,6 +11,7 @@ enum SettingKey {
   llmApiKey,
   searchApiKey,
   wakeWordEnabled,
+  wakeWord,
   wakeWordSensitivity,
   navListenerEnabled,
   autoBrightnessEnabled,

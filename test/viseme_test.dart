@@ -1,6 +1,6 @@
 import 'dart:math';
 
-import 'package:chispa/voice/viseme.dart';
+import 'package:astro/voice/viseme.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.lordmacu.chispa"
+    namespace = "com.lordmacu.astro"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -21,10 +21,11 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.lordmacu.chispa"
+        applicationId = "com.lordmacu.astro"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // Vosk (vosk_flutter_2) requires minSdk 30 (Android 11).
+        minSdk = maxOf(flutter.minSdkVersion, 30)
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -40,6 +41,17 @@ android {
 
     androidResources {
         noCompress += "tflite" // mmap models directly; don't gzip them in the APK
+        noCompress += "onnx"   // wake-word models ship as .onnx
+    }
+
+    packaging {
+        jniLibs {
+            // vosk_flutter_2 and the vosk-android AAR both bundle these native
+            // libs (we add the AAR to use org.vosk.* from Kotlin for the wake
+            // word). Pick one instead of failing the merge.
+            pickFirsts += "**/libvosk.so"
+            pickFirsts += "**/libjnidispatch.so"
+        }
     }
 }
 
@@ -49,7 +61,9 @@ flutter {
 
 dependencies {
     testImplementation("junit:junit:4.13.2")
-    implementation("org.tensorflow:tensorflow-lite:2.16.1")
-    // Parked ONNX fallback (enable only if a stage ships .onnx, not .tflite):
-    // implementation("com.microsoft.onnxruntime:onnxruntime-android:1.18.0")
+    // Offline Vosk for the native wake word (org.vosk.* API). The native libs
+    // are already bundled by vosk_flutter_2; these AARs just expose the Java API
+    // (duplicate .so handled by packaging.jniLibs.pickFirsts above).
+    implementation("com.alphacephei:vosk-android:0.3.47@aar")
+    implementation("net.java.dev.jna:jna:5.13.0@aar")
 }

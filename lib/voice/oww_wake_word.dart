@@ -4,15 +4,15 @@ import 'voice_interfaces.dart';
 
 /// Production wake-word detector backed by the native openWakeWord engine
 /// (Kotlin foreground service). Detections arrive on the [EventChannel]
-/// `chispa/wakeword`; control flows over the [MethodChannel]
-/// `chispa/wakeword/control`. The channels are injectable so the adapter is
+/// `astro/wakeword`; control flows over the [MethodChannel]
+/// `astro/wakeword/control`. The channels are injectable so the adapter is
 /// unit-tested without the platform.
 class OwwWakeWord implements WakeWordDetector {
   OwwWakeWord({MethodChannel? control, Stream<dynamic>? events})
-    : _control = control ?? const MethodChannel('chispa/wakeword/control'),
+    : _control = control ?? const MethodChannel('astro/wakeword/control'),
       _events =
           events ??
-          const EventChannel('chispa/wakeword').receiveBroadcastStream();
+          const EventChannel('astro/wakeword').receiveBroadcastStream();
 
   final MethodChannel _control;
   final Stream<dynamic> _events;
@@ -42,4 +42,18 @@ class OwwWakeWord implements WakeWordDetector {
         'phrase': phrase,
         'value': value,
       });
+
+  /// Set the wake phrase the native engine listens for (from Settings).
+  @override
+  Future<void> setKeyword(String keyword) => _control.invokeMethod<void>(
+    'setKeyword',
+    <String, dynamic>{'keyword': keyword},
+  );
+
+  /// Set the native detection sensitivity in [0,1] (from the Settings slider).
+  @override
+  Future<void> setSensitivity(double value) => _control.invokeMethod<void>(
+    'setSensitivity',
+    <String, dynamic>{'value': value},
+  );
 }

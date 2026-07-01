@@ -15,6 +15,7 @@ class OpenAiCompatClient implements LlmClient {
     this.apiKey,
     this.providerId = 'openai-compat',
     this.extraHeaders = const {},
+    this.extraBody = const {},
     http.Client? httpClient,
   }) : _http = httpClient ?? http.Client();
 
@@ -22,25 +23,45 @@ class OpenAiCompatClient implements LlmClient {
   factory OpenAiCompatClient.deepSeek({
     required String apiKey,
     http.Client? httpClient,
-  }) =>
-      OpenAiCompatClient(
-        baseUrl: 'https://api.deepseek.com/v1',
-        apiKey: apiKey,
-        providerId: 'deepseek',
-        httpClient: httpClient,
-      );
+  }) => OpenAiCompatClient(
+    baseUrl: 'https://api.deepseek.com/v1',
+    apiKey: apiKey,
+    providerId: 'deepseek',
+    httpClient: httpClient,
+  );
 
   /// OpenAI cloud.
   factory OpenAiCompatClient.openAi({
     required String apiKey,
     http.Client? httpClient,
-  }) =>
-      OpenAiCompatClient(
-        baseUrl: 'https://api.openai.com/v1',
-        apiKey: apiKey,
-        providerId: 'openai',
-        httpClient: httpClient,
-      );
+  }) => OpenAiCompatClient(
+    baseUrl: 'https://api.openai.com/v1',
+    apiKey: apiKey,
+    providerId: 'openai',
+    httpClient: httpClient,
+  );
+
+  /// MiniMax cloud (OpenAI-compatible). Models: "MiniMax-M2.7-highspeed"
+  /// (fast, good for voice), "MiniMax-M3" (1M context), etc.
+  ///
+  /// Tuned for low latency:
+  ///  - `thinking: disabled` → M3 answers directly, no `<think>` reasoning
+  ///    (which would leak into the spoken reply and add generation time).
+  ///  - `service_tier: priority` → faster admission / less queue wait.
+  /// No effect on M2.x, which ignore `thinking`.
+  factory OpenAiCompatClient.miniMax({
+    required String apiKey,
+    http.Client? httpClient,
+  }) => OpenAiCompatClient(
+    baseUrl: 'https://api.minimax.io/v1',
+    apiKey: apiKey,
+    providerId: 'minimax',
+    extraBody: const {
+      'thinking': {'type': 'disabled'},
+      'service_tier': 'priority',
+    },
+    httpClient: httpClient,
+  );
 
   /// Base URL up to and including `/v1` (no trailing `/chat/completions`).
   final String baseUrl;
@@ -48,6 +69,11 @@ class OpenAiCompatClient implements LlmClient {
   @override
   final String providerId;
   final Map<String, String> extraHeaders;
+
+  /// Extra top-level fields merged into every request body (e.g. MiniMax's
+  /// `thinking` toggle). Provider-specific knobs that the neutral `LlmRequest`
+  /// does not model.
+  final Map<String, dynamic> extraBody;
 
   final http.Client _http;
 
@@ -65,7 +91,7 @@ class OpenAiCompatClient implements LlmClient {
       resp = await _http.post(
         uri,
         headers: headers,
-        body: jsonEncode(buildOpenAiBody(request)),
+        body: jsonEncode(buildOpenAiBody(request)..addAll(extraBody)),
       );
     } on Object catch (e) {
       throw LlmException('request to $providerId failed: $e');
@@ -86,6 +112,126 @@ class OpenAiCompatClient implements LlmClient {
     }
     return parseOpenAiResponse(decoded);
   }
+
+  @override
+  Stream<LlmStreamChunk> completeStream(LlmRequest request) async* {
+    final uri = Uri.parse('$baseUrl/chat/completions');
+    final body = buildOpenAiBody(request)
+      ..addAll(extraBody)
+      ..['stream'] = true;
+
+    final req = http.Request('POST', uri)
+      ..headers.addAll({
+        'content-type': 'application/json',
+        if (apiKey != null) 'authorization': 'Bearer $apiKey',
+        ...extraHeaders,
+      })
+      ..body = jsonEncode(body);
+
+    final http.StreamedResponse resp;
+    try {
+      resp = await _http.send(req);
+    } on Object catch (e) {
+      throw LlmException('request to $providerId failed: $e');
+    }
+
+    if (resp.statusCode >= 400) {
+      final errBody = await resp.stream.bytesToString();
+      throw LlmException(
+        'provider $providerId returned an error: $errBody',
+        statusCode: resp.statusCode,
+      );
+    }
+
+    final textBuf = StringBuffer();
+    final tools = <int, _ToolAccum>{};
+    String? finishReason;
+
+    final lines = resp.stream
+        .transform(utf8.decoder)
+        .transform(const LineSplitter());
+
+    await for (final line in lines) {
+      if (!line.startsWith('data:')) continue;
+      final data = line.substring(5).trim();
+      if (data.isEmpty) continue;
+      if (data == '[DONE]') break;
+
+      final Map<String, dynamic> json;
+      try {
+        json = jsonDecode(data) as Map<String, dynamic>;
+      } catch (_) {
+        continue; // ignore keep-alives / malformed lines
+      }
+
+      final choices = json['choices'] as List? ?? const [];
+      if (choices.isEmpty) continue;
+      final choice = choices.first as Map<String, dynamic>;
+
+      final fr = choice['finish_reason'];
+      if (fr is String) finishReason = fr;
+
+      final delta = choice['delta'] as Map<String, dynamic>?;
+      if (delta == null) continue;
+
+      final content = delta['content'];
+      if (content is String && content.isNotEmpty) {
+        textBuf.write(content);
+        yield LlmTextDelta(content);
+      }
+
+      for (final raw in delta['tool_calls'] as List? ?? const []) {
+        final tc = raw as Map<String, dynamic>;
+        final idx = (tc['index'] as num?)?.toInt() ?? 0;
+        final acc = tools.putIfAbsent(idx, _ToolAccum.new);
+        if (tc['id'] is String) acc.id = tc['id'] as String;
+        final fn = tc['function'] as Map<String, dynamic>?;
+        if (fn != null) {
+          if (fn['name'] is String) acc.name = fn['name'] as String;
+          if (fn['arguments'] is String) acc.args.write(fn['arguments']);
+        }
+      }
+    }
+
+    yield LlmDone(_assembleStreamed(textBuf.toString(), tools, finishReason));
+  }
+}
+
+/// Accumulates a single tool call as its deltas stream in.
+class _ToolAccum {
+  String id = '';
+  String name = '';
+  final StringBuffer args = StringBuffer();
+}
+
+/// Assemble the streamed deltas into a final `LlmResponse`.
+LlmResponse _assembleStreamed(
+  String text,
+  Map<int, _ToolAccum> tools,
+  String? finishReason,
+) {
+  final blocks = <ContentBlock>[];
+  if (text.isNotEmpty) blocks.add(TextBlock(text));
+  for (final i in tools.keys.toList()..sort()) {
+    final t = tools[i]!;
+    blocks.add(
+      ToolUseBlock(
+        id: t.id,
+        name: t.name,
+        arguments: _decodeArguments(t.args.toString()),
+      ),
+    );
+  }
+  final stop = switch (finishReason) {
+    'stop' => StopReason.endTurn,
+    'tool_calls' => StopReason.toolUse,
+    'length' => StopReason.maxTokens,
+    _ => StopReason.endTurn,
+  };
+  return LlmResponse(
+    message: LlmMessage(role: Role.assistant, blocks: blocks),
+    stopReason: stop,
+  );
 }
 
 /// Build the OpenAI-compatible request body from a neutral `LlmRequest`.
@@ -180,11 +326,13 @@ LlmResponse parseOpenAiResponse(Map<String, dynamic> json) {
   for (final raw in message['tool_calls'] as List? ?? const []) {
     final call = raw as Map<String, dynamic>;
     final fn = call['function'] as Map<String, dynamic>;
-    blocks.add(ToolUseBlock(
-      id: call['id'] as String,
-      name: fn['name'] as String,
-      arguments: _decodeArguments(fn['arguments']),
-    ));
+    blocks.add(
+      ToolUseBlock(
+        id: call['id'] as String,
+        name: fn['name'] as String,
+        arguments: _decodeArguments(fn['arguments']),
+      ),
+    );
   }
 
   final stopReason = switch (choice['finish_reason']) {

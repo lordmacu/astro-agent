@@ -1,8 +1,8 @@
-import 'package:chispa/core/config/thresholds.dart';
-import 'package:chispa/core/state/app_state.dart';
-import 'package:chispa/core/state/mood_resolver.dart';
-import 'package:chispa/core/state/speech_line.dart';
-import 'package:chispa/voice/speech_catalog.dart';
+import 'package:astro/core/config/thresholds.dart';
+import 'package:astro/core/state/app_state.dart';
+import 'package:astro/core/state/mood_resolver.dart';
+import 'package:astro/core/state/speech_line.dart';
+import 'package:astro/voice/speech_catalog.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -18,7 +18,10 @@ void main() {
 
   test('the resolver emits a bilingual line for an excited mood', () {
     const resolver = MoodResolver(Thresholds());
-    final line = resolver.resolve(const AppState(longitudinalG: 0.6)).line;
+    // Driving moods only fire in car mode; the resolver gates on AppState.carMode.
+    final line = resolver
+        .resolve(const AppState(carMode: true, longitudinalG: 0.6))
+        .line;
 
     expect(line, SpeechLine.letsGo);
     expect(SpeechCatalog.text(line!, SpeechLang.en), "Let's go!");

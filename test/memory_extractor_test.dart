@@ -1,7 +1,7 @@
-import 'package:chispa/brain/llm/llm_client.dart';
-import 'package:chispa/brain/llm/llm_message.dart';
-import 'package:chispa/memory/long_term_memory.dart';
-import 'package:chispa/memory/memory_extractor.dart';
+import 'package:astro/brain/llm/llm_client.dart';
+import 'package:astro/brain/llm/llm_message.dart';
+import 'package:astro/memory/long_term_memory.dart';
+import 'package:astro/memory/memory_extractor.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -21,20 +21,27 @@ class FixedLlmClient implements LlmClient {
       stopReason: StopReason.endTurn,
     );
   }
+
+  @override
+  Stream<LlmStreamChunk> completeStream(LlmRequest request) =>
+      streamViaComplete(complete(request));
 }
 
 void main() {
   group('parseExtraction', () {
     test('parses a plain JSON array', () {
       final out = parseExtraction(
-          '[{"content":"likes cumbia","type":"preference","tags":["music"]}]');
+        '[{"content":"likes cumbia","type":"preference","tags":["music"]}]',
+      );
       expect(out.single.content, 'likes cumbia');
       expect(out.single.type, 'preference');
       expect(out.single.tags, ['music']);
     });
 
     test('tolerates a ```json fence', () {
-      final out = parseExtraction('```json\n[{"content":"parks on level 3"}]\n```');
+      final out = parseExtraction(
+        '```json\n[{"content":"parks on level 3"}]\n```',
+      );
       expect(out.single.content, 'parks on level 3');
     });
 
@@ -49,8 +56,10 @@ void main() {
     });
 
     test('non-array payload throws FormatException', () {
-      expect(() => parseExtraction('not json'),
-          throwsA(isA<FormatException>()));
+      expect(
+        () => parseExtraction('not json'),
+        throwsA(isA<FormatException>()),
+      );
     });
   });
 
@@ -68,12 +77,18 @@ void main() {
 
     test('stores extracted memories and makes them recallable', () async {
       final client = FixedLlmClient(
-          '[{"content":"the driver prefers the scenic route home",'
-          '"type":"route","tags":["home"]}]');
-      final extractor =
-          MemoryExtractor(client: client, memory: memory, model: 'm');
+        '[{"content":"the driver prefers the scenic route home",'
+        '"type":"route","tags":["home"]}]',
+      );
+      final extractor = MemoryExtractor(
+        client: client,
+        memory: memory,
+        model: 'm',
+      );
 
-      final stored = await extractor.extractAndStore('driver: I always take the scenic way home');
+      final stored = await extractor.extractAndStore(
+        'driver: I always take the scenic way home',
+      );
 
       expect(stored, hasLength(1));
       expect(client.lastRequest!.system, kMemoryExtractionSystemPrompt);
@@ -84,10 +99,15 @@ void main() {
 
     test('stores nothing when the model returns an empty array', () async {
       final client = FixedLlmClient('[]');
-      final extractor =
-          MemoryExtractor(client: client, memory: memory, model: 'm');
+      final extractor = MemoryExtractor(
+        client: client,
+        memory: memory,
+        model: 'm',
+      );
 
-      final stored = await extractor.extractAndStore('driver: nice weather huh');
+      final stored = await extractor.extractAndStore(
+        'driver: nice weather huh',
+      );
 
       expect(stored, isEmpty);
       expect(await memory.count(), 0);
@@ -95,8 +115,11 @@ void main() {
 
     test('an unparseable reply stores nothing instead of throwing', () async {
       final client = FixedLlmClient('sorry, I cannot help with that');
-      final extractor =
-          MemoryExtractor(client: client, memory: memory, model: 'm');
+      final extractor = MemoryExtractor(
+        client: client,
+        memory: memory,
+        model: 'm',
+      );
 
       expect(await extractor.extractAndStore('hello'), isEmpty);
       expect(await memory.count(), 0);

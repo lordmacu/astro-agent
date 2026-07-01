@@ -1,18 +1,20 @@
-import 'package:chispa/core/state/agent_controller.dart';
-import 'package:chispa/core/state/app_state.dart';
-import 'package:chispa/core/state/app_state_provider.dart';
-import 'package:chispa/core/state/mood.dart';
-import 'package:chispa/voice/voice_controller.dart';
-import 'package:chispa/voice/voice_pipeline.dart';
+import 'package:astro/core/state/agent_controller.dart';
+import 'package:astro/core/state/app_state.dart';
+import 'package:astro/core/state/app_state_provider.dart';
+import 'package:astro/core/state/mood.dart';
+import 'package:astro/voice/voice_controller.dart';
+import 'package:astro/voice/voice_pipeline.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   ProviderContainer makeContainer() {
-    final c = ProviderContainer(overrides: [
-      // No real sensors in tests; emit a single resting state.
-      appStateProvider.overrideWith((ref) => Stream.value(const AppState())),
-    ]);
+    final c = ProviderContainer(
+      overrides: [
+        // No real sensors in tests; emit a single resting state.
+        appStateProvider.overrideWith((ref) => Stream.value(const AppState())),
+      ],
+    );
     addTearDown(c.dispose);
     return c;
   }
@@ -42,6 +44,29 @@ void main() {
       expect(c.read(moodStateProvider).mood, Mood.answering);
 
       c.read(agentControllerProvider.notifier).idle();
+      expect(c.read(moodStateProvider).mood, Mood.rest);
+    });
+  });
+
+  group('summon surprise', () {
+    test('surprise sets the surprised mood', () {
+      final c = makeContainer();
+      expect(c.read(moodStateProvider).mood, Mood.rest);
+
+      c.read(voiceControllerProvider.notifier).surprise();
+      expect(c.read(moodStateProvider).mood, Mood.surprised);
+    });
+  });
+
+  group('touch petting drives the caress', () {
+    test('petting makes the mood pet, and releasing restores it', () {
+      final c = makeContainer();
+      expect(c.read(moodStateProvider).mood, Mood.rest);
+
+      c.read(pettingProvider.notifier).state = true;
+      expect(c.read(moodStateProvider).mood, Mood.pet);
+
+      c.read(pettingProvider.notifier).state = false;
       expect(c.read(moodStateProvider).mood, Mood.rest);
     });
   });

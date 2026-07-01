@@ -20,6 +20,10 @@ mixin _$AppState {
   // --- Agentic brain (priority 1) ---
   AgentPhase get agentPhase => throw _privateConstructorUsedError;
   String? get activeToolName =>
+      throw _privateConstructorUsedError; // --- Mode: true only in car mode. Gates the speed sensor and every
+  // driving reaction; false (normal mode) collapses the cascade to the
+  // universal moods (agent, caress, sleep, rest). ---
+  bool get carMode =>
       throw _privateConstructorUsedError; // --- Proximity / caress (priority 2) ---
   bool get proximityNear =>
       throw _privateConstructorUsedError; // --- OBD (optional; null when no adapter is connected) ---
@@ -65,6 +69,7 @@ abstract class $AppStateCopyWith<$Res> {
   $Res call({
     AgentPhase agentPhase,
     String? activeToolName,
+    bool carMode,
     bool proximityNear,
     bool? dtcPresent,
     double? coolantTempC,
@@ -99,6 +104,7 @@ class _$AppStateCopyWithImpl<$Res, $Val extends AppState>
   $Res call({
     Object? agentPhase = null,
     Object? activeToolName = freezed,
+    Object? carMode = null,
     Object? proximityNear = null,
     Object? dtcPresent = freezed,
     Object? coolantTempC = freezed,
@@ -124,6 +130,10 @@ class _$AppStateCopyWithImpl<$Res, $Val extends AppState>
                 ? _value.activeToolName
                 : activeToolName // ignore: cast_nullable_to_non_nullable
                       as String?,
+            carMode: null == carMode
+                ? _value.carMode
+                : carMode // ignore: cast_nullable_to_non_nullable
+                      as bool,
             proximityNear: null == proximityNear
                 ? _value.proximityNear
                 : proximityNear // ignore: cast_nullable_to_non_nullable
@@ -198,6 +208,7 @@ abstract class _$$AppStateImplCopyWith<$Res>
   $Res call({
     AgentPhase agentPhase,
     String? activeToolName,
+    bool carMode,
     bool proximityNear,
     bool? dtcPresent,
     double? coolantTempC,
@@ -231,6 +242,7 @@ class __$$AppStateImplCopyWithImpl<$Res>
   $Res call({
     Object? agentPhase = null,
     Object? activeToolName = freezed,
+    Object? carMode = null,
     Object? proximityNear = null,
     Object? dtcPresent = freezed,
     Object? coolantTempC = freezed,
@@ -256,6 +268,10 @@ class __$$AppStateImplCopyWithImpl<$Res>
             ? _value.activeToolName
             : activeToolName // ignore: cast_nullable_to_non_nullable
                   as String?,
+        carMode: null == carMode
+            ? _value.carMode
+            : carMode // ignore: cast_nullable_to_non_nullable
+                  as bool,
         proximityNear: null == proximityNear
             ? _value.proximityNear
             : proximityNear // ignore: cast_nullable_to_non_nullable
@@ -323,6 +339,7 @@ class _$AppStateImpl implements _AppState {
   const _$AppStateImpl({
     this.agentPhase = AgentPhase.idle,
     this.activeToolName,
+    this.carMode = false,
     this.proximityNear = false,
     this.dtcPresent,
     this.coolantTempC,
@@ -345,6 +362,12 @@ class _$AppStateImpl implements _AppState {
   final AgentPhase agentPhase;
   @override
   final String? activeToolName;
+  // --- Mode: true only in car mode. Gates the speed sensor and every
+  // driving reaction; false (normal mode) collapses the cascade to the
+  // universal moods (agent, caress, sleep, rest). ---
+  @override
+  @JsonKey()
+  final bool carMode;
   // --- Proximity / caress (priority 2) ---
   @override
   @JsonKey()
@@ -401,7 +424,7 @@ class _$AppStateImpl implements _AppState {
 
   @override
   String toString() {
-    return 'AppState(agentPhase: $agentPhase, activeToolName: $activeToolName, proximityNear: $proximityNear, dtcPresent: $dtcPresent, coolantTempC: $coolantTempC, rpm: $rpm, longitudinalG: $longitudinalG, verticalG: $verticalG, lateralG: $lateralG, yawRate: $yawRate, speedKmh: $speedKmh, arrived: $arrived, turnDirection: $turnDirection, turnDistanceM: $turnDistanceM, stillFor: $stillFor, lux: $lux)';
+    return 'AppState(agentPhase: $agentPhase, activeToolName: $activeToolName, carMode: $carMode, proximityNear: $proximityNear, dtcPresent: $dtcPresent, coolantTempC: $coolantTempC, rpm: $rpm, longitudinalG: $longitudinalG, verticalG: $verticalG, lateralG: $lateralG, yawRate: $yawRate, speedKmh: $speedKmh, arrived: $arrived, turnDirection: $turnDirection, turnDistanceM: $turnDistanceM, stillFor: $stillFor, lux: $lux)';
   }
 
   @override
@@ -413,6 +436,7 @@ class _$AppStateImpl implements _AppState {
                 other.agentPhase == agentPhase) &&
             (identical(other.activeToolName, activeToolName) ||
                 other.activeToolName == activeToolName) &&
+            (identical(other.carMode, carMode) || other.carMode == carMode) &&
             (identical(other.proximityNear, proximityNear) ||
                 other.proximityNear == proximityNear) &&
             (identical(other.dtcPresent, dtcPresent) ||
@@ -444,6 +468,7 @@ class _$AppStateImpl implements _AppState {
     runtimeType,
     agentPhase,
     activeToolName,
+    carMode,
     proximityNear,
     dtcPresent,
     coolantTempC,
@@ -473,6 +498,7 @@ abstract class _AppState implements AppState {
   const factory _AppState({
     final AgentPhase agentPhase,
     final String? activeToolName,
+    final bool carMode,
     final bool proximityNear,
     final bool? dtcPresent,
     final double? coolantTempC,
@@ -493,7 +519,11 @@ abstract class _AppState implements AppState {
   @override
   AgentPhase get agentPhase;
   @override
-  String? get activeToolName; // --- Proximity / caress (priority 2) ---
+  String? get activeToolName; // --- Mode: true only in car mode. Gates the speed sensor and every
+  // driving reaction; false (normal mode) collapses the cascade to the
+  // universal moods (agent, caress, sleep, rest). ---
+  @override
+  bool get carMode; // --- Proximity / caress (priority 2) ---
   @override
   bool get proximityNear; // --- OBD (optional; null when no adapter is connected) ---
   @override

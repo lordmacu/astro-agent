@@ -141,6 +141,26 @@ class SystemActions {
     return bestContactMatches(name, candidates, max: max);
   }
 
+  /// The saved contacts whose name (or address) best matches [query], each with
+  /// one email, best first. A contact with several emails yields one candidate
+  /// per address. Empty if permission is denied or nothing is close. Lets the
+  /// caller prefill the recipient when the recognizer mangled a spoken email.
+  Future<List<EmailCandidate>> matchingContactEmails(
+    String query, {
+    int max = 4,
+  }) async {
+    if (!await FlutterContacts.requestPermission(readonly: true))
+      return const [];
+    final contacts = await FlutterContacts.getContacts(withProperties: true);
+    final candidates = [
+      for (final c in contacts)
+        for (final e in c.emails)
+          if (e.address.trim().isNotEmpty)
+            EmailCandidate(name: c.displayName, email: e.address.trim()),
+    ];
+    return bestEmailMatches(query, candidates, max: max);
+  }
+
   Future<bool> _fireIntent(
     String action,
     Map<String, dynamic> arguments, {

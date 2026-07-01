@@ -28,12 +28,12 @@ class WebSearchArgs {
   int effectiveCount(int fallback) => (count ?? fallback).clamp(1, 10);
 
   factory WebSearchArgs.fromJson(Map<String, dynamic> json) => WebSearchArgs(
-        query: (json['query'] as String?)?.trim() ?? '',
-        count: (json['count'] as num?)?.toInt(),
-        freshness: parseFreshness(json['freshness']),
-        country: json['country'] as String?,
-        language: json['language'] as String?,
-      );
+    query: (json['query'] as String?)?.trim() ?? '',
+    count: (json['count'] as num?)?.toInt(),
+    freshness: parseFreshness(json['freshness']),
+    country: json['country'] as String?,
+    language: json['language'] as String?,
+  );
 }
 
 /// A single search result.
@@ -62,7 +62,8 @@ class WebSearchException implements Exception {
   final int? statusCode;
 
   @override
-  String toString() => 'WebSearchException'
+  String toString() =>
+      'WebSearchException'
       '${provider == null ? '' : '($provider)'}: $message'
       '${statusCode == null ? '' : ' [http $statusCode]'}';
 }

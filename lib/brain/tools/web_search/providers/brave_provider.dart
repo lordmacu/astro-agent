@@ -37,23 +37,27 @@ class BraveProvider implements WebSearchProvider {
       'count': args.effectiveCount(5).toString(),
       if (args.freshness != null) 'freshness': _freshnessParam(args.freshness!),
       if (args.country != null) 'country': args.country!.trim().toUpperCase(),
-      if (args.language != null) 'search_lang': args.language!.trim().toLowerCase(),
+      if (args.language != null)
+        'search_lang': args.language!.trim().toLowerCase(),
     };
     final uri = Uri.parse(endpoint).replace(queryParameters: params);
 
     final http.Response resp;
     try {
-      resp = await _http.get(uri, headers: {
-        'x-subscription-token': apiKey,
-        'accept': 'application/json',
-      });
+      resp = await _http.get(
+        uri,
+        headers: {'x-subscription-token': apiKey, 'accept': 'application/json'},
+      );
     } on Object catch (e) {
       throw WebSearchException('transport error: $e', provider: 'brave');
     }
 
     if (resp.statusCode >= 400) {
-      throw WebSearchException('http error',
-          provider: 'brave', statusCode: resp.statusCode);
+      throw WebSearchException(
+        'http error',
+        provider: 'brave',
+        statusCode: resp.statusCode,
+      );
     }
 
     final decoded =
@@ -68,7 +72,9 @@ class BraveProvider implements WebSearchProvider {
             url: sanitiseForPrompt(raw['url'] as String? ?? '', 2 * 1024),
             title: sanitiseForPrompt(raw['title'] as String? ?? '', 512),
             snippet: sanitiseForPrompt(
-                raw['description'] as String? ?? '', 4 * 1024),
+              raw['description'] as String? ?? '',
+              4 * 1024,
+            ),
             siteName: hostOf(raw['url'] as String? ?? ''),
             publishedAt: raw['page_age'] as String?,
           ),
@@ -77,8 +83,8 @@ class BraveProvider implements WebSearchProvider {
 }
 
 String _freshnessParam(Freshness f) => switch (f) {
-      Freshness.day => 'pd',
-      Freshness.week => 'pw',
-      Freshness.month => 'pm',
-      Freshness.year => 'py',
-    };
+  Freshness.day => 'pd',
+  Freshness.week => 'pw',
+  Freshness.month => 'pm',
+  Freshness.year => 'py',
+};

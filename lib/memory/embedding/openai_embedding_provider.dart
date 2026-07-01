@@ -24,8 +24,8 @@ class OpenAiEmbeddingProvider implements EmbeddingProvider {
   String get id => 'openai';
 
   @override
-  Future<List<double>> embedOne(String text) async => (await embed([text]))
-      .first;
+  Future<List<double>> embedOne(String text) async =>
+      (await embed([text])).first;
 
   @override
   Future<List<List<double>>> embed(List<String> texts) async {
@@ -39,7 +39,9 @@ class OpenAiEmbeddingProvider implements EmbeddingProvider {
     );
 
     if (resp.statusCode >= 400) {
-      throw Exception('embedding provider error ${resp.statusCode}: ${resp.body}');
+      throw Exception(
+        'embedding provider error ${resp.statusCode}: ${resp.body}',
+      );
     }
 
     final decoded =

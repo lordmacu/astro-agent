@@ -28,11 +28,13 @@ abstract final class DesignTokens {
     Mood.alarm: Color(0xFFFF4D57),
     Mood.sleep: Color(0xFF9FB0C7),
     Mood.arrival: Color(0xFF5FD97A),
+    Mood.surprised: Color(0xFFFFD166),
   };
 }
 
-/// An ambient-light palette: the background gradient and body color shift with
-/// the time of day, derived from lux.
+/// An ambient palette: the background gradient and body color shift with the
+/// time of day, derived from the clock (not the light sensor — indoors the lux
+/// reading rarely matches the real hour).
 class AmbientPalette {
   const AmbientPalette({
     required this.body,
@@ -94,12 +96,12 @@ class AmbientPalette {
     icon: '🌅',
   );
 
-  /// Pick a palette from ambient lux (smooth the transition in the UI layer so
-  /// it does not flicker under a bridge).
-  static AmbientPalette fromLux(double lux) {
-    if (lux >= 2000) return day;
-    if (lux >= 400) return dusk;
-    if (lux >= 50) return dawn;
-    return night;
+  /// Pick a palette from the hour of day (0–23):
+  ///   night 20:00–04:59 · dawn 05:00–07:59 · day 08:00–17:59 · dusk 18:00–19:59
+  static AmbientPalette fromHour(int hour) {
+    if (hour < 5 || hour >= 20) return night;
+    if (hour < 8) return dawn;
+    if (hour < 18) return day;
+    return dusk;
   }
 }

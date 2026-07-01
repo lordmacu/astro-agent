@@ -1,9 +1,9 @@
-import 'package:chispa/brain/chispa_brain.dart';
-import 'package:chispa/brain/llm/llm_client.dart';
-import 'package:chispa/brain/llm/llm_message.dart';
-import 'package:chispa/brain/tools/memory_tools.dart';
-import 'package:chispa/brain/tools/tool_registry.dart';
-import 'package:chispa/memory/long_term_memory.dart';
+import 'package:astro/brain/astro_brain.dart';
+import 'package:astro/brain/llm/llm_client.dart';
+import 'package:astro/brain/llm/llm_message.dart';
+import 'package:astro/brain/tools/memory_tools.dart';
+import 'package:astro/brain/tools/tool_registry.dart';
+import 'package:astro/memory/long_term_memory.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -16,19 +16,23 @@ class FakeLlmClient implements LlmClient {
   String get providerId => 'fake';
   @override
   Future<LlmResponse> complete(LlmRequest request) async => _script[_turn++];
+  @override
+  Stream<LlmStreamChunk> completeStream(LlmRequest request) =>
+      streamViaComplete(complete(request));
 }
 
 LlmResponse _toolTurn(String name, Map<String, dynamic> args) => LlmResponse(
-      message: LlmMessage(role: Role.assistant, blocks: [
-        ToolUseBlock(id: 'c1', name: name, arguments: args),
-      ]),
-      stopReason: StopReason.toolUse,
-    );
+  message: LlmMessage(
+    role: Role.assistant,
+    blocks: [ToolUseBlock(id: 'c1', name: name, arguments: args)],
+  ),
+  stopReason: StopReason.toolUse,
+);
 
 LlmResponse _finalTurn(String text) => LlmResponse(
-      message: LlmMessage.text(Role.assistant, text),
-      stopReason: StopReason.endTurn,
-    );
+  message: LlmMessage.text(Role.assistant, text),
+  stopReason: StopReason.endTurn,
+);
 
 void main() {
   late LongTermMemory memory;
@@ -81,7 +85,7 @@ void main() {
     await memory.remember('the driver prefers the scenic route home');
     final registry = ToolRegistry()..register(RecallTool(memory));
 
-    final brain = ChispaBrain(
+    final brain = AstroBrain(
       client: FakeLlmClient([
         _toolTurn('recall_memory', {'query': 'route home'}),
         _finalTurn('You like the scenic route home.'),
