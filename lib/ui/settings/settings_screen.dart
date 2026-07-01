@@ -5,6 +5,7 @@ import '../../brain/astro_brain_provider.dart';
 import '../../core/config/design_tokens.dart';
 import '../../core/config/settings_providers.dart';
 import '../../platform/permissions.dart';
+import '../../sensors/navigation/nav_service.dart';
 import '../../voice/neural_voice_installer.dart';
 import '../../voice/neural_voice_provider.dart';
 import 'settings_widgets.dart';
@@ -172,7 +173,14 @@ class SettingsScreen extends ConsumerWidget {
                 label: 'Navegación (Maps)',
                 subtitle: 'Reaccionar a las indicaciones de Google Maps',
                 value: settings.navListenerEnabled,
-                onChanged: notifier.setNavListenerEnabled,
+                onChanged: (on) async {
+                  await notifier.setNavListenerEnabled(on);
+                  if (!on) return;
+                  final control = ref.read(navControlProvider);
+                  if (!await control.hasPermission()) {
+                    await control.openSettings();
+                  }
+                },
               ),
               SettingsSwitchTile(
                 label: 'Brillo automático',
