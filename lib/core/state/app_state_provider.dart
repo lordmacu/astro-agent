@@ -203,6 +203,11 @@ final appStateProvider = StreamProvider<AppState>((ref) {
 /// only a "Palm" gesture sensor that never reports a static cover.
 final pettingProvider = StateProvider<bool>((_) => false);
 
+/// The path of the most recently captured photo, or null when no photo popup is
+/// showing. Set by the take_photo tool; the pet screen shows a thumbnail popup
+/// while it is non-null, and clears it on Cerrar.
+final capturedPhotoProvider = StateProvider<String?>((_) => null);
+
 /// The single resolved mood the UI and character render. Combines the sensor
 /// `AppState` with the live agent phase (from voice / brain) before resolving.
 final moodStateProvider = Provider<MoodState>((ref) {

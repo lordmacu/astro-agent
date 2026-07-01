@@ -16,6 +16,14 @@ import '../platform/system_actions.dart';
 import 'astro_brain.dart';
 import 'llm/providers/openai_compat_client.dart';
 import 'memory_context.dart';
+import '../platform/calendar_prefs.dart';
+import '../platform/calendar_writer.dart';
+import '../platform/camera_capture.dart';
+import '../platform/email_sender.dart';
+import '../platform/smtp_store.dart';
+import 'tools/calendar_tool.dart';
+import 'tools/camera_tool.dart';
+import 'tools/email_tool.dart';
 import 'tools/context_tool.dart';
 import 'tools/device_tool.dart';
 import 'tools/memory_tools.dart';
@@ -154,10 +162,12 @@ incompleta (una o dos palabras sueltas, o algo a medias como "busca en" o
 completo con una pregunta corta y concreta que termine en "?" (así se reabre el
 micrófono). Ej: "Se cortó, ¿qué querías buscar?".
 
-Herramientas: $contextTool; music (poner o controlar música); device (brillo,
-volumen, linterna); navigate (llevar a un destino); timer (temporizador o
-alarma); phone (llamar o mandar mensaje); web_search (datos frescos de
-internet); remember_fact (guardar algo del usuario).$closing''';
+Herramientas: $contextTool; music (poner o controlar música); take_photo (tomar
+una foto y guardarla en la galería); calendar (crear un evento o recordatorio en
+el calendario); device (brillo, volumen, linterna); navigate (llevar a un
+destino); timer (temporizador o alarma); phone (llamar o mandar mensaje);
+web_search (datos frescos de internet); remember_fact (guardar algo del
+usuario).$closing''';
 }
 
 /// Holds the command-time voice confirmation for mutating tools. The UI sets
@@ -171,6 +181,41 @@ class ToolConfirmerHolder {
 final toolConfirmerProvider = Provider<ToolConfirmerHolder>(
   (_) => ToolConfirmerHolder(),
 );
+
+/// Holds the UI callback that lets the user pick a calendar (shown once, then
+/// remembered). The UI installs it once mounted; until then, and if the user
+/// dismisses it, event creation falls back to the primary calendar.
+class CalendarChooserHolder {
+  Future<CalendarOption?> Function(List<CalendarOption>)? choose;
+}
+
+final calendarChooserProvider = Provider<CalendarChooserHolder>(
+  (_) => CalendarChooserHolder(),
+);
+
+/// Resolve which calendar to write to, showing the picker only the first time.
+/// Uses the saved choice when it still exists; otherwise auto-picks a lone
+/// calendar, or asks the UI to choose and remembers it. Returns null id (0) to
+/// let the native side fall back to the primary calendar.
+Future<int> _resolveCalendarId(Ref ref, CalendarWriter writer) async {
+  const prefs = CalendarPrefs();
+  final options = await writer.listCalendars();
+  if (options.isEmpty) return 0; // none/denied → native primary fallback
+
+  final storedId = await prefs.load();
+  if (storedId != null && options.any((c) => c.id == storedId)) {
+    return storedId;
+  }
+  if (options.length == 1) {
+    await prefs.save(options.first.id);
+    return options.first.id;
+  }
+  final choose = ref.read(calendarChooserProvider).choose;
+  final picked = choose == null ? null : await choose(options);
+  if (picked == null) return 0; // UI not ready / dismissed → primary fallback
+  await prefs.save(picked.id);
+  return picked.id;
+}
 
 /// Native media controller (play / pause / skip) shared by the music tool.
 final mediaControllerProvider = Provider<MediaController>(
@@ -201,12 +246,13 @@ final astroBrainProvider = FutureProvider<AstroBrain>((ref) async {
   final client = OpenAiCompatClient.miniMax(apiKey: _miniMaxKey(ref));
   final media = ref.read(mediaControllerProvider);
   const actions = SystemActions();
+  final calendarWriter = CalendarWriter();
   final placeResolver = PlaceResolver(); // one instance, so its cache persists
 
   // Above the soft limit of 5 on purpose: MiniMax-M3 has strong tool use and a
   // 1M-token context, so it handles this set well. If selection ever degrades,
   // split into a router / topic agents.
-  final registry = ToolRegistry(softLimit: 8)
+  final registry = ToolRegistry(softLimit: 10)
     // Situational snapshot: time + speed + location.
     ..register(
       ContextTool(
@@ -217,6 +263,52 @@ final astroBrainProvider = FutureProvider<AstroBrain>((ref) async {
     )
     // Music: play / pause / resume / next / previous.
     ..register(MusicTool(media))
+    // Camera: take a photo, saved to the gallery. playShutter is a no-op here;
+    // Photo Task 2 replaces it with media.shutter once that method is added.
+    ..register(
+      CameraTool(
+        capture: const CameraCapture().capture,
+        playShutter: () {},
+        onCaptured: (path) =>
+            ref.read(capturedPhotoProvider.notifier).state = path,
+      ),
+    )
+    // Calendar: create an event / reminder. The calendar is picked once (UI
+    // popup) then remembered; creation itself is silent.
+    ..register(
+      CalendarTool(
+        createEvent:
+            ({
+              required title,
+              required start,
+              required duration,
+              required reminder,
+            }) async {
+              final calendarId = await _resolveCalendarId(ref, calendarWriter);
+              return calendarWriter.createEvent(
+                calendarId: calendarId,
+                title: title,
+                start: start,
+                duration: duration,
+                reminder: reminder,
+              );
+            },
+      ),
+    )
+    // Email over SMTP (mutating → confirmed before sending).
+    ..register(
+      EmailTool(
+        isConfigured: () async => (await const SmtpStore().load()).isComplete,
+        send:
+            ({required to, required subject, required body}) async =>
+                const EmailSender().send(
+                  config: await const SmtpStore().load(),
+                  to: to,
+                  subject: subject,
+                  body: body,
+                ),
+      ),
+    )
     // Phone hardware: brightness + volume + flashlight.
     ..register(
       DeviceTool(
@@ -224,7 +316,7 @@ final astroBrainProvider = FutureProvider<AstroBrain>((ref) async {
             ScreenBrightness().setApplicationScreenBrightness(v),
         setVolume: media.setVolume,
         nudgeVolume: media.nudgeVolume,
-        setTorch: actions.setTorch,
+        setTorch: media.setTorch, // native CameraManager (reliable off)
       ),
     )
     // Navigation to a destination.
