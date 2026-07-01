@@ -66,5 +66,14 @@ void main() {
       expect(r.turnDirection, TurnDirection.right);
       expect(r.distanceM, isNull);
     });
+
+    test('speed unit "km/h" is NOT parsed as a distance', () {
+      final r = NavParser.parse(text: '80 km/h');
+      expect(
+        r,
+        NavReading.none,
+        reason: '"km/h" is a speed, not a nav distance',
+      );
+    });
   });
 }

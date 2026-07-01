@@ -61,3 +61,9 @@ final navServiceProvider = Provider<NavService>(
 
 /// Notification-access permission control.
 final navControlProvider = Provider<NavControl>((_) => const NavControl());
+
+/// Whether the notification-listener permission is currently granted.
+/// Invalidate this provider after opening settings to re-check the grant.
+final navPermissionProvider = FutureProvider<bool>(
+  (ref) => ref.read(navControlProvider).hasPermission(),
+);

@@ -44,4 +44,73 @@ void main() {
     expect(prefs.getBool('navListenerEnabled'), true);
     expect(fake.openCalls, 1);
   });
+
+  testWidgets(
+    'nav tile shows "Sin acceso" subtitle when enabled but permission denied',
+    (tester) async {
+      // navListenerEnabled = true, permission = false → should show warning text.
+      SharedPreferences.setMockInitialValues({'navListenerEnabled': true});
+      final prefs = await SharedPreferences.getInstance();
+      final fake = _FakeNavControl(false);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sharedPreferencesProvider.overrideWithValue(prefs),
+            navControlProvider.overrideWithValue(fake),
+            // Override the permission provider directly to resolve immediately.
+            navPermissionProvider.overrideWith((_) async => false),
+          ],
+          child: const MaterialApp(home: SettingsScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Scroll nav tile into view.
+      final tile = find.widgetWithText(SwitchListTile, 'Navegación (Maps)');
+      await tester.scrollUntilVisible(
+        tile,
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Sin acceso a notificaciones — toca para conceder'),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'nav tile shows normal subtitle when enabled with permission granted',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({'navListenerEnabled': true});
+      final prefs = await SharedPreferences.getInstance();
+      final fake = _FakeNavControl(true);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sharedPreferencesProvider.overrideWithValue(prefs),
+            navControlProvider.overrideWithValue(fake),
+            navPermissionProvider.overrideWith((_) async => true),
+          ],
+          child: const MaterialApp(home: SettingsScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final tile = find.widgetWithText(SwitchListTile, 'Navegación (Maps)');
+      await tester.scrollUntilVisible(
+        tile,
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Reaccionar a las indicaciones de Google Maps'),
+        findsOneWidget,
+      );
+    },
+  );
 }

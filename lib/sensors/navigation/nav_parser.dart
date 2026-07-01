@@ -13,8 +13,10 @@ abstract final class NavParser {
   static final _left = RegExp(r'\b(izquierda|left)\b', caseSensitive: false);
   static final _right = RegExp(r'\b(derecha|right)\b', caseSensitive: false);
   // Metric distance only: number (optional decimal, comma or dot) + m/km.
+  // The negative lookahead (?![/\w]) prevents matching speed units like km/h
+  // or compound words like km2.
   static final _distance = RegExp(
-    r'(\d+(?:[.,]\d+)?)\s*(km|m)\b',
+    r'(\d+(?:[.,]\d+)?)\s*(km|m)(?![/\w])',
     caseSensitive: false,
   );
 

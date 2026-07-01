@@ -169,17 +169,27 @@ class SettingsScreen extends ConsumerWidget {
                 max: 1.0,
                 onChanged: notifier.setWakeWordSensitivity,
               ),
-              SettingsSwitchTile(
-                label: 'Navegación (Maps)',
-                subtitle: 'Reaccionar a las indicaciones de Google Maps',
-                value: settings.navListenerEnabled,
-                onChanged: (on) async {
-                  await notifier.setNavListenerEnabled(on);
-                  if (!on) return;
-                  final control = ref.read(navControlProvider);
-                  if (!await control.hasPermission()) {
-                    await control.openSettings();
-                  }
+              Consumer(
+                builder: (context, ref, _) {
+                  final permAsync = ref.watch(navPermissionProvider);
+                  final hasPermission = permAsync.valueOrNull ?? true;
+                  final subtitle = settings.navListenerEnabled && !hasPermission
+                      ? 'Sin acceso a notificaciones — toca para conceder'
+                      : 'Reaccionar a las indicaciones de Google Maps';
+                  return SettingsSwitchTile(
+                    label: 'Navegación (Maps)',
+                    subtitle: subtitle,
+                    value: settings.navListenerEnabled,
+                    onChanged: (on) async {
+                      await notifier.setNavListenerEnabled(on);
+                      if (!on) return;
+                      final control = ref.read(navControlProvider);
+                      if (!await control.hasPermission()) {
+                        await control.openSettings();
+                        ref.invalidate(navPermissionProvider);
+                      }
+                    },
+                  );
                 },
               ),
               SettingsSwitchTile(
