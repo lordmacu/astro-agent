@@ -1,5 +1,5 @@
-name: chispa
-description: "Chispa - AI pet for the car"
+name: astro
+description: "Astro - AI pet for the car"
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -22,8 +22,17 @@ dependencies:
   # LLM transport (ported brain).
   http: ^1.2.2
 
-  # Long-term memory (ported from nexo-rs, SQLite-backed).
+  # Loads the API key from .env at runtime, so any `flutter run` works without
+  # passing --dart-define every time.
+  flutter_dotenv: ^5.1.0
+
+  # Long-term memory (ported from nexo-rs, SQLite-backed). We run SQLite through
+  # ffi with a bundled libsqlite3 (sqlite3_flutter_libs) so FTS5 is always
+  # available — some devices' system SQLite ships without it. sqflite stays for
+  # getDatabasesPath().
   sqflite: ^2.4.1
+  sqflite_common_ffi: ^2.3.4
+  sqlite3_flutter_libs: ^0.5.24
   uuid: ^4.5.1
 
   # Small key-value persistence (e.g. the learned forward-axis calibration).
@@ -32,14 +41,33 @@ dependencies:
   # Phone sensors.
   sensors_plus: ^6.1.1
   light: ^5.0.0
-  proximity_sensor: ^1.3.8
+  # Proximity is read via our own native EventChannel (astro/proximity), using
+  # Android's `value < maxRange` test — the proximity_sensor plugin's `== 0`
+  # never fired on OEM "Palm" proximity sensors. Touch press-and-hold is the
+  # universal caress fallback on phones with no usable proximity sensor.
   geolocator: ^13.0.2
+  # Reverse-geocode the GPS fix into a place name for the get_context tool.
+  geocoding: ^3.0.0
+  # Adjust screen brightness for the device tool (own window, no perm).
+  screen_brightness: ^2.1.1
+
+  # Action tools: launch Maps/dialer/WhatsApp (navigate, phone), fire system
+  # intents (timer/alarm), toggle the flashlight (device), resolve contacts.
+  url_launcher: ^6.3.0
+  android_intent_plus: ^5.2.0
+  torch_light: ^1.1.0
+  flutter_contacts: ^1.1.9+2
 
   # Voice — simple system TTS (lightweight), active now.
   flutter_tts: ^4.2.0
 
   # Wake word / speech-to-text (stopgap; Porcupine is the low-power upgrade).
   speech_to_text: ^7.0.0
+
+  # Offline, on-device STT (Vosk) — continuous recognition, no network, no
+  # mid-sentence cutting. Falls back to speech_to_text when the model is absent.
+  vosk_flutter_2: ^1.0.5
+  permission_handler: ^11.4.0
 
   # Offline NEURAL TTS (sherpa-onnx + Piper) — the later upgrade, kept off for
   # fast dev builds. Uncomment to switch (see lib/voice/tts_provider.dart).
@@ -53,9 +81,6 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^5.0.0
 
-  # Run sqflite on the Dart VM for memory tests (no device needed).
-  sqflite_common_ffi: ^2.3.4
-
   # Code generation for freezed / json models.
   build_runner: ^2.4.13
   freezed: ^2.5.7
@@ -63,6 +88,12 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  # The API keys, read at runtime by flutter_dotenv.
+  assets:
+    - .env
+    # Offline STT model (Vosk). Drop the Spanish model zip in here to enable it
+    # — see assets/models/README.md. Absent → falls back to platform STT.
+    - assets/models/
   # Voice model asset — DISABLED for fast dev builds (65MB). Uncomment to
   # re-enable voice (see lib/voice/tts_provider.dart).
   # assets:

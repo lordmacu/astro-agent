@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../brain/astro_brain_provider.dart';
 import '../../core/config/design_tokens.dart';
 import '../../core/config/settings_providers.dart';
+import '../../platform/permissions.dart';
 import 'settings_widgets.dart';
 
 /// The single place where all runtime configuration lives. Grows section by
@@ -92,6 +93,60 @@ class SettingsScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 24),
           const _MemorySection(),
+          const SizedBox(height: 24),
+          SettingsSection(
+            title: 'Permisos',
+            children: [
+              ListTile(
+                title: const Text(
+                  'Micrófono',
+                  style: TextStyle(color: DesignTokens.ink),
+                ),
+                trailing: const Icon(Icons.mic, color: DesignTokens.dim),
+                onTap: () => const Permissions().requestMicrophone(),
+              ),
+              ListTile(
+                title: const Text(
+                  'Notificaciones',
+                  style: TextStyle(color: DesignTokens.ink),
+                ),
+                trailing: const Icon(
+                  Icons.notifications,
+                  color: DesignTokens.dim,
+                ),
+                onTap: () => const Permissions().requestNotifications(),
+              ),
+              ListTile(
+                title: const Text(
+                  'Ubicación',
+                  style: TextStyle(color: DesignTokens.ink),
+                ),
+                trailing: const Icon(
+                  Icons.location_on,
+                  color: DesignTokens.dim,
+                ),
+                onTap: () => const Permissions().requestLocation(),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          SettingsSection(
+            title: 'Acerca de',
+            children: [
+              ListTile(
+                title: const Text(
+                  'Astro',
+                  style: TextStyle(color: DesignTokens.ink),
+                ),
+                subtitle: Text(
+                  'Voz neuronal: '
+                  '${settings.neuralVoiceInstalled ? "instalada" : "no instalada"}'
+                  ' · Modelo: ${settings.llmModel}',
+                  style: const TextStyle(color: DesignTokens.dim),
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 24),
         ],
       ),
