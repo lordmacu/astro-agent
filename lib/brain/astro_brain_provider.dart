@@ -263,12 +263,11 @@ final astroBrainProvider = FutureProvider<AstroBrain>((ref) async {
     )
     // Music: play / pause / resume / next / previous.
     ..register(MusicTool(media))
-    // Camera: take a photo, saved to the gallery. playShutter is a no-op here;
-    // Photo Task 2 replaces it with media.shutter once that method is added.
+    // Camera: take a photo, saved to the gallery.
     ..register(
       CameraTool(
         capture: const CameraCapture().capture,
-        playShutter: () {},
+        playShutter: media.shutter,
         onCaptured: (path) =>
             ref.read(capturedPhotoProvider.notifier).state = path,
       ),
@@ -299,14 +298,13 @@ final astroBrainProvider = FutureProvider<AstroBrain>((ref) async {
     ..register(
       EmailTool(
         isConfigured: () async => (await const SmtpStore().load()).isComplete,
-        send:
-            ({required to, required subject, required body}) async =>
-                const EmailSender().send(
-                  config: await const SmtpStore().load(),
-                  to: to,
-                  subject: subject,
-                  body: body,
-                ),
+        send: ({required to, required subject, required body}) async =>
+            const EmailSender().send(
+              config: await const SmtpStore().load(),
+              to: to,
+              subject: subject,
+              body: body,
+            ),
       ),
     )
     // Phone hardware: brightness + volume + flashlight.
