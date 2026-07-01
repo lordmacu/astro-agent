@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <img src="assets/screenshots/home.png" alt="Astro on the dashboard" width="280" />
+  <img src="assets/screenshots/home.jpg" alt="Astro on the dashboard" width="280" />
 </p>
 
 ---
@@ -67,6 +67,39 @@ right one:
 
 > Read-only actions run instantly; anything outward-facing (send a message, send
 > an email) asks for a quick **voice confirmation** first.
+
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center">
+      <img src="assets/screenshots/car-mode.jpg" width="200" /><br/>
+      <sub><b>Car mode</b> — speed (GPS + IMU) and the velocity ring</sub>
+    </td>
+    <td align="center">
+      <img src="assets/screenshots/settings-voice-ai.jpg" width="200" /><br/>
+      <sub><b>Settings</b> — voice + AI model picker &amp; neural-voice download</sub>
+    </td>
+    <td align="center">
+      <img src="assets/screenshots/settings-tools.jpg" width="200" /><br/>
+      <sub><b>Tools</b> — enable/disable each agent capability</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <img src="assets/screenshots/settings-wakeword.jpg" width="200" /><br/>
+      <sub><b>Wake word &amp; sensors</b> — phrase, sensitivity, nav, brightness</sub>
+    </td>
+    <td align="center">
+      <img src="assets/screenshots/settings-email.jpg" width="200" /><br/>
+      <sub><b>Email</b> — optional SMTP/IMAP (falls back to the mail app)</sub>
+    </td>
+    <td align="center">
+      <img src="assets/icon/astro_icon.png" width="200" /><br/>
+      <sub><b>Astro</b></sub>
+    </td>
+  </tr>
+</table>
 
 <br/>
 
@@ -185,8 +218,3 @@ Active development. The sensor pipeline, mood cascade, voice loop, agentic brain
 in-app settings, downloadable neural voice, Maps navigation listener, and the
 tool set above are in place. OBD (car diagnostics over BLE) is planned and
 intentionally optional — the basics never depend on it.
-
-<!--
-More screenshots welcome in assets/screenshots/ (e.g. settings.png, car-mode.png,
-photo-popup.png) and can be added to the "Meet Astro" section above.
--->
