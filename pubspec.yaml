@@ -38,6 +38,18 @@ dependencies:
   # Small key-value persistence (e.g. the learned forward-axis calibration).
   shared_preferences: ^2.3.2
 
+  # SMTP client (Dart, no native) for the send_email tool.
+  mailer: ^6.1.0
+  # IMAP client (Dart) for the read_email tool.
+  enough_mail: ^2.1.6
+  # Battery level/charging for get_context.
+  battery_plus: ^6.0.3
+
+  # Camera capture for the take_photo tool (headless: init controller, capture,
+  # dispose — no preview widget). gal saves the shot to the phone gallery.
+  camera: ^0.11.0+2
+  gal: ^2.3.1
+
   # Phone sensors.
   sensors_plus: ^6.1.1
   light: ^5.0.0
@@ -85,6 +97,7 @@ dev_dependencies:
   build_runner: ^2.4.13
   freezed: ^2.5.7
   json_serializable: ^6.8.0
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
@@ -98,3 +111,13 @@ flutter:
   # re-enable voice (see lib/voice/tts_provider.dart).
   # assets:
   #   - assets/tts/vits-piper-es_ES-davefx-medium.zip
+
+# App launcher icon (Astro). Regenerate after changing the source with:
+#   dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/icon/astro_icon.png"
+  min_sdk_android: 30
+  adaptive_icon_background: "#141d2e"
+  adaptive_icon_foreground: "assets/icon/astro_icon.png"

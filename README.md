@@ -1,6 +1,10 @@
-# chispa
+<p align="center">
+  <img src="assets/icon/astro_icon.png" alt="Astro" width="160" />
+</p>
 
-Chispa - AI pet for the car
+# Astro
+
+Astro — AI pet for the car.
 
 ## Getting Started
 
