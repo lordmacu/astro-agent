@@ -22,4 +22,21 @@ void main() {
     await tester.pumpAndSettle();
     expect(prefs.getDouble('voiceRate'), isNotNull);
   });
+
+  testWidgets('AI section persists the model on submit', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+        child: const MaterialApp(home: SettingsScreen()),
+      ),
+    );
+    final modelField = find.widgetWithText(TextField, 'Modelo');
+    expect(modelField, findsOneWidget);
+    await tester.enterText(modelField, 'MiniMax-M3-Turbo');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+    expect(prefs.getString('llmModel'), 'MiniMax-M3-Turbo');
+  });
 }

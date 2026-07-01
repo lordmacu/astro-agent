@@ -34,6 +34,30 @@ class SettingsScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 24),
+          SettingsSection(
+            title: 'IA',
+            children: [
+              SettingsTextTile(
+                label: 'Modelo',
+                value: settings.llmModel,
+                hint: 'MiniMax-M3',
+                onSubmitted: notifier.setLlmModel,
+              ),
+              SettingsTextTile(
+                label: 'API key del LLM',
+                value: settings.llmApiKey,
+                obscure: true,
+                onSubmitted: notifier.setLlmApiKey,
+              ),
+              SettingsTextTile(
+                label: 'API key de búsqueda web',
+                value: settings.searchApiKey,
+                obscure: true,
+                onSubmitted: notifier.setSearchApiKey,
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
         ],
       ),
     );
