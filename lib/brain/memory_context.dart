@@ -2,9 +2,9 @@ import '../memory/long_term_memory.dart';
 
 /// Builds the memory-context block injected into the brain's system prompt each
 /// turn. Uses semantic recall when an embedder is available, otherwise
-/// full-text recall. Wire it as `ChispaBrain(recallContext: MemoryContext(mem).call)`.
+/// full-text recall. Wire it as `AstroBrain(recallContext: MemoryContext(mem).call)`.
 class MemoryContext {
-  MemoryContext(this.memory, {this.limit = 5});
+  MemoryContext(this.memory, {this.limit = 3});
 
   final LongTermMemory memory;
   final int limit;
@@ -17,7 +17,7 @@ class MemoryContext {
         : await memory.recall(userText, limit: limit);
     if (hits.isEmpty) return null;
 
-    final buffer = StringBuffer('What Chispa remembers that may be relevant:');
+    final buffer = StringBuffer('What Astro remembers that may be relevant:');
     for (final hit in hits) {
       buffer.write('\n- ${hit.content}');
     }
