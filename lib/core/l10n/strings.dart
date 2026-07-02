@@ -82,6 +82,15 @@ abstract final class Strings {
       _pick(l, en: 'Search provider', es: 'Proveedor de búsqueda');
   static String searchApiKey(AppLang l) =>
       _pick(l, en: 'Web search API key', es: 'API key de búsqueda web');
+  static String getSearchKeyLink(String provider, AppLang l) {
+    final name = provider == 'brave' ? 'Brave' : 'Tavily';
+    return _pick(
+      l,
+      en: 'Get a $name API key',
+      es: 'Consigue tu API key de $name',
+    );
+  }
+
   static String searxngUrl(AppLang l) => _pick(
     l,
     en: 'SearXNG URL (keyless search)',

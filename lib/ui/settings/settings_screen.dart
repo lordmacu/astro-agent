@@ -185,6 +185,23 @@ class SettingsScreen extends ConsumerWidget {
                   obscure: true,
                   onSubmitted: notifier.setSearchApiKey,
                 ),
+                // Dynamic link to where the selected provider's key is issued.
+                ListTile(
+                  dense: true,
+                  leading: const Icon(
+                    Icons.open_in_new,
+                    color: DesignTokens.accent,
+                    size: 18,
+                  ),
+                  title: Text(
+                    Strings.getSearchKeyLink(settings.searchProvider, lang),
+                    style: const TextStyle(
+                      color: DesignTokens.accent,
+                      fontSize: 13,
+                    ),
+                  ),
+                  onTap: () => _openSearchKeyPage(settings.searchProvider),
+                ),
               ],
               // Keyless search backend: used when no search API key is set,
               // before the DuckDuckGo fallback. Works with any model.
@@ -366,6 +383,14 @@ class SettingsScreen extends ConsumerWidget {
           ),
       ],
     );
+  }
+
+  /// Open the page where the selected search provider issues API keys.
+  Future<void> _openSearchKeyPage(String provider) async {
+    final url = provider == 'brave'
+        ? 'https://api-dashboard.search.brave.com/app/keys'
+        : 'https://app.tavily.com/home';
+    await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
   }
 }
 
