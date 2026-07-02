@@ -45,6 +45,32 @@ jobs:
       - name: Generate code (freezed / json)
         run: dart run build_runner build --delete-conflicting-outputs
 
+      # Write the upload keystore + key.properties from repo secrets so the
+      # release build is signed with the real upload key (Play-Store ready).
+      # build.gradle.kts reads android/key.properties and falls back to the
+      # debug keys when it's absent — so forks / PRs without the secret still
+      # build (just not upload-ready). KEY_ALIAS defaults to "upload".
+      - name: Configure release signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::warning::No KEYSTORE_BASE64 secret — release falls back to debug signing (NOT upload-ready)."
+            exit 0
+          fi
+          echo "$KEYSTORE_BASE64" | base64 --decode > android/upload-keystore.jks
+          umask 077
+          cat > android/key.properties <<EOF
+          storePassword=${KEYSTORE_PASSWORD}
+          keyPassword=${KEY_PASSWORD}
+          keyAlias=${KEY_ALIAS:-upload}
+          storeFile=upload-keystore.jks
+          EOF
+          echo "Release signing configured (upload keystore)."
+
       # One APK per architecture (much lighter than the fat, all-ABI APK).
       - name: Build release APKs (per ABI)
         run: flutter build apk --release --split-per-abi
