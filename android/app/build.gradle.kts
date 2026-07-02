@@ -94,6 +94,10 @@ dependencies {
     // Offline Vosk for the native wake word (org.vosk.* API). The native libs
     // are already bundled by vosk_flutter_2; these AARs just expose the Java API
     // (duplicate .so handled by packaging.jniLibs.pickFirsts above).
-    implementation("com.alphacephei:vosk-android:0.3.47@aar")
-    implementation("net.java.dev.jna:jna:5.13.0@aar")
+    // 0.3.70+ ships 16 KB-aligned native libs (libvosk.so), required by Play
+    // for apps targeting Android 15+. 0.3.47 was 4 KB-aligned and got rejected.
+    implementation("com.alphacephei:vosk-android:0.3.75@aar")
+    // 5.17.0 ships 16 KB-aligned native libs (libjnidispatch.so) for all ABIs;
+    // 5.13.0's x86_64/armeabi-v7a were 4 KB-aligned (Play rejects 64-bit).
+    implementation("net.java.dev.jna:jna:5.17.0@aar")
 }
