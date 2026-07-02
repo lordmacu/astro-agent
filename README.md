@@ -5,9 +5,9 @@
 <h1 align="center">Astro</h1>
 
 <p align="center">
-  <b>An AI pet that lives on your car dashboard.</b><br/>
-  It senses the drive, reacts with mood and voice, and gets things done for you
-  — hands-free.
+  <b>An AI pet in your pocket — hands-free, everywhere.</b><br/>
+  It senses what's around it, reacts with mood and voice, and gets things done
+  for you. Mount it on the dashboard and it becomes a driving copilot too.
 </p>
 
 <p align="center">
@@ -23,15 +23,18 @@
 
 ## Meet Astro
 
-Mount a phone on your dashboard and Astro comes to life. It feels the drive —
-how fast you go, a hard brake, the light outside, a turn coming up on the map —
-and reacts with a **mood, an animation, and a spoken line**.
+Astro is a hands-free AI companion that lives on your phone — in your hand, on
+your desk, or mounted on the dashboard. It feels what's around it — how you move,
+the light, the time of day (and, in car mode, how fast you go, a hard brake, a
+turn coming up on the map) — and reacts with a **mood, an animation, and a spoken
+line**.
 
 Say **"hola Astro"** (or tap it) and it becomes a hands-free copilot: it listens,
 understands, decides what to do, and answers out loud — playing music, setting a
 timer, sending a message, navigating, taking a photo, and more.
 
-No car adapter. No root. The essentials just work on the phone alone.
+No car adapter. No root. Everything works on the phone alone — the car dashboard
+is just one of the places Astro feels at home.
 
 ## Why it's fun
 
@@ -42,8 +45,8 @@ No car adapter. No root. The essentials just work on the phone alone.
   leans and looks toward your next turn.
 - 🧠 **It actually does things.** Not just chat — it calls real tools to act on
   the car and phone (see below).
-- 🚗 **Dashboard-aware.** Car mode shows speed and reacts to driving; normal mode
-  is a calm desk companion.
+- 🚗 **Two modes.** In your pocket or on a desk it's a calm everyday companion;
+  mounted on the dashboard it shows speed and reacts to your driving.
 - 🔊 **Two voices.** A snappy built-in voice, plus an optional **neural voice you
   download on demand** for offline, natural speech.
 - 🔒 **Yours.** Runs on-device; it even remembers things about you in a local
