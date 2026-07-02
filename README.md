@@ -16,6 +16,12 @@
 </p>
 
 <p align="center">
+  <sub><b>Download</b> is the <code>arm64-v8a</code> build (virtually every modern phone).
+  Old 32-bit or x86 devices: grab <code>astro-armeabi-v7a.apk</code> / <code>astro-x86_64.apk</code>
+  from the <a href="https://github.com/lordmacu/astro-agent/releases/latest">latest release</a>.</sub>
+</p>
+
+<p align="center">
   <img src="assets/screenshots/home.jpg" alt="Astro on the dashboard" width="280" />
 </p>
 
@@ -211,7 +217,7 @@ flutter test         # unit + widget tests
 
 dart run build_runner build --delete-conflicting-outputs   # freezed / json
 dart run flutter_launcher_icons                            # regenerate the launcher icon
-flutter build apk --release
+flutter build apk --release --split-per-abi   # one lighter APK per architecture
 ```
 
 ## Project layout

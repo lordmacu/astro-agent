@@ -45,23 +45,31 @@ jobs:
       - name: Generate code (freezed / json)
         run: dart run build_runner build --delete-conflicting-outputs
 
-      - name: Build release APK
-        run: flutter build apk --release
+      # One APK per architecture (much lighter than the fat, all-ABI APK).
+      - name: Build release APKs (per ABI)
+        run: flutter build apk --release --split-per-abi
 
-      - name: Stage APK as astro.apk
+      # astro.apk = the arm64-v8a build (essentially every modern phone), so the
+      # README's Download button always points to the right one; the other ABIs
+      # are attached under descriptive names for old 32-bit and x86 devices.
+      - name: Stage APKs
         run: |
           mkdir -p dist
-          cp build/app/outputs/flutter-apk/app-release.apk dist/astro.apk
+          out=build/app/outputs/flutter-apk
+          cp "$out/app-arm64-v8a-release.apk"   dist/astro.apk
+          cp "$out/app-armeabi-v7a-release.apk" dist/astro-armeabi-v7a.apk
+          cp "$out/app-x86_64-release.apk"      dist/astro-x86_64.apk
+          ls -lh dist
 
-      - name: Upload build artifact
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: astro-apk
-          path: dist/astro.apk
+          path: dist/*.apk
 
       - name: Publish release (on tag)
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/astro.apk
+          files: dist/*.apk
           generate_release_notes: true
