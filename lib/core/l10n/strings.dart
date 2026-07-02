@@ -478,4 +478,50 @@ abstract final class Strings {
     'phone' => _pick(l, en: 'phone', es: 'teléfono'),
     _ => key,
   };
+
+  // ── Command palette ──────────────────────────────────────────────────────
+  static String commandsTitle(AppLang l) =>
+      _pick(l, en: 'What can I ask?', es: '¿Qué le puedo preguntar?');
+
+  /// A runnable example utterance for a tool (by AstroTool.name), shown as a
+  /// tappable command. Returns '' for names without an example.
+  static String commandExample(String tool, AppLang l) => switch (tool) {
+    'get_context' => _pick(l, en: 'What time is it?', es: '¿Qué hora es?'),
+    'music' => _pick(l, en: 'Play some music', es: 'Pon algo de música'),
+    'take_photo' => _pick(l, en: 'Take a photo', es: 'Tómame una foto'),
+    'calendar' => _pick(
+      l,
+      en: 'Add a meeting tomorrow at 3',
+      es: 'Agenda una reunión mañana a las 3',
+    ),
+    'comunicacion' => _pick(
+      l,
+      en: 'Do I have new email?',
+      es: '¿Tengo correos nuevos?',
+    ),
+    'device' => _pick(l, en: 'Turn up the brightness', es: 'Sube el brillo'),
+    'mapa' => _pick(l, en: 'Take me home', es: 'Llévame a casa'),
+    'clima' => _pick(
+      l,
+      en: "What's the weather like?",
+      es: '¿Cómo está el clima?',
+    ),
+    'timer' => _pick(
+      l,
+      en: 'Set a 5-minute timer',
+      es: 'Pon un temporizador de 5 minutos',
+    ),
+    'phone' => _pick(l, en: 'Call mom', es: 'Llama a mamá'),
+    'web_search' => _pick(
+      l,
+      en: "Search today's news",
+      es: 'Busca noticias de hoy',
+    ),
+    'remember_fact' => _pick(
+      l,
+      en: 'Remember that I like jazz',
+      es: 'Recuerda que me gusta el jazz',
+    ),
+    _ => '',
+  };
 }
