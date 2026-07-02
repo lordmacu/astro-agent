@@ -1,5 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import 'llm_models.dart';
 import 'setting_key.dart';
 import 'settings_store.dart';
 
@@ -24,6 +25,7 @@ class AppSettings with _$AppSettings {
     required double wakeWordSensitivity,
     required bool navListenerEnabled,
     required bool autoBrightnessEnabled,
+    required bool hapticsEnabled,
   }) = _AppSettings;
 
   factory AppSettings.fromStore(SettingsStore s) => AppSettings(
@@ -33,7 +35,7 @@ class AppSettings with _$AppSettings {
     neuralVoiceEnabled: s.getBool(SettingKey.neuralVoiceEnabled, false),
     neuralVoiceInstalled: s.getBool(SettingKey.neuralVoiceInstalled, false),
     neuralVoicePath: s.getString(SettingKey.neuralVoicePath, ''),
-    llmModel: s.getString(SettingKey.llmModel, 'MiniMax-M3'),
+    llmModel: s.getString(SettingKey.llmModel, kDefaultModel),
     llmApiKey: s.getString(SettingKey.llmApiKey, ''),
     searchApiKey: s.getString(SettingKey.searchApiKey, ''),
     wakeWordEnabled: s.getBool(SettingKey.wakeWordEnabled, true),
@@ -41,5 +43,6 @@ class AppSettings with _$AppSettings {
     wakeWordSensitivity: s.getDouble(SettingKey.wakeWordSensitivity, 0.5),
     navListenerEnabled: s.getBool(SettingKey.navListenerEnabled, true),
     autoBrightnessEnabled: s.getBool(SettingKey.autoBrightnessEnabled, true),
+    hapticsEnabled: s.getBool(SettingKey.hapticsEnabled, true),
   );
 }

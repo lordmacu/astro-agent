@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 
 import '../../core/config/design_tokens.dart';
+import '../../core/config/llm_models.dart';
 import '../../core/l10n/app_lang.dart';
 import '../../core/l10n/strings.dart';
 import 'settings_widgets.dart';
 
 /// OpenAI-compatible model presets offered in the dropdown; the driver can still
-/// type any custom model via the "Personalizado…" option.
+/// type any custom model via the "Personalizado…" option. MiniMax-M3 is the
+/// default; the Kilo free model is offered right after it as a keyless option.
 const List<String> kModelPresets = [
   'MiniMax-M3',
+  kKiloFreeModel,
   'gpt-4o',
   'gpt-4o-mini',
   'gpt-4.1',
@@ -17,6 +20,16 @@ const List<String> kModelPresets = [
   'deepseek-chat',
   'deepseek-reasoner',
 ];
+
+/// Human-friendly label for a preset in the dropdown. The Kilo free model has an
+/// ugly vendor id, so it shows as "Kilo · gratis/free"; everything else shows
+/// its raw id.
+String _presetLabel(String model, AppLang lang) {
+  if (model == kKiloFreeModel) {
+    return lang == AppLang.es ? 'Kilo · gratis' : 'Kilo · free';
+  }
+  return model;
+}
 
 /// Dropdown sentinel selected when the stored model is a custom (non-preset)
 /// string, or when the user picks "Personalizado…".
@@ -80,7 +93,10 @@ class _ModelPickerTileState extends State<ModelPickerTile> {
             underline: const SizedBox.shrink(),
             items: [
               for (final p in kModelPresets)
-                DropdownMenuItem(value: p, child: Text(p)),
+                DropdownMenuItem(
+                  value: p,
+                  child: Text(_presetLabel(p, widget.lang)),
+                ),
               DropdownMenuItem(
                 value: kCustomModelSentinel,
                 child: Text(Strings.customModel(widget.lang)),

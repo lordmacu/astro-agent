@@ -15,4 +15,5 @@ enum SettingKey {
   wakeWordSensitivity,
   navListenerEnabled,
   autoBrightnessEnabled,
+  hapticsEnabled,
 }

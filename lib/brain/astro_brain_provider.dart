@@ -4,6 +4,7 @@ import 'package:screen_brightness/screen_brightness.dart';
 import 'package:sqflite/sqflite.dart' show getDatabasesPath;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart' show databaseFactoryFfi;
 
+import '../core/config/llm_models.dart';
 import '../core/config/setting_key.dart';
 import '../core/config/settings_providers.dart';
 import '../core/config/settings_resolver.dart';
@@ -76,6 +77,17 @@ String _miniMaxKey(Ref ref) => resolveSecret(
   ),
 );
 
+/// Build the LLM client for [model]: keyless Kilo for `:free` ids, otherwise
+/// MiniMax with the configured key. The Kilo path deliberately passes no key.
+OpenAiCompatClient _llmClientFor(Ref ref, String model) => isFreeModel(model)
+    ? OpenAiCompatClient.kilo()
+    : OpenAiCompatClient.miniMax(apiKey: _miniMaxKey(ref));
+
+/// Output-token budget for a model call. Kilo's free models are reasoning
+/// models that spend a few hundred tokens thinking before any answer text, so
+/// they need far more headroom than MiniMax (thinking disabled).
+int _answerTokensFor(String model) => isFreeModel(model) ? 1200 : 192;
+
 /// Web-search key: user setting > .env (TAVILY_API_KEY) > dart-define.
 String _searchKey(Ref ref) => resolveSecret(
   store: ref.read(settingsStoreProvider),
@@ -108,21 +120,22 @@ WebSearchProvider? _buildSearchProvider(Ref ref, String llmProviderId) {
 /// lines instead of hitting the API with no key.
 final astroConfiguredProvider = Provider<bool>((ref) {
   ref.watch(settingsProvider.select((s) => s.llmApiKey));
+  // Kilo free models are keyless, so the brain is always configured for them.
+  if (isFreeModel(ref.watch(astroModelProvider))) return true;
   return _miniMaxKey(ref).isNotEmpty;
 });
 
-/// The model Astro talks through. Default MiniMax-M3 (only model with
-/// documented tool calling; thinking is disabled at the client for speed).
-/// Override with `ASTRO_MODEL=` in `.env` to experiment (e.g. a highspeed
-/// variant) — but M2.x tool support is undocumented and their thinking can't
-/// be turned off, so they may be slower and may not call tools.
+/// The model Astro talks through. Defaults to the keyless Kilo free model
+/// ([kDefaultModel]) so the app works out of the box with no API key. Switch to
+/// MiniMax-M3 (or any other) from Settings, or override with `ASTRO_MODEL=` in
+/// `.env` to experiment.
 final astroModelProvider = Provider<String>((ref) {
   final user = ref.watch(settingsProvider.select((s) => s.llmModel)).trim();
   if (user.isNotEmpty) return user;
   return _secret(
     'ASTRO_MODEL',
     const String.fromEnvironment('ASTRO_MODEL'),
-  ).ifEmpty('MiniMax-M3');
+  ).ifEmpty(kDefaultModel);
 });
 
 extension _Fallback on String {
@@ -322,22 +335,25 @@ final memoryExtractorProvider = FutureProvider<MemoryExtractor?>((ref) async {
   if (!ref.watch(astroConfiguredProvider)) return null;
   final memory = await ref.watch(memoryProvider.future);
   if (memory == null) return null;
+  final model = ref.read(astroModelProvider);
   return MemoryExtractor(
-    client: OpenAiCompatClient.miniMax(apiKey: _miniMaxKey(ref)),
+    client: _llmClientFor(ref, model),
     memory: memory,
-    model: ref.read(astroModelProvider),
+    model: model,
   );
 });
 
 /// The fully wired brain: MiniMax client + the active tool set + memory recall.
 /// A FutureProvider because opening memory is async.
 final astroBrainProvider = FutureProvider<AstroBrain>((ref) async {
-  // Rebuild the brain whenever the key or model changes.
+  // Rebuild the brain whenever the key, search key or model changes.
   ref.watch(settingsProvider.select((s) => s.llmApiKey));
   ref.watch(settingsProvider.select((s) => s.searchApiKey));
+  final model = ref.watch(astroModelProvider);
   // Rebuild when the driver enables/disables a tool from Settings.
   final disabledTools = ref.watch(toolPrefsProvider);
-  final client = OpenAiCompatClient.miniMax(apiKey: _miniMaxKey(ref));
+  // Keyless Kilo for `:free` models, MiniMax otherwise.
+  final client = _llmClientFor(ref, model);
   final media = ref.read(mediaControllerProvider);
   const actions = SystemActions();
   final calendarWriter = CalendarWriter();
@@ -512,6 +528,7 @@ final astroBrainProvider = FutureProvider<AstroBrain>((ref) async {
     client: client,
     registry: registry,
     recallContext: recall,
+    maxAnswerTokens: _answerTokensFor(model),
     confirm: (tool, args) async {
       final confirmer = ref.read(toolConfirmerProvider).confirmer;
       return confirmer == null ? false : confirmer(tool, args);

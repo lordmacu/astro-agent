@@ -16,6 +16,7 @@ import '../core/state/app_state.dart';
 import '../core/state/app_state_provider.dart';
 import '../platform/calendar_writer.dart';
 import '../platform/contact_match.dart';
+import '../platform/haptics.dart';
 import '../platform/system_actions.dart';
 import '../voice/stt_provider.dart';
 import '../voice/voice_interfaces.dart';
@@ -44,12 +45,27 @@ class _PetScreenState extends ConsumerState<PetScreen> {
   /// The language Astro speaks/writes right now (device locale or user override).
   AppLang get _lang => ref.read(langProvider);
 
+  /// Haptic feedback for taps and confirmations (no-op when disabled).
+  Haptics get _haptics => ref.read(hapticsProvider);
+
   String get _notHeard => Strings.notHeard(_lang);
   String get _oops => Strings.oops(_lang);
 
   late final WakeWordDetector _wake = ref.read(wakeWordProvider);
   StreamSubscription<void>? _wakeSub;
   Timer? _visemeTimer;
+
+  /// Repeating "thinking" haptic pulse (a heartbeat) and its beat counter.
+  /// Runs only while the voice phase is `thinking`.
+  Timer? _thinkHapticTimer;
+  int _thinkHapticStep = 0;
+
+  /// The gap before each beat, cycling short→long so the pulse feels like a
+  /// "da-dum" heartbeat rather than an even tick.
+  static const _thinkHapticGaps = [
+    Duration(milliseconds: 160),
+    Duration(milliseconds: 620),
+  ];
   bool _busy = false;
   bool _cancelRequested = false; // tap-to-cancel while listening
   String _spokenText = '';
@@ -397,6 +413,8 @@ class _PetScreenState extends ConsumerState<PetScreen> {
     if (_busy) return;
     _busy = true;
     _cancelRequested = false;
+    // A firm buzz the moment Astro is summoned (by tap or wake word).
+    _haptics.listenStart();
     final controller = ref.read(voiceControllerProvider.notifier);
     await _wake.pause(); // free the mic + don't let Astro hear herself
 
@@ -602,9 +620,39 @@ class _PetScreenState extends ConsumerState<PetScreen> {
     }
   }
 
+  /// Start/stop the thinking heartbeat as the voice phase enters/leaves
+  /// `thinking`. Called from a phase listener in [build].
+  void _syncThinkingHaptics(VoicePhase phase) {
+    if (phase == VoicePhase.thinking) {
+      _startThinkingHaptics();
+    } else {
+      _stopThinkingHaptics();
+    }
+  }
+
+  void _startThinkingHaptics() {
+    if (_thinkHapticTimer != null) return; // already pulsing
+    if (!ref.read(settingsProvider).hapticsEnabled) return;
+    _thinkHapticStep = 0;
+    _thinkHapticBeat();
+  }
+
+  void _thinkHapticBeat() {
+    _haptics.thinking(_thinkHapticStep);
+    final gap = _thinkHapticGaps[_thinkHapticStep % _thinkHapticGaps.length];
+    _thinkHapticStep++;
+    _thinkHapticTimer = Timer(gap, _thinkHapticBeat);
+  }
+
+  void _stopThinkingHaptics() {
+    _thinkHapticTimer?.cancel();
+    _thinkHapticTimer = null;
+  }
+
   @override
   void dispose() {
     _visemeTimer?.cancel();
+    _thinkHapticTimer?.cancel();
     _wakeSub?.cancel();
     super.dispose();
   }
@@ -613,6 +661,10 @@ class _PetScreenState extends ConsumerState<PetScreen> {
   Widget build(BuildContext context) {
     final mood = ref.watch(moodStateProvider);
     final voice = ref.watch(voiceControllerProvider);
+    // Pulse a heartbeat while thinking; stop it the moment the phase changes.
+    ref.listen(voiceControllerProvider.select((v) => v.phase), (_, next) {
+      _syncThinkingHaptics(next);
+    });
     final appState =
         ref.watch(appStateProvider).valueOrNull ?? const AppState();
     final capturedPhoto = ref.watch(capturedPhotoProvider);
@@ -664,6 +716,7 @@ class _PetScreenState extends ConsumerState<PetScreen> {
                           // again while it's listening to cancel.
                           onTap: () {
                             if (_busy) {
+                              _haptics.cancel();
                               _cancelListening();
                             } else {
                               _converse();
@@ -671,8 +724,10 @@ class _PetScreenState extends ConsumerState<PetScreen> {
                           },
                           // Press-and-hold to pet Astro (the caress reaction),
                           // since this phone has no usable proximity sensor.
-                          onLongPressStart: (_) =>
-                              ref.read(pettingProvider.notifier).state = true,
+                          onLongPressStart: (_) {
+                            _haptics.pet();
+                            ref.read(pettingProvider.notifier).state = true;
+                          },
                           onLongPressEnd: (_) =>
                               ref.read(pettingProvider.notifier).state = false,
                           onLongPressCancel: () =>
@@ -750,9 +805,12 @@ class _PetScreenState extends ConsumerState<PetScreen> {
                 child: ModeSwitch(
                   carMode: carMode,
                   lang: lang,
-                  onSelect: (car) => ref
-                      .read(appModeProvider.notifier)
-                      .set(car ? AppMode.car : AppMode.normal),
+                  onSelect: (car) {
+                    _haptics.select();
+                    ref
+                        .read(appModeProvider.notifier)
+                        .set(car ? AppMode.car : AppMode.normal);
+                  },
                 ),
               ),
             ),
@@ -781,8 +839,14 @@ class _PetScreenState extends ConsumerState<PetScreen> {
               args: _emailArgs!,
               accent: accent,
               lang: lang,
-              onSend: () => _emailCompleter?.complete(true),
-              onCancel: () => _emailCompleter?.complete(false),
+              onSend: () {
+                _haptics.confirm();
+                _emailCompleter?.complete(true);
+              },
+              onCancel: () {
+                _haptics.cancel();
+                _emailCompleter?.complete(false);
+              },
             ),
           if (capturedPhoto != null) _photoOverlay(context, capturedPhoto),
         ],
@@ -896,6 +960,7 @@ class _PetScreenState extends ConsumerState<PetScreen> {
               : '${option.name}\n${option.account}');
     return GestureDetector(
       onTap: () {
+        _haptics.select();
         if (_calendarCompleter?.isCompleted == false) {
           _calendarCompleter!.complete(option);
         }
@@ -927,6 +992,7 @@ class _PetScreenState extends ConsumerState<PetScreen> {
   Widget _contactButton(ContactCandidate? contact, Color color) {
     return GestureDetector(
       onTap: () {
+        _haptics.select();
         if (_pickCompleter?.isCompleted == false) {
           _pickCompleter!.complete(contact);
         }
@@ -1007,6 +1073,7 @@ class _PetScreenState extends ConsumerState<PetScreen> {
         : '${option.name}\n${option.email}';
     return GestureDetector(
       onTap: () {
+        _haptics.select();
         if (_emailPickCompleter?.isCompleted == false) {
           _emailPickCompleter!.complete(option);
         }
@@ -1083,6 +1150,7 @@ class _PetScreenState extends ConsumerState<PetScreen> {
   Widget _confirmButton(String label, bool value, Color color) {
     return GestureDetector(
       onTap: () {
+        _haptics.confirm();
         if (_confirmCompleter?.isCompleted == false) {
           _confirmCompleter!.complete(value);
         }
@@ -1109,7 +1177,11 @@ class _PetScreenState extends ConsumerState<PetScreen> {
 
   /// Popup shown right after a photo is taken: a thumbnail with Ver / Cerrar.
   Widget _photoOverlay(BuildContext context, String path) {
-    void close() => ref.read(capturedPhotoProvider.notifier).state = null;
+    void close() {
+      _haptics.select();
+      ref.read(capturedPhotoProvider.notifier).state = null;
+    }
+
     return Positioned.fill(
       child: ColoredBox(
         color: Colors.black54,

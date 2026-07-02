@@ -105,6 +105,13 @@ abstract final class Strings {
     en: 'React to Google Maps directions',
     es: 'Reaccionar a las indicaciones de Google Maps',
   );
+  static String haptics(AppLang l) =>
+      _pick(l, en: 'Vibration', es: 'Vibración');
+  static String hapticsHint(AppLang l) => _pick(
+    l,
+    en: 'Vibrate on taps and confirmations',
+    es: 'Vibrar al tocar y confirmar',
+  );
   static String autoBrightness(AppLang l) =>
       _pick(l, en: 'Automatic brightness', es: 'Brillo automático');
   static String autoBrightnessHint(AppLang l) => _pick(

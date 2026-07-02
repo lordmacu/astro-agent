@@ -9,7 +9,9 @@ import 'package:astro/ui/ai_setup_sheet.dart';
 
 void main() {
   testWidgets('saving a key persists it and returns true', (tester) async {
-    SharedPreferences.setMockInitialValues({});
+    // Seed a preset model so the picker is deterministic (not custom mode),
+    // independent of the app's default model.
+    SharedPreferences.setMockInitialValues({'llmModel': 'MiniMax-M3'});
     final prefs = await SharedPreferences.getInstance();
     bool? result;
 

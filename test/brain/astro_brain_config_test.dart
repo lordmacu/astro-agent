@@ -20,13 +20,29 @@ void main() {
     expect(c.read(astroModelProvider), 'MiniMax-Custom');
   });
 
-  test('model defaults to MiniMax-M3 when unset', () async {
+  test('model defaults to the keyless Kilo free model when unset', () async {
     final c = await container({});
-    expect(c.read(astroModelProvider), 'MiniMax-M3');
+    expect(c.read(astroModelProvider), 'poolside/laguna-m.1:free');
   });
 
   test('configured flag is true once a key is set', () async {
     final c = await container({'llmApiKey': 'k'});
+    expect(c.read(astroConfiguredProvider), true);
+  });
+
+  test('configured flag is false without a key on a paid model', () async {
+    final c = await container({'llmModel': 'MiniMax-M3'}); // paid, no key
+    expect(c.read(astroConfiguredProvider), false);
+  });
+
+  test('configured flag is true by default (keyless free model)', () async {
+    final c = await container({}); // default model is the keyless free one
+    expect(c.read(astroConfiguredProvider), true);
+  });
+
+  test('configured flag is true for a keyless free model', () async {
+    // Kilo free models (id ends in ":free") need no API key.
+    final c = await container({'llmModel': 'poolside/laguna-m.1:free'});
     expect(c.read(astroConfiguredProvider), true);
   });
 }

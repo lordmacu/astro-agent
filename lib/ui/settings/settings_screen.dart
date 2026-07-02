@@ -10,6 +10,7 @@ import '../../brain/astro_brain_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../core/config/design_tokens.dart';
+import '../../core/config/llm_models.dart';
 import '../../core/config/settings_providers.dart';
 import '../../core/config/tool_catalog.dart';
 import '../../core/config/tool_prefs.dart';
@@ -149,18 +150,22 @@ class SettingsScreen extends ConsumerWidget {
                 lang: lang,
                 onChanged: notifier.setLlmModel,
               ),
-              SettingsTextTile(
-                label: Strings.llmApiKey(lang),
-                value: settings.llmApiKey,
-                obscure: true,
-                onSubmitted: notifier.setLlmApiKey,
-              ),
-              SettingsTextTile(
-                label: Strings.searchApiKey(lang),
-                value: settings.searchApiKey,
-                obscure: true,
-                onSubmitted: notifier.setSearchApiKey,
-              ),
+              // The Kilo free model is keyless (no LLM key, and no native web
+              // search), so hide both API-key fields for it.
+              if (!isFreeModel(settings.llmModel)) ...[
+                SettingsTextTile(
+                  label: Strings.llmApiKey(lang),
+                  value: settings.llmApiKey,
+                  obscure: true,
+                  onSubmitted: notifier.setLlmApiKey,
+                ),
+                SettingsTextTile(
+                  label: Strings.searchApiKey(lang),
+                  value: settings.searchApiKey,
+                  obscure: true,
+                  onSubmitted: notifier.setSearchApiKey,
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 24),
@@ -230,6 +235,12 @@ class SettingsScreen extends ConsumerWidget {
                 subtitle: Strings.autoBrightnessHint(lang),
                 value: settings.autoBrightnessEnabled,
                 onChanged: notifier.setAutoBrightnessEnabled,
+              ),
+              SettingsSwitchTile(
+                label: Strings.haptics(lang),
+                subtitle: Strings.hapticsHint(lang),
+                value: settings.hapticsEnabled,
+                onChanged: notifier.setHapticsEnabled,
               ),
             ],
           ),

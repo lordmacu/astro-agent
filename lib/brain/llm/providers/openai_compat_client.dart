@@ -63,6 +63,25 @@ class OpenAiCompatClient implements LlmClient {
     httpClient: httpClient,
   );
 
+  /// Kilo Gateway (OpenAI-compatible aggregator). Free models — those whose id
+  /// ends in `:free`, e.g. "poolside/laguna-m.1:free" — work **anonymously**:
+  /// no API key. Passing a key only raises the rate limits. These are reasoning
+  /// models, so callers must give a generous `maxTokens` (the model spends a few
+  /// hundred tokens thinking before it emits any answer text).
+  ///
+  /// Note the base URL has no `/v1` segment; the gateway lives at
+  /// `/api/gateway/chat/completions`.
+  factory OpenAiCompatClient.kilo({
+    String? apiKey,
+    http.Client? httpClient,
+  }) => OpenAiCompatClient(
+    baseUrl: 'https://api.kilo.ai/api/gateway',
+    // Empty/blank key → null → no Authorization header (anonymous free tier).
+    apiKey: (apiKey != null && apiKey.trim().isNotEmpty) ? apiKey : null,
+    providerId: 'kilo',
+    httpClient: httpClient,
+  );
+
   /// Base URL up to and including `/v1` (no trailing `/chat/completions`).
   final String baseUrl;
   final String? apiKey;

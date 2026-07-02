@@ -84,4 +84,9 @@ class SettingsNotifier extends Notifier<AppSettings> {
     await _store.setBool(SettingKey.autoBrightnessEnabled, v);
     state = state.copyWith(autoBrightnessEnabled: v);
   }
+
+  Future<void> setHapticsEnabled(bool v) async {
+    await _store.setBool(SettingKey.hapticsEnabled, v);
+    state = state.copyWith(hapticsEnabled: v);
+  }
 }

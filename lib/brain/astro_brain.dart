@@ -34,6 +34,7 @@ class AstroBrain {
     this.confirm,
     this.recallContext,
     this.maxTurns = 6,
+    this.maxAnswerTokens = 192,
   });
 
   final LlmClient client;
@@ -58,8 +59,10 @@ class AstroBrain {
 
   /// Output-token cap per model call. Astro speaks 1–2 short sentences, so a
   /// tight cap keeps generation fast and prevents rambling. Tool-call turns need
-  /// far fewer tokens than this.
-  static const _maxAnswerTokens = 192;
+  /// far fewer tokens than this. Reasoning models (e.g. Kilo's free tier) spend
+  /// several hundred tokens thinking before any answer text, so those providers
+  /// pass a larger budget — see the brain provider.
+  final int maxAnswerTokens;
 
   /// Forget the running conversation (e.g. to start fresh).
   void resetConversation() {
@@ -92,7 +95,7 @@ class AstroBrain {
             tools: registry.specs(),
             // Voice replies are short; cap output so the model can't ramble
             // and the scheduler has a tight budget.
-            maxTokens: _maxAnswerTokens,
+            maxTokens: maxAnswerTokens,
           ),
         );
       } finally {
@@ -175,7 +178,7 @@ class AstroBrain {
             messages: messages,
             system: effectiveSystem,
             tools: registry.specs(),
-            maxTokens: _maxAnswerTokens,
+            maxTokens: maxAnswerTokens,
           ),
         )) {
           switch (chunk) {

@@ -31,6 +31,7 @@ mixin _$AppSettings {
   double get wakeWordSensitivity => throw _privateConstructorUsedError;
   bool get navListenerEnabled => throw _privateConstructorUsedError;
   bool get autoBrightnessEnabled => throw _privateConstructorUsedError;
+  bool get hapticsEnabled => throw _privateConstructorUsedError;
 
   /// Create a copy of AppSettings
   /// with the given fields replaced by the non-null parameter values.
@@ -61,6 +62,7 @@ abstract class $AppSettingsCopyWith<$Res> {
     double wakeWordSensitivity,
     bool navListenerEnabled,
     bool autoBrightnessEnabled,
+    bool hapticsEnabled,
   });
 }
 
@@ -93,6 +95,7 @@ class _$AppSettingsCopyWithImpl<$Res, $Val extends AppSettings>
     Object? wakeWordSensitivity = null,
     Object? navListenerEnabled = null,
     Object? autoBrightnessEnabled = null,
+    Object? hapticsEnabled = null,
   }) {
     return _then(
       _value.copyWith(
@@ -152,6 +155,10 @@ class _$AppSettingsCopyWithImpl<$Res, $Val extends AppSettings>
                 ? _value.autoBrightnessEnabled
                 : autoBrightnessEnabled // ignore: cast_nullable_to_non_nullable
                       as bool,
+            hapticsEnabled: null == hapticsEnabled
+                ? _value.hapticsEnabled
+                : hapticsEnabled // ignore: cast_nullable_to_non_nullable
+                      as bool,
           )
           as $Val,
     );
@@ -182,6 +189,7 @@ abstract class _$$AppSettingsImplCopyWith<$Res>
     double wakeWordSensitivity,
     bool navListenerEnabled,
     bool autoBrightnessEnabled,
+    bool hapticsEnabled,
   });
 }
 
@@ -213,6 +221,7 @@ class __$$AppSettingsImplCopyWithImpl<$Res>
     Object? wakeWordSensitivity = null,
     Object? navListenerEnabled = null,
     Object? autoBrightnessEnabled = null,
+    Object? hapticsEnabled = null,
   }) {
     return _then(
       _$AppSettingsImpl(
@@ -272,6 +281,10 @@ class __$$AppSettingsImplCopyWithImpl<$Res>
             ? _value.autoBrightnessEnabled
             : autoBrightnessEnabled // ignore: cast_nullable_to_non_nullable
                   as bool,
+        hapticsEnabled: null == hapticsEnabled
+            ? _value.hapticsEnabled
+            : hapticsEnabled // ignore: cast_nullable_to_non_nullable
+                  as bool,
       ),
     );
   }
@@ -295,6 +308,7 @@ class _$AppSettingsImpl implements _AppSettings {
     required this.wakeWordSensitivity,
     required this.navListenerEnabled,
     required this.autoBrightnessEnabled,
+    required this.hapticsEnabled,
   });
 
   @override
@@ -325,10 +339,12 @@ class _$AppSettingsImpl implements _AppSettings {
   final bool navListenerEnabled;
   @override
   final bool autoBrightnessEnabled;
+  @override
+  final bool hapticsEnabled;
 
   @override
   String toString() {
-    return 'AppSettings(voiceRate: $voiceRate, voicePitch: $voicePitch, voiceLanguage: $voiceLanguage, neuralVoiceEnabled: $neuralVoiceEnabled, neuralVoiceInstalled: $neuralVoiceInstalled, neuralVoicePath: $neuralVoicePath, llmModel: $llmModel, llmApiKey: $llmApiKey, searchApiKey: $searchApiKey, wakeWordEnabled: $wakeWordEnabled, wakeWord: $wakeWord, wakeWordSensitivity: $wakeWordSensitivity, navListenerEnabled: $navListenerEnabled, autoBrightnessEnabled: $autoBrightnessEnabled)';
+    return 'AppSettings(voiceRate: $voiceRate, voicePitch: $voicePitch, voiceLanguage: $voiceLanguage, neuralVoiceEnabled: $neuralVoiceEnabled, neuralVoiceInstalled: $neuralVoiceInstalled, neuralVoicePath: $neuralVoicePath, llmModel: $llmModel, llmApiKey: $llmApiKey, searchApiKey: $searchApiKey, wakeWordEnabled: $wakeWordEnabled, wakeWord: $wakeWord, wakeWordSensitivity: $wakeWordSensitivity, navListenerEnabled: $navListenerEnabled, autoBrightnessEnabled: $autoBrightnessEnabled, hapticsEnabled: $hapticsEnabled)';
   }
 
   @override
@@ -363,7 +379,9 @@ class _$AppSettingsImpl implements _AppSettings {
             (identical(other.navListenerEnabled, navListenerEnabled) ||
                 other.navListenerEnabled == navListenerEnabled) &&
             (identical(other.autoBrightnessEnabled, autoBrightnessEnabled) ||
-                other.autoBrightnessEnabled == autoBrightnessEnabled));
+                other.autoBrightnessEnabled == autoBrightnessEnabled) &&
+            (identical(other.hapticsEnabled, hapticsEnabled) ||
+                other.hapticsEnabled == hapticsEnabled));
   }
 
   @override
@@ -383,6 +401,7 @@ class _$AppSettingsImpl implements _AppSettings {
     wakeWordSensitivity,
     navListenerEnabled,
     autoBrightnessEnabled,
+    hapticsEnabled,
   );
 
   /// Create a copy of AppSettings
@@ -410,6 +429,7 @@ abstract class _AppSettings implements AppSettings {
     required final double wakeWordSensitivity,
     required final bool navListenerEnabled,
     required final bool autoBrightnessEnabled,
+    required final bool hapticsEnabled,
   }) = _$AppSettingsImpl;
 
   @override
@@ -440,6 +460,8 @@ abstract class _AppSettings implements AppSettings {
   bool get navListenerEnabled;
   @override
   bool get autoBrightnessEnabled;
+  @override
+  bool get hapticsEnabled;
 
   /// Create a copy of AppSettings
   /// with the given fields replaced by the non-null parameter values.
