@@ -22,7 +22,10 @@ void main() {
 
   test('model defaults to the keyless Kilo free model when unset', () async {
     final c = await container({});
-    expect(c.read(astroModelProvider), 'poolside/laguna-m.1:free');
+    expect(
+      c.read(astroModelProvider),
+      'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
+    );
   });
 
   test('configured flag is true once a key is set', () async {

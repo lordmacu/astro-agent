@@ -45,7 +45,7 @@ class GoogleNewsProvider {
   Future<List<NewsHeadline>> headlines({
     String? query,
     required AppLang lang,
-    int limit = 8,
+    int? limit, // null = all the feed returns
   }) async {
     final (hl, gl, ceid) = _locale(lang);
     final q = (query ?? '').trim();
@@ -98,11 +98,11 @@ final latestNewsProvider = StateProvider<List<NewsHeadline>?>((_) => null);
 /// unit-tested without a network call. Google News titles end with
 /// " - <source>"; the source is dropped from the title (it is returned
 /// separately) to give the model clean text.
-List<NewsHeadline> parseGoogleNewsRss(String xml, {int limit = 8}) {
+List<NewsHeadline> parseGoogleNewsRss(String xml, {int? limit}) {
   final items = RegExp(r'<item>(.*?)</item>', dotAll: true).allMatches(xml);
   final out = <NewsHeadline>[];
   for (final m in items) {
-    if (out.length >= limit) break;
+    if (limit != null && out.length >= limit) break;
     final block = m.group(1) ?? '';
     final title = _tag(block, 'title');
     if (title.isEmpty) continue;

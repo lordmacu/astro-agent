@@ -220,6 +220,13 @@ class _AstroPainter extends CustomPainter {
         sy = 1.08;
       case Mood.arrival:
         dy = -9 * math.sin(_tau * t * 2).abs(); // happy hops
+      case Mood.dizzy:
+        // Shaken silly: fast wobble side to side + a woozy rock and jitter.
+        dx = 4.5 * math.sin(_tau * t * 14);
+        dy = 2.5 * math.sin(_tau * t * 11);
+        rot += (14 * math.sin(_tau * t * 7)) * math.pi / 180;
+        sx = 1.05;
+        sy = 0.95;
       case Mood.pet:
         rot += (3 * math.sin(_tau * t)) * math.pi / 180;
       case Mood.sleep:
@@ -355,7 +362,8 @@ class _AstroPainter extends CustomPainter {
   // --- brows -----------------------------------------------------------------
 
   void _drawBrows(Canvas canvas, Mood m) {
-    if (m == Mood.sleep || m == Mood.pet) return; // eyes closed, no brows
+    // No brows for closed/special eyes (sleep, pet) or the spiral dizzy eyes.
+    if (m == Mood.sleep || m == Mood.pet || m == Mood.dizzy) return;
 
     final paint = Paint()
       ..color = _ink
@@ -390,6 +398,12 @@ class _AstroPainter extends CustomPainter {
   // --- eyes ------------------------------------------------------------------
 
   void _drawEyes(Canvas canvas, Mood m) {
+    if (m == Mood.dizzy) {
+      // Spinning spiral eyes — the classic "seeing stars" dizzy look.
+      _dizzyEye(canvas, const Offset(76, 104));
+      _dizzyEye(canvas, const Offset(124, 104));
+      return;
+    }
     if (m == Mood.pet) {
       // Happy closed eyes (upward arcs).
       final p = Paint()
@@ -457,6 +471,27 @@ class _AstroPainter extends CustomPainter {
       pupilUp,
       starry,
     );
+  }
+
+  /// A rotating spiral eye for the dizzy mood.
+  void _dizzyEye(Canvas canvas, Offset c) {
+    final paint = Paint()
+      ..color = _ink
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round;
+    final spin = _tau * t * 1.6; // whole swirl rotates
+    const turns = 2.4, maxR = 8.0, steps = 44;
+    final path = Path();
+    for (var i = 0; i <= steps; i++) {
+      final f = i / steps;
+      final a = f * turns * _tau + spin;
+      final r = f * maxR;
+      final x = c.dx + r * math.cos(a);
+      final y = c.dy + r * math.sin(a);
+      i == 0 ? path.moveTo(x, y) : path.lineTo(x, y);
+    }
+    canvas.drawPath(path, paint);
   }
 
   void _eye(
@@ -532,6 +567,17 @@ class _AstroPainter extends CustomPainter {
       case Mood.surprised:
         // A big round gasp.
         canvas.drawCircle(const Offset(100, 152), 14, fill);
+      case Mood.dizzy:
+        // A wide, woozy open mouth that jiggles with the shake.
+        final wob = 3.0 * math.sin(_tau * t * 9);
+        canvas.drawOval(
+          Rect.fromCenter(
+            center: Offset(100, 150 + wob),
+            width: 26,
+            height: 22 - wob,
+          ),
+          fill,
+        );
       case Mood.excited:
       case Mood.arrival:
         final p = Path()

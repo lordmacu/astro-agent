@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rxdart/rxdart.dart';
@@ -7,6 +8,7 @@ import '../../sensors/light/light_service.dart';
 import '../../sensors/location/speed_fusion.dart';
 import '../../sensors/location/speed_service.dart';
 import '../../sensors/motion/motion_service.dart';
+import '../../sensors/motion/shake_detector.dart';
 import '../../sensors/navigation/nav_reading.dart';
 import '../../sensors/navigation/nav_service.dart';
 import '../../sensors/proximity/proximity_service.dart';
@@ -25,6 +27,16 @@ import 'mood_resolver.dart';
 
 /// Tuning constants for the cascade.
 final thresholdsProvider = Provider<Thresholds>((_) => const Thresholds());
+
+/// Shared shake detector (just for fun → the dizzy mood), fed from motion.
+final shakeDetectorProvider = Provider<ShakeDetector>((ref) {
+  final t = ref.watch(thresholdsProvider);
+  return ShakeDetector(
+    thresholdG: t.shakeG,
+    window: t.shakeWindow,
+    count: t.shakeCount,
+  );
+});
 
 /// The pure resolver.
 final moodResolverProvider = Provider<MoodResolver>(
@@ -83,6 +95,7 @@ AppState buildSensorState({
   required bool proximityNear,
   required double speedKmh,
   bool carMode = false,
+  bool shaking = false,
   NavReading nav = NavReading.none,
 }) => AppState(
   carMode: carMode,
@@ -90,12 +103,21 @@ AppState buildSensorState({
   verticalG: motion.verticalG,
   lateralG: motion.lateralG,
   yawRate: motion.yawRate,
+  shaking: shaking,
   lux: lux,
   proximityNear: proximityNear,
   speedKmh: speedKmh,
   arrived: nav.arrived,
   turnDirection: nav.turnDirection,
   turnDistanceM: nav.distanceM,
+);
+
+/// Gravity-free acceleration magnitude (g) of a motion sample, for shake
+/// detection.
+double motionMagnitudeG(MotionReading m) => math.sqrt(
+  m.longitudinalG * m.longitudinalG +
+      m.lateralG * m.lateralG +
+      m.verticalG * m.verticalG,
 );
 
 const MotionReading _restMotion = MotionReading(
@@ -114,6 +136,7 @@ const double _gravity = 9.80665;
 final appStateProvider = StreamProvider<AppState>((ref) {
   final t = ref.watch(thresholdsProvider);
   final carMode = ref.watch(appModeProvider).isCar;
+  final shake = ref.watch(shakeDetectorProvider);
 
   // Motion is shared: it feeds both the g-force fields and the speed fusion's
   // dead-reckoning input, off a single sensor subscription.
@@ -181,22 +204,26 @@ final appStateProvider = StreamProvider<AppState>((ref) {
             .startWith(NavReading.none)
       : Stream<NavReading>.value(NavReading.none);
 
-  return Rx.combineLatest5(
-    motion,
-    lux,
-    near,
-    speed,
-    nav,
-    (MotionReading m, double l, bool n, double s, NavReading nv) =>
-        buildSensorState(
-          motion: m,
-          lux: l,
-          proximityNear: n,
-          speedKmh: s,
-          carMode: carMode,
-          nav: nv,
-        ),
-  );
+  return Rx.combineLatest5(motion, lux, near, speed, nav, (
+    MotionReading m,
+    double l,
+    bool n,
+    double s,
+    NavReading nv,
+  ) {
+    // Update the shake detector from this sample (side effect, like the speed
+    // calibrator above), then fold its state into the snapshot.
+    final shaking = shake.add(motionMagnitudeG(m), DateTime.now());
+    return buildSensorState(
+      motion: m,
+      lux: l,
+      proximityNear: n,
+      speedKmh: s,
+      carMode: carMode,
+      shaking: shaking,
+      nav: nv,
+    );
+  });
 });
 
 /// True while the user is petting Astro by touch (press-and-hold on screen).

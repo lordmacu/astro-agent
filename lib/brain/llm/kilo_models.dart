@@ -20,6 +20,10 @@ const String kKiloModelsEndpoint = 'https://api.kilo.ai/api/gateway/models';
 /// live list can't be fetched (offline, first paint, tests). The live list from
 /// [fetchKiloFreeModels] supersedes it whenever available.
 const List<KiloModel> kSeedFreeModels = [
+  KiloModel(
+    id: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
+    name: 'NVIDIA Nemotron 3 Nano',
+  ),
   KiloModel(id: 'poolside/laguna-m.1:free', name: 'Poolside Laguna M.1'),
   KiloModel(id: 'poolside/laguna-xs.2:free', name: 'Poolside Laguna XS.2'),
   KiloModel(id: 'stepfun/step-3.7-flash:free', name: 'StepFun Step 3.7 Flash'),

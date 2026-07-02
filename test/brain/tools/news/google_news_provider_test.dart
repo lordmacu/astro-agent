@@ -38,6 +38,20 @@ void main() {
     expect(parseGoogleNewsRss(_rss, limit: 1).length, 1);
   });
 
+  test('a null limit returns every item (no cap)', () {
+    final many = StringBuffer('<rss version="2.0"><channel>');
+    for (var i = 0; i < 12; i++) {
+      many.write(
+        '<item><title>H$i - Fuente</title><link>u$i</link>'
+        '<source url="s">Fuente</source></item>',
+      );
+    }
+    many.write('</channel></rss>');
+    // Default is now "all"; an explicit number still caps.
+    expect(parseGoogleNewsRss(many.toString()).length, 12);
+    expect(parseGoogleNewsRss(many.toString(), limit: 5).length, 5);
+  });
+
   test('empty / no items yields an empty list', () {
     expect(parseGoogleNewsRss('<rss><channel></channel></rss>'), isEmpty);
   });
