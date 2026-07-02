@@ -160,6 +160,19 @@ abstract final class Strings {
       _pick(l, en: 'Custom…', es: 'Personalizado…');
   static String customModelLabel(AppLang l) =>
       _pick(l, en: 'Custom model', es: 'Modelo personalizado');
+  static String notificationsTitle(AppLang l) =>
+      _pick(l, en: 'Notifications', es: 'Notificaciones');
+  static String summarize(AppLang l) =>
+      _pick(l, en: 'Summarize', es: 'Resumir');
+  static String noNotifications(AppLang l) =>
+      _pick(l, en: 'Nothing new.', es: 'Nada nuevo.');
+  static String grantNotifications(AppLang l) => _pick(
+    l,
+    en: 'Allow notification access',
+    es: 'Dar acceso a notificaciones',
+  );
+  static String notifSummaryError(AppLang l) =>
+      _pick(l, en: "I couldn't read that.", es: 'No pude leer eso.');
   static String toolsSection(AppLang l) =>
       _pick(l, en: 'Tools', es: 'Herramientas');
   static String memorySection(AppLang l) =>
