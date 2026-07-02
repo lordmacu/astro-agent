@@ -385,15 +385,22 @@ class _ToolTileState extends ConsumerState<_ToolTile> {
   @override
   Widget build(BuildContext context) {
     final info = widget.info;
+    final lang = ref.watch(langProvider);
     final enabled = !ref.watch(toolPrefsProvider).contains(info.name);
     final needsGrant = enabled && info.permission != null && _granted == false;
 
     return ListTile(
-      title: Text(info.label, style: const TextStyle(color: DesignTokens.ink)),
+      title: Text(
+        Strings.toolLabel(info.name, lang),
+        style: const TextStyle(color: DesignTokens.ink),
+      ),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(info.subtitle, style: const TextStyle(color: DesignTokens.dim)),
+          Text(
+            Strings.toolSubtitle(info.name, lang),
+            style: const TextStyle(color: DesignTokens.dim),
+          ),
           if (needsGrant)
             InkWell(
               onTap: _requestPermission,
@@ -401,8 +408,8 @@ class _ToolTileState extends ConsumerState<_ToolTile> {
                 padding: const EdgeInsets.only(top: 4),
                 child: Text(
                   Strings.missingPermission(
-                    info.permissionLabel ?? '',
-                    ref.watch(langProvider),
+                    Strings.permissionName(info.permissionKey ?? '', lang),
+                    lang,
                   ),
                   style: const TextStyle(
                     color: Color(0xFFFF4D57),

@@ -379,4 +379,80 @@ abstract final class Strings {
     en: "I couldn't check the weather right now.",
     es: 'No pude consultar el clima ahora.',
   );
+
+  // ── Tool catalog (Settings toggles), keyed by AstroTool.name ─────────────
+  static String toolLabel(String name, AppLang l) => switch (name) {
+    'music' => _pick(l, en: 'Music', es: 'Música'),
+    'take_photo' => _pick(l, en: 'Camera', es: 'Cámara'),
+    'calendar' => _pick(l, en: 'Calendar', es: 'Calendario'),
+    'comunicacion' => _pick(l, en: 'Communication', es: 'Comunicación'),
+    'device' => _pick(l, en: 'Device', es: 'Dispositivo'),
+    'mapa' => _pick(l, en: 'Maps', es: 'Mapas'),
+    'clima' => _pick(l, en: 'Weather', es: 'Clima'),
+    'timer' => _pick(l, en: 'Timer', es: 'Temporizador'),
+    'phone' => _pick(l, en: 'Calls', es: 'Llamadas'),
+    'web_search' => _pick(l, en: 'Web search', es: 'Búsqueda web'),
+    'remember_fact' => _pick(l, en: 'Memory', es: 'Memoria'),
+    _ => name,
+  };
+
+  static String toolSubtitle(String name, AppLang l) => switch (name) {
+    'music' => _pick(
+      l,
+      en: 'Play and control music',
+      es: 'Poner y controlar la música',
+    ),
+    'take_photo' => _pick(
+      l,
+      en: 'Take photos and save them to the gallery',
+      es: 'Tomar fotos y guardarlas en la galería',
+    ),
+    'calendar' => _pick(
+      l,
+      en: 'Create events and reminders',
+      es: 'Crear eventos y recordatorios',
+    ),
+    'comunicacion' => _pick(
+      l,
+      en: 'Email and notifications',
+      es: 'Correo y notificaciones',
+    ),
+    'device' => _pick(
+      l,
+      en: 'Brightness, volume, flashlight and open apps',
+      es: 'Brillo, volumen, linterna y abrir apps',
+    ),
+    'mapa' => _pick(
+      l,
+      en: 'Navigate and find nearby places',
+      es: 'Navegar y buscar lugares cerca',
+    ),
+    'clima' => _pick(l, en: "A place's weather", es: 'El tiempo de un lugar'),
+    'timer' => _pick(l, en: 'Timers and alarms', es: 'Timers y alarmas'),
+    'phone' => _pick(
+      l,
+      en: 'Call and send messages',
+      es: 'Llamar y enviar mensajes',
+    ),
+    'web_search' => _pick(
+      l,
+      en: 'Search the internet for info',
+      es: 'Buscar información en internet',
+    ),
+    'remember_fact' => _pick(
+      l,
+      en: 'Remember durable things across trips',
+      es: 'Recordar cosas durables entre viajes',
+    ),
+    _ => '',
+  };
+
+  static String permissionName(String key, AppLang l) => switch (key) {
+    'camera' => _pick(l, en: 'camera', es: 'cámara'),
+    'calendar' => _pick(l, en: 'calendar', es: 'calendario'),
+    'contacts' => _pick(l, en: 'contacts', es: 'contactos'),
+    'location' => _pick(l, en: 'location', es: 'ubicación'),
+    'phone' => _pick(l, en: 'phone', es: 'teléfono'),
+    _ => key,
+  };
 }

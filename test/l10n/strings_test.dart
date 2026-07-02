@@ -26,6 +26,17 @@ void main() {
     expect(Strings.messageLeft('Ana', AppLang.en), contains('for Ana'));
   });
 
+  test('tool catalog labels/subtitles/permissions differ by language', () {
+    expect(Strings.toolLabel('mapa', AppLang.es), 'Mapas');
+    expect(Strings.toolLabel('mapa', AppLang.en), 'Maps');
+    expect(Strings.toolSubtitle('music', AppLang.es), contains('música'));
+    expect(Strings.toolSubtitle('music', AppLang.en), contains('music'));
+    expect(Strings.permissionName('camera', AppLang.es), 'cámara');
+    expect(Strings.permissionName('camera', AppLang.en), 'camera');
+    // Unknown keys fall back to the key itself.
+    expect(Strings.toolLabel('mystery', AppLang.en), 'mystery');
+  });
+
   test('the about subtitle composes version, voice state and model', () {
     final es = Strings.aboutSubtitle('0.1.0', true, 'gpt-4o', AppLang.es);
     expect(es, contains('v0.1.0'));

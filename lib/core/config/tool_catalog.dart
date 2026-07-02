@@ -1,34 +1,28 @@
 import 'package:permission_handler/permission_handler.dart';
 
-/// UI metadata for a brain tool the driver can turn on/off from Settings, plus
-/// the single OS permission it needs (if any) so Settings can request it there.
+/// Structural metadata for a brain tool the driver can turn on/off from
+/// Settings, plus the single OS permission it needs (if any) so Settings can
+/// request it there. The user-facing label/subtitle are localized in `Strings`
+/// (keyed by [name]); the permission's human name is localized there too (keyed
+/// by [permissionKey]).
 ///
 /// Kept central (keyed by the tool's `name`) instead of on each tool class, so
 /// the tool implementations stay decoupled from the UI and a rename is a
 /// one-line change here. [name] must match the tool's `AstroTool.name`.
 class ToolInfo {
-  const ToolInfo({
-    required this.name,
-    required this.label,
-    required this.subtitle,
-    this.permission,
-    this.permissionLabel,
-  });
+  const ToolInfo({required this.name, this.permission, this.permissionKey});
 
-  /// The tool id, matching `AstroTool.name`.
+  /// The tool id, matching `AstroTool.name`. Also the key for its localized
+  /// label/subtitle in `Strings.toolLabel` / `Strings.toolSubtitle`.
   final String name;
-
-  /// Short Spanish label for the toggle.
-  final String label;
-
-  /// One line describing what the tool does.
-  final String subtitle;
 
   /// OS permission the tool needs to work, or null when it needs none.
   final Permission? permission;
 
-  /// Human name of that permission, for the "grant" prompt.
-  final String? permissionLabel;
+  /// Language-neutral key for the permission's human name, localized in
+  /// `Strings.permissionName` (e.g. 'camera', 'location'). Null when no
+  /// permission is needed.
+  final String? permissionKey;
 }
 
 /// Core tools that are always on and never shown in the toggle list — Astro's
@@ -39,67 +33,35 @@ const Set<String> kCoreTools = {'get_context'};
 /// Every toggleable tool, in display order. Tools not listed here (the core set
 /// above) are always on.
 const List<ToolInfo> kToolCatalog = [
-  ToolInfo(
-    name: 'music',
-    label: 'Música',
-    subtitle: 'Poner y controlar la música',
-  ),
+  ToolInfo(name: 'music'),
   ToolInfo(
     name: 'take_photo',
-    label: 'Cámara',
-    subtitle: 'Tomar fotos y guardarlas en la galería',
     permission: Permission.camera,
-    permissionLabel: 'cámara',
+    permissionKey: 'camera',
   ),
   ToolInfo(
     name: 'calendar',
-    label: 'Calendario',
-    subtitle: 'Crear eventos y recordatorios',
     permission: Permission.calendarWriteOnly,
-    permissionLabel: 'calendario',
+    permissionKey: 'calendar',
   ),
   ToolInfo(
     name: 'comunicacion',
-    label: 'Comunicación',
-    subtitle: 'Correo y notificaciones',
     permission: Permission.contacts,
-    permissionLabel: 'contactos',
+    permissionKey: 'contacts',
   ),
-  ToolInfo(
-    name: 'device',
-    label: 'Dispositivo',
-    subtitle: 'Brillo, volumen, linterna y abrir apps',
-  ),
+  ToolInfo(name: 'device'),
   ToolInfo(
     name: 'mapa',
-    label: 'Mapas',
-    subtitle: 'Navegar y buscar lugares cerca',
     permission: Permission.locationWhenInUse,
-    permissionLabel: 'ubicación',
+    permissionKey: 'location',
   ),
   ToolInfo(
     name: 'clima',
-    label: 'Clima',
-    subtitle: 'El tiempo de un lugar',
     permission: Permission.locationWhenInUse,
-    permissionLabel: 'ubicación',
+    permissionKey: 'location',
   ),
-  ToolInfo(name: 'timer', label: 'Temporizador', subtitle: 'Timers y alarmas'),
-  ToolInfo(
-    name: 'phone',
-    label: 'Llamadas',
-    subtitle: 'Llamar y enviar mensajes',
-    permission: Permission.phone,
-    permissionLabel: 'teléfono',
-  ),
-  ToolInfo(
-    name: 'web_search',
-    label: 'Búsqueda web',
-    subtitle: 'Buscar información en internet',
-  ),
-  ToolInfo(
-    name: 'remember_fact',
-    label: 'Memoria',
-    subtitle: 'Recordar cosas durables entre viajes',
-  ),
+  ToolInfo(name: 'timer'),
+  ToolInfo(name: 'phone', permission: Permission.phone, permissionKey: 'phone'),
+  ToolInfo(name: 'web_search'),
+  ToolInfo(name: 'remember_fact'),
 ];
