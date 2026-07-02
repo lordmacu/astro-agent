@@ -32,12 +32,17 @@ class CommandPalette extends StatelessWidget {
     required this.onCommand,
     required this.onClose,
     required this.lang,
+    this.onNews,
   });
 
   final List<String> commands;
   final void Function(String command) onCommand;
   final VoidCallback onClose;
   final AppLang lang;
+
+  /// Optional shortcut that opens the clickable news panel directly (skipping a
+  /// voice round-trip). Rendered as a button above the examples when set.
+  final VoidCallback? onNews;
 
   @override
   Widget build(BuildContext context) {
@@ -76,6 +81,15 @@ class CommandPalette extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  if (onNews != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: ElevatedButton.icon(
+                        onPressed: onNews,
+                        icon: const Icon(Icons.newspaper, size: 18),
+                        label: Text(Strings.newsTitle(lang)),
+                      ),
+                    ),
                   for (final cmd in commands)
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4),
