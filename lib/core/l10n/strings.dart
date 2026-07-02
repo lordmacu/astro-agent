@@ -47,6 +47,35 @@ abstract final class Strings {
   static String notDownloaded(AppLang l) =>
       _pick(l, en: 'Not downloaded', es: 'No descargada');
   static String aiSection(AppLang l) => _pick(l, en: 'AI', es: 'IA');
+
+  static String aiSetupSpoken(AppLang l) => _pick(
+    l,
+    en: 'You need to add an API key so I can think. Let me open the setup.',
+    es: 'Necesitas agregar una API key para que pueda pensar. Te abro la configuración.',
+  );
+
+  static String aiSetupTitle(AppLang l) =>
+      _pick(l, en: 'Set up the AI', es: 'Configura la IA');
+
+  static String aiSetupBody(AppLang l) => _pick(
+    l,
+    en: 'Pick a model and paste an API key to enable Astro\'s brain.',
+    es: 'Elige un modelo y pega una API key para activar el cerebro de Astro.',
+  );
+
+  static String aiKeyLabel(AppLang l) =>
+      _pick(l, en: 'LLM API key', es: 'API key del LLM');
+
+  static String aiKeyHint(AppLang l) => _pick(
+    l,
+    en:
+        'You can get a key from MiniMax, OpenAI, or another '
+        'OpenAI-compatible provider.',
+    es:
+        'Puedes obtener una key de MiniMax, OpenAI u otro proveedor '
+        'compatible con OpenAI.',
+  );
+
   static String llmApiKey(AppLang l) =>
       _pick(l, en: 'LLM API key', es: 'API key del LLM');
   static String searchApiKey(AppLang l) =>
@@ -248,4 +277,106 @@ abstract final class Strings {
   static String tapYesOrNo(AppLang l) =>
       _pick(l, en: 'Tap yes or no.', es: 'Toca sí o no.');
   static String doIt(AppLang l) => _pick(l, en: 'Go ahead?', es: '¿Lo hago?');
+
+  // ── Tool results (fed to the model, which answers in the active language) ──
+  // phone
+  static String callFailed(AppLang l) => _pick(
+    l,
+    en: "I couldn't make the call.",
+    es: 'No pude hacer la llamada.',
+  );
+  static String messageReady(String contact, AppLang l) => _pick(
+    l,
+    en: 'Message ready for $contact.',
+    es: 'Mensaje listo para $contact.',
+  );
+  static String messageOpenFailed(AppLang l) => _pick(
+    l,
+    en: "I couldn't open the message.",
+    es: 'No pude abrir el mensaje.',
+  );
+  // device
+  static String volumeSet(int level, AppLang l) =>
+      _pick(l, en: 'Volume at $level%.', es: 'Volumen en $level%.');
+  static String volumeUp(AppLang l) =>
+      _pick(l, en: 'Turned the volume up.', es: 'Subí el volumen.');
+  static String volumeDown(AppLang l) =>
+      _pick(l, en: 'Turned the volume down.', es: 'Bajé el volumen.');
+  static String flashlightOn(AppLang l) =>
+      _pick(l, en: 'Flashlight on.', es: 'Linterna encendida.');
+  static String flashlightOff(AppLang l) =>
+      _pick(l, en: 'Flashlight off.', es: 'Linterna apagada.');
+  static String cantOpenApps(AppLang l) => _pick(
+    l,
+    en: "I can't open apps on this device.",
+    es: 'No puedo abrir apps en este dispositivo.',
+  );
+  static String openingApp(String app, AppLang l) =>
+      _pick(l, en: 'Opening $app.', es: 'Abriendo $app.');
+  static String appNotFound(String app, AppLang l) => _pick(
+    l,
+    en: 'I couldn\'t find the "$app" app.',
+    es: 'No encontré la app "$app".',
+  );
+  // calendar
+  static String eventCreated(String title, AppLang l) => _pick(
+    l,
+    en: 'Done, I scheduled "$title".',
+    es: 'Listo, agendé "$title".',
+  );
+  static String eventCreateFailed(AppLang l) => _pick(
+    l,
+    en: "I couldn't create the calendar event.",
+    es: 'No pude crear el evento en el calendario.',
+  );
+  // map
+  static String navigatingTo(String dest, AppLang l) =>
+      _pick(l, en: 'Navigating to $dest.', es: 'Navegando hacia $dest.');
+  static String showingNearby(String query, AppLang l) => _pick(
+    l,
+    en: 'Showing $query nearby on the map.',
+    es: 'Te muestro $query cerca en el mapa.',
+  );
+  static String cantOpenMap(AppLang l) =>
+      _pick(l, en: "I couldn't open the map.", es: 'No pude abrir el mapa.');
+  // communication
+  static String emailSent(String to, AppLang l) => _pick(
+    l,
+    en: 'Done, I sent the email to $to.',
+    es: 'Listo, envié el correo a $to.',
+  );
+  static String emailSendFailed(AppLang l) => _pick(
+    l,
+    en: "I couldn't send the email.",
+    es: 'No pude enviar el correo.',
+  );
+  static String mailDraftOpened(String recipient, AppLang l) => _pick(
+    l,
+    en: 'I opened your mail app with the draft for $recipient.',
+    es: 'Abrí tu app de correo con el borrador para $recipient.',
+  );
+  static String cantOpenMail(AppLang l) => _pick(
+    l,
+    en: "I couldn't open your mail app.",
+    es: 'No pude abrir tu app de correo.',
+  );
+  static String mailAppOpened(AppLang l) =>
+      _pick(l, en: 'I opened your mail app.', es: 'Abrí tu app de correo.');
+  static String noEmailsFound(AppLang l) =>
+      _pick(l, en: "I didn't find any emails.", es: 'No encontré correos.');
+  static String noRecentNotifications(AppLang l) => _pick(
+    l,
+    en:
+        "I have no recent notifications. If that's odd, grant notification "
+        'access in settings.',
+    es:
+        'No tengo notificaciones recientes. Si es raro, dale acceso a '
+        'notificaciones en ajustes.',
+  );
+  // weather
+  static String weatherUnavailable(AppLang l) => _pick(
+    l,
+    en: "I couldn't check the weather right now.",
+    es: 'No pude consultar el clima ahora.',
+  );
 }
