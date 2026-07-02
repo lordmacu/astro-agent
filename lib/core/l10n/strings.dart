@@ -126,6 +126,12 @@ abstract final class Strings {
     en: 'Downloading the voice model for a better experience…',
     es: 'Descargando el modelo de voz para una mejor experiencia…',
   );
+  static String voiceModelFailed(AppLang l) => _pick(
+    l,
+    en: "Couldn't download the voice model. Astro still works.",
+    es: 'No pude descargar el modelo de voz. Astro igual funciona.',
+  );
+  static String retry(AppLang l) => _pick(l, en: 'Retry', es: 'Reintentar');
   static String haptics(AppLang l) =>
       _pick(l, en: 'Vibration', es: 'Vibración');
   static String hapticsHint(AppLang l) => _pick(

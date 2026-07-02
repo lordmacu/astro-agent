@@ -18,7 +18,8 @@ import '../platform/calendar_writer.dart';
 import '../platform/contact_match.dart';
 import '../platform/haptics.dart';
 import '../platform/system_actions.dart';
-import '../voice/neural_voice_installer.dart' show Installing;
+import '../voice/neural_voice_installer.dart'
+    show InstallError, Installing, VoiceInstallState;
 import '../voice/stt_model_provider.dart';
 import '../voice/stt_provider.dart';
 import '../voice/voice_interfaces.dart';
@@ -645,10 +646,14 @@ class _PetScreenState extends ConsumerState<PetScreen> {
     }
   }
 
-  /// Slim top banner shown while the offline STT model downloads. Non-blocking:
-  /// Astro stays usable with the platform recognizer and switches over on its
-  /// own when the download finishes. [progress] is 0–1, or < 0 when unknown.
-  Widget _sttBanner(AppLang lang, double progress, Color accent) {
+  /// Slim top banner for the offline STT model. While [state] is `Installing`
+  /// it shows download progress; on `InstallError` it shows a short message and
+  /// a Retry button. On success the banner isn't built, so it disappears the
+  /// moment the download completes. Non-blocking throughout: Astro stays usable
+  /// with the platform recognizer and switches to Vosk on its own once ready.
+  Widget _sttBanner(AppLang lang, Color accent, VoiceInstallState state) {
+    final failed = state is InstallError;
+    final progress = state is Installing ? state.progress : -1.0;
     return Positioned(
       top: 0,
       left: 0,
@@ -667,20 +672,39 @@ class _PetScreenState extends ConsumerState<PetScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  Strings.downloadingVoiceModel(lang),
+                  failed
+                      ? Strings.voiceModelFailed(lang)
+                      : Strings.downloadingVoiceModel(lang),
                   textAlign: TextAlign.center,
                   style: const TextStyle(color: DesignTokens.ink, fontSize: 12),
                 ),
                 const SizedBox(height: 8),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: progress >= 0 ? progress.clamp(0.0, 1.0) : null,
-                    minHeight: 4,
-                    backgroundColor: Colors.white.withValues(alpha: 0.12),
-                    valueColor: AlwaysStoppedAnimation<Color>(accent),
+                if (failed)
+                  TextButton(
+                    onPressed: () {
+                      _haptics.select();
+                      unawaited(ref.read(sttModelInstallerProvider).install());
+                    },
+                    style: TextButton.styleFrom(
+                      foregroundColor: accent,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 4,
+                      ),
+                      minimumSize: Size.zero,
+                    ),
+                    child: Text(Strings.retry(lang)),
+                  )
+                else
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: progress >= 0 ? progress.clamp(0.0, 1.0) : null,
+                      minHeight: 4,
+                      backgroundColor: Colors.white.withValues(alpha: 0.12),
+                      valueColor: AlwaysStoppedAnimation<Color>(accent),
+                    ),
                   ),
-                ),
               ],
             ),
           ),
@@ -911,8 +935,8 @@ class _PetScreenState extends ConsumerState<PetScreen> {
               ),
             ),
           ),
-          if (sttInstall is Installing)
-            _sttBanner(lang, sttInstall.progress, accent),
+          if (sttInstall is Installing || sttInstall is InstallError)
+            _sttBanner(lang, accent, sttInstall!),
           if (_showCommands) _commandsOverlay(),
           if (_confirmPrompt != null) _confirmOverlay(accent),
           if (_pickContacts != null) _pickOverlay(accent),

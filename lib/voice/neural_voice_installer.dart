@@ -43,12 +43,14 @@ class NeuralVoiceInstaller {
     required Future<Directory> Function() supportDir,
     required Future<void> Function(String path) onInstalled,
     String subdir = 'tts',
+    List<String> fallbackUrls = const [],
   }) : _client = client,
        _modelUrl = modelUrl,
        _modelName = modelName,
        _supportDir = supportDir,
        _onInstalled = onInstalled,
-       _subdir = subdir;
+       _subdir = subdir,
+       _fallbackUrls = fallbackUrls;
 
   final http.Client _client;
   final String _modelUrl;
@@ -56,6 +58,9 @@ class NeuralVoiceInstaller {
   final Future<Directory> Function() _supportDir;
   final Future<void> Function(String path) _onInstalled;
   final String _subdir;
+
+  /// Extra sources tried in order if [_modelUrl] fails.
+  final List<String> _fallbackUrls;
 
   final _controller = StreamController<VoiceInstallState>.broadcast();
   Stream<VoiceInstallState> get state => _controller.stream;
@@ -96,8 +101,24 @@ class NeuralVoiceInstaller {
     }
   }
 
+  /// Try the primary URL then each fallback in order; the first that downloads
+  /// wins. Only when all fail do we surface the last error.
   Future<Uint8List> _download() async {
-    final request = http.Request('GET', Uri.parse(_modelUrl));
+    final urls = [_modelUrl, ..._fallbackUrls];
+    Object lastError = const HttpException('no download sources');
+    for (final url in urls) {
+      try {
+        return await _downloadOne(url);
+      } catch (e) {
+        lastError = e;
+        _controller.add(const Installing(-1)); // reset the bar for the next try
+      }
+    }
+    throw lastError;
+  }
+
+  Future<Uint8List> _downloadOne(String url) async {
+    final request = http.Request('GET', Uri.parse(url));
     final response = await _client.send(request);
     if (response.statusCode != 200) {
       throw HttpException('download failed: ${response.statusCode}');

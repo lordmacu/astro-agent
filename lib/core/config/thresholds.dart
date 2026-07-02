@@ -16,6 +16,13 @@ const String kDefaultSttModelUrl =
 /// Folder name the STT model unzips into (under the app support dir).
 const String kSttModelName = 'vosk-model-small-es-0.42';
 
+/// Fallback download sources, tried in order after [kDefaultSttModelUrl] if it
+/// fails: the official Vosk site, then a Hugging Face mirror.
+const String kSttModelOfficialUrl =
+    'https://alphacephei.com/vosk/models/vosk-model-small-es-0.42.zip';
+const String kSttModelHuggingFaceUrl =
+    'https://huggingface.co/localstack/vosk-models/resolve/main/vosk-model-small-es-0.42.zip';
+
 /// All numeric thresholds used by the mood cascade live here, in one place.
 /// Never hard-code a magic number in `MoodResolver` — read it from this object.
 class Thresholds {

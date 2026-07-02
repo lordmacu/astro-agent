@@ -25,6 +25,9 @@ final sttModelInstallerProvider = Provider<NeuralVoiceInstaller>((ref) {
   final installer = NeuralVoiceInstaller(
     client: http.Client(),
     modelUrl: _sttModelUrl(),
+    // If our release is unreachable, fall back to the official Vosk site, then
+    // a Hugging Face mirror.
+    fallbackUrls: const [kSttModelOfficialUrl, kSttModelHuggingFaceUrl],
     modelName: kSttModelName,
     subdir: 'stt',
     supportDir: getApplicationSupportDirectory,
