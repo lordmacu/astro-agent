@@ -35,6 +35,8 @@ class AstroBrain {
     this.recallContext,
     this.maxTurns = 6,
     this.maxAnswerTokens = 192,
+    this.freeFallbacks,
+    this.onModelSwitched,
   });
 
   final LlmClient client;
@@ -42,6 +44,17 @@ class AstroBrain {
   final void Function(bool thinking)? onThinking;
   final void Function(String toolName)? onToolUse;
   final ConfirmTool? confirm;
+
+  /// Ordered list of free model ids to fail over between. Failover only applies
+  /// when the current model is itself in this list (i.e. a free model) — paid
+  /// models never switch. Returns the live free list (or a seed) at call time;
+  /// null/empty disables failover entirely. All free models share one keyless
+  /// client, so switching is just a different `model` string.
+  final List<String> Function()? freeFallbacks;
+
+  /// Called with the winning model id after a failover switch, so the caller can
+  /// persist it as the new selection.
+  final void Function(String model)? onModelSwitched;
 
   /// Optional memory recall, injected into the system prompt for this turn.
   final RecallContext? recallContext;
@@ -70,6 +83,100 @@ class AstroBrain {
     _lastTurnAt = null;
   }
 
+  /// Models to try for [model], in order. If [model] is a free model (present in
+  /// [freeFallbacks]), try it first then the other free ones; otherwise (paid,
+  /// or no fallbacks configured) just [model] — no failover.
+  List<String> _candidates(String model) {
+    final free = freeFallbacks?.call() ?? const [];
+    if (!free.contains(model)) return [model];
+    return [model, ...free.where((m) => m != model)];
+  }
+
+  /// A rate-limit (429) hits all free models per IP, so failing over won't help.
+  bool _worthRetrying(LlmException e) => e.statusCode != 429;
+
+  /// Non-streaming completion with free-model failover. Tries each candidate for
+  /// [model] until one returns; on a switch, persists it via [onModelSwitched].
+  /// Returns the winning model so the caller can keep using it for later turns.
+  Future<(LlmResponse, String)> _completeWithFailover(
+    List<LlmMessage> messages,
+    String? system,
+    String model,
+  ) async {
+    final candidates = _candidates(model);
+    LlmException? lastErr;
+    for (var i = 0; i < candidates.length; i++) {
+      final m = candidates[i];
+      try {
+        final resp = await client.complete(
+          LlmRequest(
+            model: m,
+            messages: messages,
+            system: system,
+            tools: registry.specs(),
+            maxTokens: maxAnswerTokens,
+          ),
+        );
+        if (m != model) onModelSwitched?.call(m);
+        return (resp, m);
+      } on LlmException catch (e) {
+        lastErr = e;
+        if (i == candidates.length - 1 || !_worthRetrying(e)) rethrow;
+        _log('model $m failed ($e) — trying next free model');
+      }
+    }
+    throw lastErr ?? const LlmException('no candidate model available');
+  }
+
+  /// Streaming completion with free-model failover. Text deltas are forwarded to
+  /// [onDelta]. A candidate is only retried if it fails BEFORE emitting anything
+  /// (4xx/5xx are raised at stream start, before any delta); a mid-stream drop
+  /// after partial output is not retried, to avoid double-speaking. Returns the
+  /// final response (may be null if the stream ended without one) and the
+  /// winning model.
+  Future<(LlmResponse?, String)> _streamWithFailover(
+    List<LlmMessage> messages,
+    String? system,
+    String model,
+    void Function(String delta) onDelta,
+  ) async {
+    final candidates = _candidates(model);
+    LlmException? lastErr;
+    for (var i = 0; i < candidates.length; i++) {
+      final m = candidates[i];
+      var emitted = false;
+      LlmResponse? done;
+      try {
+        await for (final chunk in client.completeStream(
+          LlmRequest(
+            model: m,
+            messages: messages,
+            system: system,
+            tools: registry.specs(),
+            maxTokens: maxAnswerTokens,
+          ),
+        )) {
+          switch (chunk) {
+            case LlmTextDelta(:final text):
+              emitted = true;
+              onDelta(text);
+            case LlmDone(:final response):
+              done = response;
+          }
+        }
+        if (m != model) onModelSwitched?.call(m);
+        return (done, m);
+      } on LlmException catch (e) {
+        lastErr = e;
+        if (emitted || i == candidates.length - 1 || !_worthRetrying(e)) {
+          rethrow;
+        }
+        _log('stream model $m failed ($e) — trying next free model');
+      }
+    }
+    throw lastErr ?? const LlmException('no candidate model available');
+  }
+
   /// Run one user turn to a final text answer.
   Future<String> ask(
     String userText, {
@@ -81,23 +188,20 @@ class AstroBrain {
     final messages = <LlmMessage>[LlmMessage.text(Role.user, userText)];
     final effectiveSystem = await _systemWithRecall(userText, system);
     var languageRetried = false;
+    var activeModel = model; // may change if a free model fails over
 
     for (var turn = 0; turn < maxTurns; turn++) {
       onThinking?.call(true);
       final callSw = Stopwatch()..start();
       final LlmResponse response;
       try {
-        response = await client.complete(
-          LlmRequest(
-            model: model,
-            messages: messages,
-            system: effectiveSystem,
-            tools: registry.specs(),
-            // Voice replies are short; cap output so the model can't ramble
-            // and the scheduler has a tight budget.
-            maxTokens: maxAnswerTokens,
-          ),
+        final (resp, used) = await _completeWithFailover(
+          messages,
+          effectiveSystem,
+          activeModel,
         );
+        response = resp;
+        activeModel = used;
       } finally {
         onThinking?.call(false);
       }
@@ -158,6 +262,7 @@ class AstroBrain {
     final messages = <LlmMessage>[..._history, userMessage];
     final effectiveSystem = await _systemWithRecall(userText, system);
     final spoken = StringBuffer();
+    var activeModel = model; // may change if a free model fails over
 
     void emit(String sentence) {
       final clean = _stripReasoning(sentence).trim();
@@ -172,22 +277,14 @@ class AstroBrain {
       final splitter = _SentenceSplitter(emit);
       LlmResponse? done;
       try {
-        await for (final chunk in client.completeStream(
-          LlmRequest(
-            model: model,
-            messages: messages,
-            system: effectiveSystem,
-            tools: registry.specs(),
-            maxTokens: maxAnswerTokens,
-          ),
-        )) {
-          switch (chunk) {
-            case LlmTextDelta(:final text):
-              splitter.add(text);
-            case LlmDone(:final response):
-              done = response;
-          }
-        }
+        final (resp, used) = await _streamWithFailover(
+          messages,
+          effectiveSystem,
+          activeModel,
+          splitter.add,
+        );
+        done = resp;
+        activeModel = used;
       } finally {
         onThinking?.call(false);
       }

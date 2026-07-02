@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:astro/brain/llm/kilo_models.dart';
 import 'package:astro/core/config/settings_providers.dart';
 import 'package:astro/core/l10n/app_lang.dart';
 import 'package:astro/core/l10n/lang_provider.dart';
@@ -16,6 +17,8 @@ void main() {
         overrides: [
           sharedPreferencesProvider.overrideWithValue(prefs),
           deviceLangProvider.overrideWithValue(AppLang.es),
+          // Avoid a real network fetch; use the seed free-model list.
+          kiloFreeModelsProvider.overrideWith((ref) => kSeedFreeModels),
         ],
         child: const MaterialApp(home: SettingsScreen()),
       ),
@@ -36,6 +39,8 @@ void main() {
         overrides: [
           sharedPreferencesProvider.overrideWithValue(prefs),
           deviceLangProvider.overrideWithValue(AppLang.es),
+          // Avoid a real network fetch; use the seed free-model list.
+          kiloFreeModelsProvider.overrideWith((ref) => kSeedFreeModels),
         ],
         child: const MaterialApp(home: SettingsScreen()),
       ),
@@ -59,6 +64,12 @@ void main() {
   testWidgets('AI section: selecting Personalizado reveals custom text field', (
     tester,
   ) async {
+    // Tall viewport so the whole (now longer) model dropdown menu — live free
+    // models + paid presets + "Personalizado…" — is onstage and tappable.
+    tester.view.physicalSize = const Size(1000, 4000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
     await tester.pumpWidget(
@@ -66,6 +77,8 @@ void main() {
         overrides: [
           sharedPreferencesProvider.overrideWithValue(prefs),
           deviceLangProvider.overrideWithValue(AppLang.es),
+          // Avoid a real network fetch; use the seed free-model list.
+          kiloFreeModelsProvider.overrideWith((ref) => kSeedFreeModels),
         ],
         child: const MaterialApp(home: SettingsScreen()),
       ),
@@ -111,6 +124,8 @@ void main() {
         overrides: [
           sharedPreferencesProvider.overrideWithValue(prefs),
           deviceLangProvider.overrideWithValue(AppLang.es),
+          // Avoid a real network fetch; use the seed free-model list.
+          kiloFreeModelsProvider.overrideWith((ref) => kSeedFreeModels),
         ],
         child: const MaterialApp(home: SettingsScreen()),
       ),
@@ -151,6 +166,8 @@ void main() {
         overrides: [
           sharedPreferencesProvider.overrideWithValue(prefs),
           deviceLangProvider.overrideWithValue(AppLang.es),
+          // Avoid a real network fetch; use the seed free-model list.
+          kiloFreeModelsProvider.overrideWith((ref) => kSeedFreeModels),
         ],
         child: const MaterialApp(home: SettingsScreen()),
       ),
@@ -176,6 +193,8 @@ void main() {
         overrides: [
           sharedPreferencesProvider.overrideWithValue(prefs),
           deviceLangProvider.overrideWithValue(AppLang.es),
+          // Avoid a real network fetch; use the seed free-model list.
+          kiloFreeModelsProvider.overrideWith((ref) => kSeedFreeModels),
         ],
         child: const MaterialApp(home: SettingsScreen()),
       ),

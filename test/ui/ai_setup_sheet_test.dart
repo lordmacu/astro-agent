@@ -85,7 +85,9 @@ void main() {
     expect(prefs.getString('llmApiKey'), isNull);
   });
 
-  testWidgets('free model needs no key: Save works without one', (tester) async {
+  testWidgets('free model needs no key: Save works without one', (
+    tester,
+  ) async {
     SharedPreferences.setMockInitialValues({'llmModel': kKiloFreeModel});
     final prefs = await SharedPreferences.getInstance();
     bool? result;

@@ -107,7 +107,43 @@ class _ConfirmSpyTool extends AstroTool {
       const ToolResult('done');
 }
 
+/// Fake client that fails (throws [LlmException]) for the given models and
+/// otherwise returns a final answer naming the model that served it. Records
+/// every model id it is called with, in order.
+class _FailoverClient implements LlmClient {
+  _FailoverClient({required this.failing, this.status = 500});
+  final Set<String> failing;
+  final int status;
+  final List<String> calls = [];
+
+  @override
+  String get providerId => 'fake';
+
+  @override
+  Future<LlmResponse> complete(LlmRequest request) async {
+    calls.add(request.model);
+    if (failing.contains(request.model)) {
+      throw LlmException('down', statusCode: status);
+    }
+    return _finalTurn('served by ${request.model}');
+  }
+
+  // Streams natively (throws inside the generator, like the real clients) so a
+  // failed model raises before any delta.
+  @override
+  Stream<LlmStreamChunk> completeStream(LlmRequest request) async* {
+    calls.add(request.model);
+    if (failing.contains(request.model)) {
+      throw LlmException('down', statusCode: status);
+    }
+    yield LlmTextDelta('served by ${request.model}');
+    yield LlmDone(_finalTurn('served by ${request.model}'));
+  }
+}
+
 void main() {
+  const freeList = ['free-a', 'free-b', 'free-c'];
+
   test('returns the final text when no tools are requested', () async {
     final brain = AstroBrain(
       client: FakeLlmClient([_finalTurn('Sunny today.')]),
@@ -115,6 +151,79 @@ void main() {
     );
     final answer = await brain.ask('How is the weather?', model: 'm');
     expect(answer, 'Sunny today.');
+  });
+
+  group('free-model failover', () {
+    test('switches to the next free model and persists it', () async {
+      final client = _FailoverClient(failing: {'free-a'});
+      final switched = <String>[];
+      final brain = AstroBrain(
+        client: client,
+        registry: ToolRegistry(),
+        freeFallbacks: () => freeList,
+        onModelSwitched: switched.add,
+      );
+
+      final answer = await brain.ask('hi', model: 'free-a');
+
+      expect(client.calls, ['free-a', 'free-b']); // tried A, fell over to B
+      expect(answer, 'served by free-b');
+      expect(switched, ['free-b']); // winner persisted
+    });
+
+    test('streaming also fails over and persists', () async {
+      final client = _FailoverClient(failing: {'free-a'});
+      final switched = <String>[];
+      final brain = AstroBrain(
+        client: client,
+        registry: ToolRegistry(),
+        freeFallbacks: () => freeList,
+        onModelSwitched: switched.add,
+      );
+
+      final sentences = <String>[];
+      final answer = await brain.askStream(
+        'hi',
+        model: 'free-a',
+        onSentence: sentences.add,
+      );
+
+      expect(answer, 'served by free-b');
+      expect(switched, ['free-b']);
+    });
+
+    test('paid models never fail over (single attempt, no persist)', () async {
+      final client = _FailoverClient(failing: {'MiniMax-M3'});
+      final switched = <String>[];
+      final brain = AstroBrain(
+        client: client,
+        registry: ToolRegistry(),
+        freeFallbacks: () => freeList, // MiniMax-M3 is not in the free list
+        onModelSwitched: switched.add,
+      );
+
+      await expectLater(
+        brain.ask('hi', model: 'MiniMax-M3'),
+        throwsA(isA<LlmException>()),
+      );
+      expect(client.calls, ['MiniMax-M3']); // no failover attempted
+      expect(switched, isEmpty);
+    });
+
+    test('a rate-limited free model (429) does not cycle the others', () async {
+      final client = _FailoverClient(failing: freeList.toSet(), status: 429);
+      final brain = AstroBrain(
+        client: client,
+        registry: ToolRegistry(),
+        freeFallbacks: () => freeList,
+      );
+
+      await expectLater(
+        brain.ask('hi', model: 'free-a'),
+        throwsA(isA<LlmException>()),
+      );
+      expect(client.calls, ['free-a']); // 429 → don't hammer the rest
+    });
   });
 
   test('runs a read-only tool then returns the final answer', () async {
