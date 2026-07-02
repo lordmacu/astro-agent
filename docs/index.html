@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Astro — tu copiloto con IA para el carro</title>
+  <meta name="description" content="Astro es una mascota con inteligencia artificial que vive en el tablero de tu carro. Escucha, reacciona a la conducción y hace cosas por ti con la voz: llamadas, música, calendario, clima y más." />
+  <meta property="og:title" content="Astro — tu copiloto con IA para el carro" />
+  <meta property="og:description" content="Una mascota con IA para el tablero: manos libres, reacciona a cómo manejas y actúa por voz." />
+  <meta property="og:type" content="website" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='46' fill='%2343d6cf'/%3E%3Ccircle cx='37' cy='45' r='8' fill='%23071018'/%3E%3Ccircle cx='63' cy='45' r='8' fill='%23071018'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <header class="nav">
+    <div class="wrap">
+      <a class="brand" href="#top"><span class="dot"></span> Astro</a>
+      <nav class="nav-links">
+        <a href="#features">Qué hace</a>
+        <a href="#how">Cómo funciona</a>
+        <a href="#tech">Tecnología</a>
+        <a class="ghlink btn btn-ghost" href="https://github.com/lordmacu/astro-agent" style="padding:8px 16px; min-height:0;">GitHub ↗</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ===================== HERO ===================== -->
+  <section class="hero" id="top">
+    <div class="wrap">
+      <div class="hero-copy">
+        <p class="eyebrow">Copiloto con IA · Android · sin root</p>
+        <h1>Conoce a <span class="accent">Astro</span></h1>
+        <p class="tagline">La mascota que vive en el tablero de tu carro.</p>
+        <p class="sub">Escucha, reacciona a cómo manejas y hace cosas por ti con la voz. Un compañero de viaje con cerebro de verdad: manos al volante, ojos en la vía.</p>
+        <div class="hero-cta">
+          <a class="btn btn-primary" href="https://github.com/lordmacu/astro-agent">Ver el proyecto</a>
+          <a class="btn btn-ghost" href="#how">Cómo funciona</a>
+        </div>
+        <div class="chip-row">
+          <span class="chip">🎙️ Palabra clave <b>«hola astro»</b></span>
+          <span class="chip"><b>Offline</b> para escuchar</span>
+          <span class="chip">Reacciona al <b>manejo</b></span>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="halo"></div>
+        <!-- Astro, portado del personaje de la app -->
+        <svg class="astro" viewBox="0 0 300 320" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Astro, la mascota con IA">
+          <defs>
+            <radialGradient id="body" cx="42%" cy="34%" r="75%">
+              <stop offset="0%" stop-color="#8ff2ec" />
+              <stop offset="55%" stop-color="#43d6cf" />
+              <stop offset="100%" stop-color="#1a9a94" />
+            </radialGradient>
+            <radialGradient id="cheek" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="rgba(255,150,120,0.55)" />
+              <stop offset="100%" stop-color="rgba(255,150,120,0)" />
+            </radialGradient>
+          </defs>
+          <g class="float">
+            <!-- antenna -->
+            <line x1="150" y1="52" x2="150" y2="20" stroke="#43d6cf" stroke-width="5" stroke-linecap="round"/>
+            <circle cx="150" cy="15" r="9" fill="#8ff2ec">
+              <animate attributeName="opacity" values="0.5;1;0.5" dur="2.4s" repeatCount="indefinite"/>
+            </circle>
+            <!-- body: rounded superellipse -->
+            <rect x="42" y="52" width="216" height="216" rx="86" fill="url(#body)"/>
+            <!-- soft top sheen -->
+            <ellipse cx="120" cy="108" rx="70" ry="42" fill="rgba(255,255,255,0.16)"/>
+            <!-- eyes -->
+            <g class="blink">
+              <ellipse cx="112" cy="150" rx="20" ry="26" fill="#071018"/>
+              <ellipse cx="188" cy="150" rx="20" ry="26" fill="#071018"/>
+              <circle cx="106" cy="140" r="6.5" fill="#eafffe"/>
+              <circle cx="182" cy="140" r="6.5" fill="#eafffe"/>
+            </g>
+            <!-- cheeks -->
+            <circle cx="86" cy="190" r="18" fill="url(#cheek)"/>
+            <circle cx="214" cy="190" r="18" fill="url(#cheek)"/>
+            <!-- smile -->
+            <path d="M126 196 Q150 216 174 196" stroke="#071018" stroke-width="6" fill="none" stroke-linecap="round"/>
+          </g>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== VALUE ===================== -->
+  <section id="what">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">La idea</p>
+        <h2>Un amigo que sabe que vas manejando</h2>
+        <p class="lead" style="margin-top:16px;">Montas el celular en el tablero y Astro cobra vida. Siente los frenazos, las curvas, la luz del día y la velocidad, y reacciona con gestos y voz. Le hablas natural y él responde o hace la tarea, sin que sueltes el volante ni mires la pantalla.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== FEATURES ===================== -->
+  <section id="features" style="padding-top:20px;">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">Qué hace</p>
+        <h2>Manos libres, de verdad</h2>
+      </div>
+      <div class="grid">
+        <div class="card">
+          <div class="ic">🗣️</div>
+          <h3>Habla y escucha</h3>
+          <p>Dices «hola astro» y le pides lo que sea. Te contesta con voz, con personalidad, en tu idioma.</p>
+        </div>
+        <div class="card">
+          <div class="ic">🚗</div>
+          <h3>Reacciona al manejo</h3>
+          <p>Se emociona al acelerar, se asusta con un frenazo, se inclina en las curvas y se calma en trancón.</p>
+        </div>
+        <div class="card">
+          <div class="ic">📞</div>
+          <h3>Llama y escribe</h3>
+          <p>«Llama a mi esposa», «mándale un correo a Juan». Encuentra el contacto aunque lo digas a medias.</p>
+        </div>
+        <div class="card">
+          <div class="ic">🎵</div>
+          <h3>Música y clima</h3>
+          <p>Pon, pausa o cambia de canción y pregúntale el clima o qué hay cerca, todo con la voz.</p>
+        </div>
+        <div class="card">
+          <div class="ic">📅</div>
+          <h3>Agenda y recordatorios</h3>
+          <p>Crea eventos, pone timers y alarmas, y toma fotos que guarda en tu galería.</p>
+        </div>
+        <div class="card">
+          <div class="ic">🧠</div>
+          <h3>Te recuerda</h3>
+          <p>Aprende tus gustos y rutas a lo largo de los viajes, para acompañarte mejor con el tiempo.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== HOW ===================== -->
+  <section id="how">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">Cómo funciona</p>
+        <h2>Tres pasos, sin tocar nada</h2>
+      </div>
+      <div class="steps">
+        <div class="step">
+          <h3>Lo despiertas</h3>
+          <p>Dices tu palabra clave («hola astro» por defecto, la que tú quieras). Te escucha siempre, aun con la app en segundo plano.</p>
+        </div>
+        <div class="step">
+          <h3>Le pides</h3>
+          <p>Hablas natural. Astro entiende, y si algo importante va a pasar —una llamada, un correo— te pide confirmación primero.</p>
+        </div>
+        <div class="step">
+          <h3>Actúa</h3>
+          <p>Hace la tarea y te responde con voz. Elige él solo qué herramienta usar: música, mapa, contactos, calendario…</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== MOODS ===================== -->
+  <section id="moods" style="padding-top:20px;">
+    <div class="wrap">
+      <div class="section-head center">
+        <p class="eyebrow">Tiene ánimos</p>
+        <h2>Un personaje, no un menú</h2>
+        <p class="lead" style="margin:16px auto 0;">Astro cambia de color y de gesto según lo que siente en la carretera. Cada estado tiene su propia cara.</p>
+      </div>
+      <div class="moods">
+        <div class="mood"><div class="orb" style="--c:var(--m-excited)"></div><span>emocionado</span></div>
+        <div class="mood"><div class="orb" style="--c:var(--m-scared)"></div><span>asustado</span></div>
+        <div class="mood"><div class="orb" style="--c:var(--accent)"></div><span>tranquilo</span></div>
+        <div class="mood"><div class="orb" style="--c:var(--m-arrival)"></div><span>llegada</span></div>
+        <div class="mood"><div class="orb" style="--c:var(--m-alarm)"></div><span>alerta</span></div>
+        <div class="mood"><div class="orb" style="--c:var(--m-surprised)"></div><span>sorpresa</span></div>
+        <div class="mood"><div class="orb" style="--c:var(--m-bump)"></div><span>bache</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== TECHNICAL ===================== -->
+  <section id="tech" class="tech">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">Bajo el capó</p>
+        <h2>Cómo está construido</h2>
+        <p class="lead" style="margin-top:16px;">Astro es una app Flutter para Android (sin root). Todo sigue un mismo flujo de datos, y el reconocimiento de voz corre en el propio dispositivo. Solo el cerebro que razona vive en la nube.</p>
+      </div>
+
+      <!-- pipeline -->
+      <div class="pipeline" aria-label="Flujo de datos">
+        <span class="node">sensor</span><span class="arrow">→</span>
+        <span class="node">filtro / umbral</span><span class="arrow">→</span>
+        <span class="node">estado</span><span class="arrow">→</span>
+        <span class="node">ánimo</span><span class="arrow">→</span>
+        <span class="node">animación + voz</span>
+      </div>
+
+      <div class="tech-grid">
+        <div class="card" style="transform:none;">
+          <h3>Stack</h3>
+          <ul class="stack-list">
+            <li><b>Flutter · Dart 3</b> Android, null-safety</li>
+            <li><b>Riverpod</b> estado y providers reactivos</li>
+            <li><b>rxdart</b> combina N streams de sensores en un estado inmutable</li>
+            <li><b>freezed</b> modelos inmutables</li>
+            <li><b>Rive</b> personaje con máquina de estados</li>
+            <li><b>Vosk</b> palabra clave y dictado, 100% offline</li>
+            <li><b>SQLite · FTS5</b> memoria a largo plazo en el dispositivo</li>
+          </ul>
+        </div>
+        <div class="card" style="transform:none;">
+          <h3>Cerebro agéntico</h3>
+          <p style="margin-bottom:14px;">Un bucle de <em>tool use</em>: el modelo recibe lo que dices, decide qué herramienta llamar, la app la ejecuta localmente y el resultado vuelve al modelo hasta dar la respuesta final. Las acciones que cambian algo piden confirmación por voz.</p>
+          <p style="color:var(--dim); font-size:14.5px;">El razonamiento corre contra una API en la nube (compatible con MiniMax / OpenAI / otros). El reconocimiento de voz y la memoria son locales.</p>
+          <div class="tools">
+            <code>get_context</code><code>music</code><code>phone</code><code>calendar</code>
+            <code>comunicacion</code><code>mapa</code><code>clima</code><code>device</code>
+            <code>timer</code><code>take_photo</code><code>web_search</code><code>remember_fact</code>
+          </div>
+        </div>
+      </div>
+
+      <p class="note">// sensor → filtro → estado → ánimo → animación + voz. Lo básico funciona sin OBD y sin hardware opcional.</p>
+    </div>
+  </section>
+
+  <!-- ===================== CTA ===================== -->
+  <section class="cta-band">
+    <div class="wrap">
+      <div class="box">
+        <p class="eyebrow" style="text-align:center;">Código abierto</p>
+        <h2>Mira cómo está hecho</h2>
+        <p class="lead" style="margin:16px auto 26px; text-align:center;">Un experimento de mascota-copiloto con IA. Explora el repositorio o lee la política de privacidad.</p>
+        <div class="hero-cta" style="justify-content:center;">
+          <a class="btn btn-primary" href="https://github.com/lordmacu/astro-agent">Ver en GitHub</a>
+          <a class="btn btn-ghost" href="privacy.html">Privacidad</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap">
+      <div class="brand"><span class="dot"></span> Astro</div>
+      <div class="flinks">
+        <a href="#features">Qué hace</a>
+        <a href="#tech">Tecnología</a>
+        <a href="privacy.html">Privacidad</a>
+        <a href="https://github.com/lordmacu/astro-agent">GitHub</a>
+      </div>
+      <p class="fine">Astro — AI pet for the car · Android · hecho con Flutter</p>
+    </div>
+  </footer>
+
+</body>
+</html>

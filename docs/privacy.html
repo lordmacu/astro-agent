@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacidad · Astro</title>
+  <meta name="description" content="Política de privacidad de Astro: qué datos usa, qué se queda en tu dispositivo y qué sale a servicios en la nube." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='46' fill='%2343d6cf'/%3E%3Ccircle cx='37' cy='45' r='8' fill='%23071018'/%3E%3Ccircle cx='63' cy='45' r='8' fill='%23071018'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <header class="nav">
+    <div class="wrap">
+      <a class="brand" href="index.html"><span class="dot"></span> Astro</a>
+      <nav class="nav-links">
+        <a href="index.html">Inicio</a>
+        <a href="https://github.com/lordmacu/astro-agent" class="ghlink">GitHub ↗</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="doc">
+    <a class="back" href="index.html">← Volver a Astro</a>
+    <h1>Política de privacidad</h1>
+    <p class="updated">Última actualización: 1 de julio de 2026</p>
+
+    <p>Astro es una mascota con inteligencia artificial que corre en tu teléfono Android, pensada para vivir en el tablero del carro. Esta página explica, en concreto, qué datos usa la app, cuáles <b>nunca salen de tu dispositivo</b> y cuáles se envían a servicios externos para que Astro pueda responderte.</p>
+
+    <div class="box">
+      Principio: Astro procesa la voz <b>en el propio dispositivo</b>. Lo único que sale a internet es el <b>texto</b> de lo que le pides (junto con algo de contexto) hacia el modelo de IA que genera la respuesta, más las consultas puntuales que tú provoques (una búsqueda web, el clima, un correo).
+    </div>
+
+    <h2><span class="num">01</span>Qué se queda en tu dispositivo</h2>
+    <ul>
+      <li><b>Detección de la palabra clave y dictado de voz:</b> el reconocimiento de voz corre 100% offline (motor Vosk). El audio del micrófono se procesa localmente y <b>no se sube a ningún servidor</b>.</li>
+      <li><b>Memoria de Astro:</b> lo que Astro «recuerda» (tus preferencias, nombres, rutas) se guarda en una base de datos local en el teléfono. Puedes ver cuántos recuerdos hay y <b>borrarlos todos</b> desde Configuración.</li>
+      <li><b>Tus ajustes:</b> idioma, voz, palabra clave y qué herramientas están activas se guardan solo en el dispositivo.</li>
+      <li><b>Sensores del carro/teléfono:</b> movimiento, luz, velocidad y proximidad se usan en el momento para animar a Astro y no se almacenan ni se transmiten.</li>
+    </ul>
+
+    <h2><span class="num">02</span>Qué se envía a servicios externos</h2>
+    <p>Para razonar y ejecutar acciones, Astro se apoya en servicios en la nube. Solo se envía lo necesario, y en general solo cuando tú lo provocas:</p>
+    <ul>
+      <li><b>Modelo de IA (el «cerebro»):</b> cuando le hablas, el texto de tu petición —ya transcrito en el dispositivo— se envía a una API de un proveedor de modelos de lenguaje (por ejemplo MiniMax, u otro compatible que configures) junto con algo de contexto del momento (hora, velocidad, nombre de tu ubicación, batería y, si aplica, recuerdos relevantes) para generar la respuesta y decidir la acción. Se rige por la política de privacidad de ese proveedor.</li>
+      <li><b>Búsqueda web:</b> si le pides buscar algo, la consulta se envía al proveedor de búsqueda configurado (p. ej. MiniMax, DuckDuckGo o Tavily).</li>
+      <li><b>Clima:</b> si preguntas por el clima, se envía el nombre del lugar a un servicio de clima.</li>
+      <li><b>Correo:</b> si envías un correo, se manda a través del <b>servidor SMTP que tú configuras</b> (por ejemplo tu propia cuenta de Gmail). Astro no intermedia tus credenciales en ningún servidor propio.</li>
+    </ul>
+    <div class="box">
+      La clave de API del modelo y las credenciales de correo que ingreses se guardan <b>en tu dispositivo</b> y se usan solo para hablar directamente con esos servicios.
+    </div>
+
+    <h2><span class="num">03</span>Permisos que pide y para qué</h2>
+    <table>
+      <thead><tr><th>Permiso</th><th>Para qué</th></tr></thead>
+      <tbody>
+        <tr><td><b>Micrófono</b></td><td>Escuchar la palabra clave y capturar tus comandos de voz. Requiere ejecutarse en segundo plano para estar siempre atento.</td></tr>
+        <tr><td><b>Ubicación</b></td><td>Saber tu velocidad (GPS) y describir dónde estás para dar contexto y navegar.</td></tr>
+        <tr><td><b>Contactos</b> (solo lectura)</td><td>Encontrar a quién llamar o a quién escribir cuando dices un nombre. No se modifican ni se suben tus contactos.</td></tr>
+        <tr><td><b>Teléfono</b></td><td>Iniciar una llamada cuando se lo pides.</td></tr>
+        <tr><td><b>Calendario</b></td><td>Crear eventos y recordatorios que le dictas.</td></tr>
+        <tr><td><b>Cámara</b></td><td>Tomar la foto que le pides y guardarla en tu galería.</td></tr>
+        <tr><td><b>Notificaciones</b></td><td>Reaccionar a las indicaciones de navegación y leerte notificaciones cuando lo pides.</td></tr>
+      </tbody>
+    </table>
+    <p>Todos los permisos son opcionales y puedes concederlos o revocarlos cuando quieras. En Configuración, cada herramienta se puede <b>encender o apagar</b>, y desde ahí mismo se solicita el permiso que necesite.</p>
+
+    <h2><span class="num">04</span>Lo que Astro NO hace</h2>
+    <ul>
+      <li>No crea cuentas ni te pide registrarte.</li>
+      <li>No incluye rastreadores de publicidad ni analítica de terceros.</li>
+      <li>No sube tu audio, tus contactos, tu calendario ni tus fotos a servidores del proyecto.</li>
+      <li>No vende ni comparte tus datos.</li>
+    </ul>
+
+    <h2><span class="num">05</span>Menores y seguridad al conducir</h2>
+    <p>Astro está pensado para adultos con licencia de conducción. Úsalo con responsabilidad: la interacción es por voz y manos libres precisamente para no distraerte, pero tu atención en la vía es siempre lo primero.</p>
+
+    <h2><span class="num">06</span>Cambios y contacto</h2>
+    <p>Esta política puede actualizarse a medida que el proyecto evoluciona; la fecha de arriba indica la última versión. Astro es un proyecto de código abierto: puedes revisar exactamente qué hace en el repositorio.</p>
+    <p style="margin-top:14px;">Dudas o solicitudes: <a href="https://github.com/lordmacu/astro-agent/issues" style="color:var(--accent);">abre un issue en GitHub</a>.</p>
+
+    <a class="back" href="index.html" style="margin-top:44px;">← Volver a Astro</a>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <div class="brand"><span class="dot"></span> Astro</div>
+      <div class="flinks">
+        <a href="index.html">Inicio</a>
+        <a href="privacy.html">Privacidad</a>
+        <a href="https://github.com/lordmacu/astro-agent">GitHub</a>
+      </div>
+      <p class="fine">Astro — AI pet for the car · Android · hecho con Flutter</p>
+    </div>
+  </footer>
+
+</body>
+</html>
