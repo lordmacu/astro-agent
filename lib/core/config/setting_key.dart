@@ -19,4 +19,5 @@ enum SettingKey {
   navListenerEnabled,
   autoBrightnessEnabled,
   hapticsEnabled,
+  notificationsSeenAt,
 }
