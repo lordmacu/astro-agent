@@ -81,11 +81,16 @@ dependencies:
   vosk_flutter_2: ^1.0.5
   permission_handler: ^11.4.0
 
-  # Offline NEURAL TTS (sherpa-onnx + Piper) — loads from a downloaded model
-  # directory (see lib/voice/sherpa_tts.dart, lib/voice/tts_provider.dart).
-  sherpa_onnx: ^1.10.0
+  # Offline NEURAL TTS (sherpa-onnx + Piper) — PARKED to keep the APK small: its
+  # onnxruntime native libs add ~70MB per ABI. Astro speaks with the system TTS
+  # (SystemTts) for now. To re-enable: uncomment sherpa_onnx + audioplayers,
+  # rename lib/voice/sherpa_tts.dart.off back to .dart, and restore the neural
+  # branches in tts_provider.dart / pet_screen.dart and the Settings UI.
+  # sherpa_onnx: ^1.10.0
+  # audioplayers: ^6.1.0
+  # Kept: used by the neural-voice installer (download/unzip) which stays in the
+  # tree, and elsewhere.
   path_provider: ^2.1.4
-  audioplayers: ^6.1.0
   archive: ^3.6.1
 
 dev_dependencies:

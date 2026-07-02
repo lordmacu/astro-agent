@@ -17,8 +17,10 @@ import '../../core/config/tool_prefs.dart';
 import '../../platform/permissions.dart';
 import '../../platform/smtp_store.dart';
 import '../../sensors/navigation/nav_service.dart';
-import '../../voice/neural_voice_installer.dart';
-import '../../voice/neural_voice_provider.dart';
+// Neural-voice install UI is parked (see the commented block in the Voice
+// section); re-add these imports when un-parking it.
+// import '../../voice/neural_voice_installer.dart';
+// import '../../voice/neural_voice_provider.dart';
 import '../../voice/wake_word_provider.dart';
 import 'model_picker_tile.dart';
 import 'settings_widgets.dart';
@@ -83,7 +85,11 @@ class SettingsScreen extends ConsumerWidget {
                   },
                 ),
               ),
-              // Neural voice: download on demand, then enable.
+              // Neural-voice UI (download + enable) is HIDDEN while the neural
+              // engine is PARKED to keep the APK small (see tts_provider.dart /
+              // pubspec). Un-comment this block — and un-park the engine — to
+              // bring it back.
+              /*
               Consumer(
                 builder: (context, ref, _) {
                   final installState = ref.watch(voiceInstallStateProvider);
@@ -139,6 +145,7 @@ class SettingsScreen extends ConsumerWidget {
                     ? notifier.setNeuralVoiceEnabled
                     : (_) {},
               ),
+              */
             ],
           ),
           const SizedBox(height: 24),

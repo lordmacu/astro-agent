@@ -21,7 +21,7 @@ import '../platform/system_actions.dart';
 import '../voice/stt_provider.dart';
 import '../voice/voice_interfaces.dart';
 import '../voice/wake_word_provider.dart';
-import '../voice/sherpa_tts.dart';
+// import '../voice/sherpa_tts.dart'; // PARKED — neural TTS disabled to slim the APK
 import '../voice/tts_provider.dart';
 import '../voice/voice_controller.dart';
 import '../voice/voice_pipeline.dart';
@@ -114,10 +114,9 @@ class _PetScreenState extends ConsumerState<PetScreen> {
     final recognizer = ref.read(speechRecognizerProvider);
     unawaited(recognizer.warmUp());
     recognizer.onListening = () => ref.read(mediaControllerProvider).beep();
-    final tts = ref.read(ttsProvider);
-    if (tts is SherpaTts) {
-      unawaited(tts.warmUp());
-    }
+    // Neural TTS is parked; the system TTS needs no warm-up.
+    // final tts = ref.read(ttsProvider);
+    // if (tts is SherpaTts) unawaited(tts.warmUp());
     _wakeSub = _wake.onWake.listen((_) {
       if (!_busy) _converse();
     });
