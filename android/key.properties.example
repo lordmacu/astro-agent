@@ -1,0 +1,16 @@
+# Release signing config for the Play Store build.
+# Copy this file to `android/key.properties` (which is gitignored) and fill in
+# the values for your upload keystore. When this file is absent, the release
+# build falls back to the debug keys (CI / fresh clones still compile, but the
+# artifact is NOT upload-ready).
+#
+# Create the keystore once:
+#   keytool -genkeypair -v -keystore android/upload-keystore.jks \
+#     -alias upload -keyalg RSA -keysize 2048 -validity 10000
+#
+# storeFile is resolved relative to the android/ directory.
+
+storePassword=your_store_password
+keyPassword=your_key_password
+keyAlias=upload
+storeFile=upload-keystore.jks
