@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../brain/astro_brain_provider.dart';
 import '../brain/tools/astro_tool.dart';
 import '../core/config/design_tokens.dart';
+import '../core/config/setting_key.dart';
 import '../core/config/settings_providers.dart';
 import '../core/l10n/app_lang.dart';
 import '../core/l10n/lang_provider.dart';
@@ -17,6 +18,8 @@ import '../core/state/app_state_provider.dart';
 import '../platform/calendar_writer.dart';
 import '../platform/contact_match.dart';
 import '../platform/haptics.dart';
+import '../platform/notifications_grouping.dart';
+import '../platform/notifications_reader.dart';
 import '../platform/system_actions.dart';
 import '../voice/neural_voice_installer.dart'
     show InstallError, Installing, VoiceInstallState;
@@ -32,6 +35,7 @@ import 'ai_setup_sheet.dart';
 import 'astro_character.dart';
 import 'command_palette.dart';
 import 'hud.dart';
+import 'notifications_sheet.dart';
 import 'photo_viewer_screen.dart';
 import 'settings/settings_screen.dart';
 
@@ -74,6 +78,8 @@ class _PetScreenState extends ConsumerState<PetScreen> {
   bool _cancelRequested = false; // tap-to-cancel while listening
   String _spokenText = '';
   bool _showCommands = false;
+  int _unreadNotifs = 0;
+  Timer? _notifBadgeTimer;
 
   /// When a mutating tool asks for confirmation: the question to show, and the
   /// pending answer (resolved by voice or by a tap on the SÍ/NO buttons).
@@ -143,6 +149,11 @@ class _PetScreenState extends ConsumerState<PetScreen> {
       }
       unawaited(ref.read(sttModelInstallerProvider).install());
     }
+    _refreshUnread();
+    _notifBadgeTimer = Timer.periodic(
+      const Duration(seconds: 20),
+      (_) => _refreshUnread(),
+    );
   }
 
   /// Confirmation gate for a mutating tool. Phone gets a contact-aware flow;
@@ -639,6 +650,37 @@ class _PetScreenState extends ConsumerState<PetScreen> {
     }
   }
 
+  /// Refresh the unread-notifications badge count against the last time the
+  /// notifications sheet was opened.
+  Future<void> _refreshUnread() async {
+    final items = await const NotificationsReader().recent(count: 40);
+    if (!mounted) return;
+    final seenMs = ref
+        .read(settingsStoreProvider)
+        .getDouble(SettingKey.notificationsSeenAt, 0);
+    final since = DateTime.fromMillisecondsSinceEpoch(seenMs.toInt());
+    setState(() => _unreadNotifs = unreadCount(items, since));
+  }
+
+  /// Open the notifications sheet, marking everything as seen (clearing the
+  /// badge) and voicing each AI summary the user asks for.
+  Future<void> _openNotifications() async {
+    await ref
+        .read(settingsStoreProvider)
+        .setDouble(
+          SettingKey.notificationsSeenAt,
+          DateTime.now().millisecondsSinceEpoch.toDouble(),
+        );
+    if (!mounted) return;
+    setState(() => _unreadNotifs = 0);
+    final controller = ref.read(voiceControllerProvider.notifier);
+    await showNotificationsSheet(
+      context,
+      onSpeak: (summary) => _say(summary, controller),
+    );
+    await _refreshUnread();
+  }
+
   /// Open the settings screen, pausing the wake detector while the user edits
   /// and resuming it when they return.
   Future<void> _openSettings() async {
@@ -754,6 +796,7 @@ class _PetScreenState extends ConsumerState<PetScreen> {
     _visemeTimer?.cancel();
     _thinkHapticTimer?.cancel();
     _wakeSub?.cancel();
+    _notifBadgeTimer?.cancel();
     super.dispose();
   }
 
@@ -917,7 +960,8 @@ class _PetScreenState extends ConsumerState<PetScreen> {
               ),
             ),
           ),
-          // Top-right icons: command palette ("?") and settings (gear).
+          // Top-right icons: notifications (bell), command palette ("?"), and
+          // settings (gear).
           Positioned(
             top: 0,
             right: 0,
@@ -927,6 +971,17 @@ class _PetScreenState extends ConsumerState<PetScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    IconButton(
+                      key: const Key('notifications-button'),
+                      icon: _unreadNotifs > 0
+                          ? Badge(
+                              label: Text('$_unreadNotifs'),
+                              child: const Icon(Icons.notifications_none),
+                            )
+                          : const Icon(Icons.notifications_none),
+                      color: accent,
+                      onPressed: _openNotifications,
+                    ),
                     IconButton(
                       icon: const Icon(Icons.help_outline),
                       color: accent,
