@@ -27,6 +27,7 @@ import '../voice/voice_controller.dart';
 import '../voice/voice_pipeline.dart';
 import 'ai_setup_sheet.dart';
 import 'astro_character.dart';
+import 'command_palette.dart';
 import 'hud.dart';
 import 'photo_viewer_screen.dart';
 import 'settings/settings_screen.dart';
@@ -69,6 +70,7 @@ class _PetScreenState extends ConsumerState<PetScreen> {
   bool _busy = false;
   bool _cancelRequested = false; // tap-to-cancel while listening
   String _spokenText = '';
+  bool _showCommands = false;
 
   /// When a mutating tool asks for confirmation: the question to show, and the
   /// pending answer (resolved by voice or by a tap on the SÍ/NO buttons).
@@ -464,6 +466,23 @@ class _PetScreenState extends ConsumerState<PetScreen> {
     }
   }
 
+  /// Run a fixed text command (from the command palette) through the same brain
+  /// path as a spoken one: pause the wake mic, answer + speak, then resume.
+  Future<void> _runCommand(String command) async {
+    if (_busy) return;
+    _busy = true;
+    final controller = ref.read(voiceControllerProvider.notifier);
+    await _wake.pause();
+    try {
+      await _answerStreaming(command, controller);
+    } finally {
+      controller.applyPhase(VoicePhase.idle);
+      if (mounted) setState(() => _spokenText = '');
+      _busy = false;
+      await _wake.resume();
+    }
+  }
+
   /// After a conversation, harvest durable facts in the background so Astro
   /// learns over time (preferences, names, routes) without the driver saying
   /// "remember this". Skips trivial turns (a handful of words) to avoid needless
@@ -815,21 +834,32 @@ class _PetScreenState extends ConsumerState<PetScreen> {
               ),
             ),
           ),
-          // Top-right gear icon: opens the settings screen.
+          // Top-right icons: command palette ("?") and settings (gear).
           Positioned(
             top: 0,
             right: 0,
             child: SafeArea(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                child: IconButton(
-                  icon: const Icon(Icons.settings),
-                  color: accent,
-                  onPressed: _openSettings,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.help_outline),
+                      color: accent,
+                      onPressed: () => setState(() => _showCommands = true),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.settings),
+                      color: accent,
+                      onPressed: _openSettings,
+                    ),
+                  ],
                 ),
               ),
             ),
           ),
+          if (_showCommands) _commandsOverlay(),
           if (_confirmPrompt != null) _confirmOverlay(accent),
           if (_pickContacts != null) _pickOverlay(accent),
           if (_calendarOptions != null) _calendarOverlay(accent),
@@ -850,6 +880,27 @@ class _PetScreenState extends ConsumerState<PetScreen> {
             ),
           if (capturedPhoto != null) _photoOverlay(context, capturedPhoto),
         ],
+      ),
+    );
+  }
+
+  /// Full-screen scrim with the command palette; tapping a command closes it and
+  /// runs the command through the brain.
+  Widget _commandsOverlay() {
+    return Positioned.fill(
+      child: ColoredBox(
+        color: Colors.black54,
+        child: Center(
+          child: CommandPalette(
+            commands: astroCommands(_lang),
+            lang: _lang,
+            onClose: () => setState(() => _showCommands = false),
+            onCommand: (command) {
+              setState(() => _showCommands = false);
+              _runCommand(command);
+            },
+          ),
+        ),
       ),
     );
   }
