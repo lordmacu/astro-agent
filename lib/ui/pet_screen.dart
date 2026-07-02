@@ -1064,6 +1064,10 @@ class _PetScreenState extends ConsumerState<PetScreen> {
               setState(() => _showCommands = false);
               _runCommand(command);
             },
+            onNews: () {
+              setState(() => _showCommands = false);
+              showNewsSheet(context);
+            },
           ),
         ),
       ),

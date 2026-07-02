@@ -34,4 +34,45 @@ void main() {
     await tester.pump();
     expect(closed, 1);
   });
+
+  testWidgets('shows a News button only when onNews is set and reports taps', (
+    tester,
+  ) async {
+    var news = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: CommandPalette(
+            commands: const ['¿Qué hora es?'],
+            onCommand: (_) {},
+            onClose: () {},
+            lang: AppLang.es,
+            onNews: () => news++,
+          ),
+        ),
+      ),
+    );
+
+    final newsButton = find.text('Noticias');
+    expect(newsButton, findsOneWidget);
+    await tester.tap(newsButton);
+    await tester.pump();
+    expect(news, 1);
+  });
+
+  testWidgets('no News button when onNews is omitted', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: CommandPalette(
+            commands: const ['¿Qué hora es?'],
+            onCommand: (_) {},
+            onClose: () {},
+            lang: AppLang.es,
+          ),
+        ),
+      ),
+    );
+    expect(find.text('Noticias'), findsNothing);
+  });
 }
