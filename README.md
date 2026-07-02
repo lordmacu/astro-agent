@@ -11,14 +11,14 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/lordmacu/astro-agent/releases/latest/download/astro.apk"><img src="https://img.shields.io/badge/Download-APK-43d6cf?style=for-the-badge&logo=android&logoColor=white" alt="Download the APK" /></a>
-  <a href="https://github.com/lordmacu/astro-agent/actions/workflows/build-apk.yml"><img src="https://github.com/lordmacu/astro-agent/actions/workflows/build-apk.yml/badge.svg" alt="Build APK" /></a>
+  <a href="https://github.com/lordmacu/astro-agent/releases/latest/download/astro.apk"><img src="https://img.shields.io/badge/Download-arm64--v8a-43d6cf?style=for-the-badge&logo=android&logoColor=white" alt="Download arm64-v8a APK" /></a>
+  <a href="https://github.com/lordmacu/astro-agent/releases/latest/download/astro-armeabi-v7a.apk"><img src="https://img.shields.io/badge/Download-armeabi--v7a-5f6a7d?style=for-the-badge&logo=android&logoColor=white" alt="Download armeabi-v7a APK" /></a>
+  <a href="https://github.com/lordmacu/astro-agent/releases/latest/download/astro-x86_64.apk"><img src="https://img.shields.io/badge/Download-x86__64-5f6a7d?style=for-the-badge&logo=android&logoColor=white" alt="Download x86_64 APK" /></a>
 </p>
 
 <p align="center">
-  <sub><b>Download</b> is the <code>arm64-v8a</code> build (virtually every modern phone).
-  Old 32-bit or x86 devices: grab <code>astro-armeabi-v7a.apk</code> / <code>astro-x86_64.apk</code>
-  from the <a href="https://github.com/lordmacu/astro-agent/releases/latest">latest release</a>.</sub>
+  <sub><b>arm64-v8a</b> is right for virtually every modern phone. Use the others only for old 32-bit or x86 devices.</sub><br/>
+  <a href="https://github.com/lordmacu/astro-agent/actions/workflows/build-apk.yml"><img src="https://github.com/lordmacu/astro-agent/actions/workflows/build-apk.yml/badge.svg" alt="Build APK" /></a>
 </p>
 
 <p align="center">
