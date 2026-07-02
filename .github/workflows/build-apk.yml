@@ -1,0 +1,67 @@
+name: Build APK
+
+# Builds a release APK and:
+#   • uploads it as a workflow artifact on every run (main / manual), and
+#   • attaches it to a GitHub Release when you push a tag like `v0.1.0`.
+# The release asset is stable-named `astro.apk`, so the README can always link
+# to https://github.com/<owner>/<repo>/releases/latest/download/astro.apk
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write # needed for softprops/action-gh-release to publish
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      # .env is gitignored (it holds optional keys). The app runs fully keyless
+      # (Kilo free model + DuckDuckGo search), so an empty file is enough to
+      # satisfy the pubspec asset entry.
+      - name: Create placeholder .env
+        run: |
+          if [ ! -f .env ]; then
+            printf 'LLM_API_KEY=\nASTRO_MODEL=\n' > .env
+          fi
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate code (freezed / json)
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Build release APK
+        run: flutter build apk --release
+
+      - name: Stage APK as astro.apk
+        run: |
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-release.apk dist/astro.apk
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: astro-apk
+          path: dist/astro.apk
+
+      - name: Publish release (on tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/astro.apk
+          generate_release_notes: true

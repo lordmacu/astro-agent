@@ -11,6 +11,11 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/lordmacu/astro-agent/releases/latest/download/astro.apk"><img src="https://img.shields.io/badge/Download-APK-43d6cf?style=for-the-badge&logo=android&logoColor=white" alt="Download the APK" /></a>
+  <a href="https://github.com/lordmacu/astro-agent/actions/workflows/build-apk.yml"><img src="https://github.com/lordmacu/astro-agent/actions/workflows/build-apk.yml/badge.svg" alt="Build APK" /></a>
+</p>
+
+<p align="center">
   <img src="assets/screenshots/home.jpg" alt="Astro on the dashboard" width="280" />
 </p>
 
@@ -43,6 +48,9 @@ No car adapter. No root. The essentials just work on the phone alone.
   download on demand** for offline, natural speech.
 - 🔒 **Yours.** Runs on-device; it even remembers things about you in a local
   database, and asks before doing anything that reaches the outside world.
+- 🆓 **Free out of the box.** Ships with a **free, keyless LLM** for the brain and
+  **keyless web search** (DuckDuckGo) — no API key, no card. Add your own key
+  later for a paid model or a better search backend if you want.
 
 ## What Astro can do
 
@@ -58,7 +66,8 @@ right one:
 - 📞 **Call or message** — by contact name (WhatsApp / SMS).
 - ✉️ **Email** — send it (or open a ready-to-send draft), and check your inbox.
 - 📅 **Calendar** — create events and reminders.
-- 🌐 **Search the web** — pull fresh facts when it needs them.
+- 🌐 **Search the web** — pull fresh facts when it needs them, **keyless by
+  default** (DuckDuckGo); use Tavily/Brave or a self-hosted SearXNG if you add one.
 - 🌦️ **Weather & places.**
 - 📸 **Take a photo** — front or back camera, with a shutter sound and a preview
   popup.
@@ -131,9 +140,10 @@ sensor  ->  filter/threshold  ->  state  ->  mood (priority cascade)  ->  animat
 
 ## The agentic brain
 
-- A cloud LLM (MiniMax / any OpenAI-compatible endpoint) drives a custom
-  tool-use loop: `user → model → (tool? → run locally → result →) model → … →
-  final spoken answer`.
+- A cloud LLM drives a custom tool-use loop: `user → model → (tool? → run
+  locally → result →) model → … → final spoken answer`. It ships with a **free,
+  keyless model** by default; point it at MiniMax or any OpenAI-compatible
+  endpoint with your own key from Settings.
 - Tools implement a small contract (name, description, JSON schema, `run`) and
   register in a central registry.
 - Outward-facing tools require confirmation; the gate is per-call, so e.g. email
@@ -152,8 +162,10 @@ sensor  ->  filter/threshold  ->  state  ->  mood (priority cascade)  ->  animat
 
 ## In-app settings (⚙️)
 
-- **AI** — model picker (OpenAI-compatible presets, default MiniMax) + API keys,
-  overriding `.env` at runtime (precedence: in-app > `.env` > build define).
+- **AI** — model picker (a **free keyless model** by default, plus MiniMax /
+  OpenAI-compatible presets) + optional API keys, and a **search provider**
+  picker (Tavily or Brave) with a link to get its key. All override `.env` at
+  runtime (precedence: in-app > `.env` > build define).
 - **Voice** — rate, pitch, language (EN/ES), download/enable the neural voice.
 - **Wake word & sensors** — wake word on/off + sensitivity, Maps nav listener,
   auto brightness.
@@ -172,7 +184,8 @@ sensor  ->  filter/threshold  ->  state  ->  mood (priority cascade)  ->  animat
 | Sensors | `sensors_plus`, `geolocator` (GPS + IMU speed fusion), `light`, native proximity |
 | Navigation | native `NotificationListenerService` reading Google Maps |
 | Voice | offline wake word + STT; `flutter_tts` (system) + sherpa-onnx / Piper (neural, optional) |
-| Brain | HTTP to a cloud LLM (MiniMax / OpenAI-compatible) + custom tool loop |
+| Brain | HTTP to a cloud LLM (free keyless model by default; MiniMax / OpenAI-compatible optional) + custom tool loop |
+| Web search | keyless DuckDuckGo by default; Tavily / Brave (key) or self-hosted SearXNG (keyless) |
 | Memory | SQLite (`sqflite`) with full-text (and semantic) recall |
 | Platform | Android, no root; foreground service + method/event channels |
 
@@ -184,8 +197,9 @@ sensor  ->  filter/threshold  ->  state  ->  mood (priority cascade)  ->  animat
 ```bash
 flutter pub get
 
-# A cloud LLM key enables the agent (without one, Astro falls back to canned
-# lines). Keys can also be set in-app from Settings.
+# Astro works out of the box with a free, keyless model + keyless search — no
+# .env needed. Optionally add a key for a paid model or a better search backend
+# (also settable in-app from Settings):
 echo 'LLM_API_KEY=your_key_here' > .env   # optional: TAVILY_API_KEY, ASTRO_MODEL, TTS_MODEL_URL
 
 flutter run          # on a connected Android device (fast: one ABI + hot reload)
