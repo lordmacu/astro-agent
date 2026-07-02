@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -7,28 +8,49 @@ import 'package:vosk_flutter_2/vosk_flutter_2.dart';
 
 import 'voice_interfaces.dart';
 
+/// Locate the Vosk model root under [base]: the folder that directly contains
+/// the model's `am/` (or `conf/`) subdir. The downloaded zip may nest the files
+/// under a top-level folder (e.g. `vosk-model-small-es-0.42/`), so check [base]
+/// first, then its immediate subdirectories.
+String resolveVoskModelRoot(String base) {
+  bool looksLikeModel(String p) =>
+      Directory('$p/am').existsSync() || Directory('$p/conf').existsSync();
+  if (looksLikeModel(base)) return base;
+  final dir = Directory(base);
+  if (dir.existsSync()) {
+    for (final e in dir.listSync()) {
+      if (e is Directory && looksLikeModel(e.path)) return e.path;
+    }
+  }
+  return base;
+}
+
 /// Offline, on-device speech recognition with Vosk. Unlike the platform
 /// recognizer (which endpoints aggressively and cuts long phrases at the first
 /// pause), Vosk runs a single continuous audio stream, so a full command is
 /// captured with no restart gap. We end the utterance ourselves once the mic
 /// has been quiet for [endSilence].
 ///
-/// If the model can't load (e.g. it isn't bundled yet), every call transparently
-/// falls back to [fallback] (the platform `speech_to_text`), so the app keeps
-/// working until the ~40 MB Spanish model is dropped into assets.
+/// The ~37 MB Spanish model is downloaded on demand (see stt_model_provider),
+/// so until it finishes every call transparently falls back to [fallback] (the
+/// platform `speech_to_text`). [modelDir] returns the unzipped model directory
+/// once ready, or null/empty meanwhile; `warmUp` retries on each call so Astro
+/// switches to Vosk automatically the moment the download lands.
 class VoskSpeechRecognizer implements SpeechRecognizer {
   VoskSpeechRecognizer({
     required this.fallback,
-    this.modelAsset = 'assets/models/vosk-model-small-es-0.42.zip',
+    required this.modelDir,
     this.sampleRate = 16000,
     this.endSilence = const Duration(milliseconds: 1400),
     this.startTimeout = const Duration(seconds: 6),
     this.maxUtterance = const Duration(seconds: 15),
   });
 
-  /// Used when the Vosk model is unavailable.
+  /// Used until the Vosk model is downloaded (or if it fails to load).
   final SpeechRecognizer fallback;
-  final String modelAsset;
+
+  /// The unzipped model directory, or null/empty until the download completes.
+  final String? Function() modelDir;
   final int sampleRate;
 
   /// Quiet time (after speech) that ends the utterance.
@@ -42,7 +64,6 @@ class VoskSpeechRecognizer implements SpeechRecognizer {
 
   final VoskFlutterPlugin _plugin = VoskFlutterPlugin.instance();
   Recognizer? _recognizer;
-  bool _initTried = false;
   bool _available = false;
 
   void Function()? _onListening;
@@ -55,11 +76,15 @@ class VoskSpeechRecognizer implements SpeechRecognizer {
 
   @override
   Future<bool> warmUp() async {
-    if (_initTried) return _available;
-    _initTried = true;
+    if (_available) return true;
+    final dir = modelDir()?.trim() ?? '';
+    if (dir.isEmpty) {
+      // Model not downloaded yet → keep using the platform recognizer.
+      await fallback.warmUp();
+      return false;
+    }
     try {
-      final modelPath = await ModelLoader().loadFromAssets(modelAsset);
-      final model = await _plugin.createModel(modelPath);
+      final model = await _plugin.createModel(resolveVoskModelRoot(dir));
       // Load the model + recognizer only. The mic-owning SpeechService is
       // created per-capture (below), so we don't hold the mic while the native
       // Vosk wake word owns it.
@@ -70,7 +95,7 @@ class VoskSpeechRecognizer implements SpeechRecognizer {
       _available = true;
       debugPrint('[Astro] 🧠 Vosk offline STT ready (continuous, no network)');
     } catch (e) {
-      _available = false; // model missing / init failed → platform STT
+      _available = false; // load failed → keep the platform STT for now
       debugPrint(
         '[Astro] Vosk unavailable ($e) → falling back to platform STT',
       );

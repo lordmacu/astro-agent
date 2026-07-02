@@ -109,9 +109,9 @@ flutter:
   # The API keys, read at runtime by flutter_dotenv.
   assets:
     - .env
-    # Offline STT model (Vosk). Drop the Spanish model zip in here to enable it
-    # — see assets/models/README.md. Absent → falls back to platform STT.
-    - assets/models/
+    # NOTE: the offline STT model (Vosk, ~37MB) is NO LONGER bundled — it's
+    # downloaded on demand at app start (see lib/voice/stt_model_provider.dart)
+    # to keep the APK small. Until it lands, Astro uses the platform STT.
   # Voice model asset — DISABLED for fast dev builds (65MB). Uncomment to
   # re-enable voice (see lib/voice/tts_provider.dart).
   # assets:

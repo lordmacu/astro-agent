@@ -7,6 +7,7 @@ enum SettingKey {
   neuralVoiceEnabled,
   neuralVoiceInstalled,
   neuralVoicePath,
+  sttModelPath,
   llmModel,
   llmApiKey,
   searchProvider,

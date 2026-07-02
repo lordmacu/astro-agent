@@ -23,6 +23,7 @@ mixin _$AppSettings {
   bool get neuralVoiceEnabled => throw _privateConstructorUsedError;
   bool get neuralVoiceInstalled => throw _privateConstructorUsedError;
   String get neuralVoicePath => throw _privateConstructorUsedError;
+  String get sttModelPath => throw _privateConstructorUsedError;
   String get llmModel => throw _privateConstructorUsedError;
   String get llmApiKey => throw _privateConstructorUsedError;
   String get searchProvider => throw _privateConstructorUsedError;
@@ -56,6 +57,7 @@ abstract class $AppSettingsCopyWith<$Res> {
     bool neuralVoiceEnabled,
     bool neuralVoiceInstalled,
     String neuralVoicePath,
+    String sttModelPath,
     String llmModel,
     String llmApiKey,
     String searchProvider,
@@ -91,6 +93,7 @@ class _$AppSettingsCopyWithImpl<$Res, $Val extends AppSettings>
     Object? neuralVoiceEnabled = null,
     Object? neuralVoiceInstalled = null,
     Object? neuralVoicePath = null,
+    Object? sttModelPath = null,
     Object? llmModel = null,
     Object? llmApiKey = null,
     Object? searchProvider = null,
@@ -128,6 +131,10 @@ class _$AppSettingsCopyWithImpl<$Res, $Val extends AppSettings>
             neuralVoicePath: null == neuralVoicePath
                 ? _value.neuralVoicePath
                 : neuralVoicePath // ignore: cast_nullable_to_non_nullable
+                      as String,
+            sttModelPath: null == sttModelPath
+                ? _value.sttModelPath
+                : sttModelPath // ignore: cast_nullable_to_non_nullable
                       as String,
             llmModel: null == llmModel
                 ? _value.llmModel
@@ -195,6 +202,7 @@ abstract class _$$AppSettingsImplCopyWith<$Res>
     bool neuralVoiceEnabled,
     bool neuralVoiceInstalled,
     String neuralVoicePath,
+    String sttModelPath,
     String llmModel,
     String llmApiKey,
     String searchProvider,
@@ -229,6 +237,7 @@ class __$$AppSettingsImplCopyWithImpl<$Res>
     Object? neuralVoiceEnabled = null,
     Object? neuralVoiceInstalled = null,
     Object? neuralVoicePath = null,
+    Object? sttModelPath = null,
     Object? llmModel = null,
     Object? llmApiKey = null,
     Object? searchProvider = null,
@@ -266,6 +275,10 @@ class __$$AppSettingsImplCopyWithImpl<$Res>
         neuralVoicePath: null == neuralVoicePath
             ? _value.neuralVoicePath
             : neuralVoicePath // ignore: cast_nullable_to_non_nullable
+                  as String,
+        sttModelPath: null == sttModelPath
+            ? _value.sttModelPath
+            : sttModelPath // ignore: cast_nullable_to_non_nullable
                   as String,
         llmModel: null == llmModel
             ? _value.llmModel
@@ -326,6 +339,7 @@ class _$AppSettingsImpl implements _AppSettings {
     required this.neuralVoiceEnabled,
     required this.neuralVoiceInstalled,
     required this.neuralVoicePath,
+    required this.sttModelPath,
     required this.llmModel,
     required this.llmApiKey,
     required this.searchProvider,
@@ -352,6 +366,8 @@ class _$AppSettingsImpl implements _AppSettings {
   @override
   final String neuralVoicePath;
   @override
+  final String sttModelPath;
+  @override
   final String llmModel;
   @override
   final String llmApiKey;
@@ -376,7 +392,7 @@ class _$AppSettingsImpl implements _AppSettings {
 
   @override
   String toString() {
-    return 'AppSettings(voiceRate: $voiceRate, voicePitch: $voicePitch, voiceLanguage: $voiceLanguage, neuralVoiceEnabled: $neuralVoiceEnabled, neuralVoiceInstalled: $neuralVoiceInstalled, neuralVoicePath: $neuralVoicePath, llmModel: $llmModel, llmApiKey: $llmApiKey, searchProvider: $searchProvider, searchApiKey: $searchApiKey, searxngUrl: $searxngUrl, wakeWordEnabled: $wakeWordEnabled, wakeWord: $wakeWord, wakeWordSensitivity: $wakeWordSensitivity, navListenerEnabled: $navListenerEnabled, autoBrightnessEnabled: $autoBrightnessEnabled, hapticsEnabled: $hapticsEnabled)';
+    return 'AppSettings(voiceRate: $voiceRate, voicePitch: $voicePitch, voiceLanguage: $voiceLanguage, neuralVoiceEnabled: $neuralVoiceEnabled, neuralVoiceInstalled: $neuralVoiceInstalled, neuralVoicePath: $neuralVoicePath, sttModelPath: $sttModelPath, llmModel: $llmModel, llmApiKey: $llmApiKey, searchProvider: $searchProvider, searchApiKey: $searchApiKey, searxngUrl: $searxngUrl, wakeWordEnabled: $wakeWordEnabled, wakeWord: $wakeWord, wakeWordSensitivity: $wakeWordSensitivity, navListenerEnabled: $navListenerEnabled, autoBrightnessEnabled: $autoBrightnessEnabled, hapticsEnabled: $hapticsEnabled)';
   }
 
   @override
@@ -396,6 +412,8 @@ class _$AppSettingsImpl implements _AppSettings {
                 other.neuralVoiceInstalled == neuralVoiceInstalled) &&
             (identical(other.neuralVoicePath, neuralVoicePath) ||
                 other.neuralVoicePath == neuralVoicePath) &&
+            (identical(other.sttModelPath, sttModelPath) ||
+                other.sttModelPath == sttModelPath) &&
             (identical(other.llmModel, llmModel) ||
                 other.llmModel == llmModel) &&
             (identical(other.llmApiKey, llmApiKey) ||
@@ -429,6 +447,7 @@ class _$AppSettingsImpl implements _AppSettings {
     neuralVoiceEnabled,
     neuralVoiceInstalled,
     neuralVoicePath,
+    sttModelPath,
     llmModel,
     llmApiKey,
     searchProvider,
@@ -459,6 +478,7 @@ abstract class _AppSettings implements AppSettings {
     required final bool neuralVoiceEnabled,
     required final bool neuralVoiceInstalled,
     required final String neuralVoicePath,
+    required final String sttModelPath,
     required final String llmModel,
     required final String llmApiKey,
     required final String searchProvider,
@@ -484,6 +504,8 @@ abstract class _AppSettings implements AppSettings {
   bool get neuralVoiceInstalled;
   @override
   String get neuralVoicePath;
+  @override
+  String get sttModelPath;
   @override
   String get llmModel;
   @override

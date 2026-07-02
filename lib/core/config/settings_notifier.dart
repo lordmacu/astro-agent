@@ -43,6 +43,11 @@ class SettingsNotifier extends Notifier<AppSettings> {
     state = state.copyWith(neuralVoicePath: v);
   }
 
+  Future<void> setSttModelPath(String v) async {
+    await _store.setString(SettingKey.sttModelPath, v);
+    state = state.copyWith(sttModelPath: v);
+  }
+
   Future<void> setLlmModel(String v) async {
     await _store.setString(SettingKey.llmModel, v);
     state = state.copyWith(llmModel: v);

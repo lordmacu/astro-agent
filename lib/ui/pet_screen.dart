@@ -18,6 +18,8 @@ import '../platform/calendar_writer.dart';
 import '../platform/contact_match.dart';
 import '../platform/haptics.dart';
 import '../platform/system_actions.dart';
+import '../voice/neural_voice_installer.dart' show Installing;
+import '../voice/stt_model_provider.dart';
 import '../voice/stt_provider.dart';
 import '../voice/voice_interfaces.dart';
 import '../voice/wake_word_provider.dart';
@@ -127,6 +129,11 @@ class _PetScreenState extends ConsumerState<PetScreen> {
     unawaited(_wake.setSensitivity(settings.wakeWordSensitivity));
     if (settings.wakeWordEnabled) {
       _wake.start();
+    }
+    // Download the offline STT model on start (once). Meanwhile the platform
+    // recognizer handles commands; Vosk takes over automatically when it lands.
+    if (settings.sttModelPath.isEmpty) {
+      unawaited(ref.read(sttModelInstallerProvider).install());
     }
   }
 
@@ -638,6 +645,50 @@ class _PetScreenState extends ConsumerState<PetScreen> {
     }
   }
 
+  /// Slim top banner shown while the offline STT model downloads. Non-blocking:
+  /// Astro stays usable with the platform recognizer and switches over on its
+  /// own when the download finishes. [progress] is 0–1, or < 0 when unknown.
+  Widget _sttBanner(AppLang lang, double progress, Color accent) {
+    return Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.only(top: 44, left: 16, right: 16),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.55),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: accent.withValues(alpha: 0.4)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  Strings.downloadingVoiceModel(lang),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: DesignTokens.ink, fontSize: 12),
+                ),
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: progress >= 0 ? progress.clamp(0.0, 1.0) : null,
+                    minHeight: 4,
+                    backgroundColor: Colors.white.withValues(alpha: 0.12),
+                    valueColor: AlwaysStoppedAnimation<Color>(accent),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   /// Start/stop the thinking heartbeat as the voice phase enters/leaves
   /// `thinking`. Called from a phase listener in [build].
   void _syncThinkingHaptics(VoicePhase phase) {
@@ -687,6 +738,8 @@ class _PetScreenState extends ConsumerState<PetScreen> {
         ref.watch(appStateProvider).valueOrNull ?? const AppState();
     final capturedPhoto = ref.watch(capturedPhotoProvider);
     final lang = ref.watch(langProvider);
+    // While the offline STT model downloads, show a thin banner at the top.
+    final sttInstall = ref.watch(sttModelInstallStateProvider).valueOrNull;
 
     final ambient = AmbientPalette.fromHour(DateTime.now().hour);
     final moodColor = DesignTokens.moodColor[mood.mood];
@@ -858,6 +911,8 @@ class _PetScreenState extends ConsumerState<PetScreen> {
               ),
             ),
           ),
+          if (sttInstall is Installing)
+            _sttBanner(lang, sttInstall.progress, accent),
           if (_showCommands) _commandsOverlay(),
           if (_confirmPrompt != null) _confirmOverlay(accent),
           if (_pickContacts != null) _pickOverlay(accent),

@@ -20,7 +20,10 @@ void main() {
       ),
     );
 
-    expect(find.widgetWithText(ElevatedButton, '¿Qué hora es?'), findsOneWidget);
+    expect(
+      find.widgetWithText(ElevatedButton, '¿Qué hora es?'),
+      findsOneWidget,
+    );
     expect(find.widgetWithText(ElevatedButton, 'Pon música'), findsOneWidget);
 
     await tester.tap(find.widgetWithText(ElevatedButton, 'Pon música'));

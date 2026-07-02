@@ -32,8 +32,9 @@ class InstallError extends VoiceInstallState {
   final String message;
 }
 
-/// Downloads the neural voice model zip on demand and unzips it into app
-/// storage, reporting progress. The model is never bundled in the APK.
+/// Downloads a model zip on demand and unzips it into app storage, reporting
+/// progress. The model is never bundled in the APK. Generic: used for the
+/// neural voice ([subdir] 'tts') and the offline STT model ([subdir] 'stt').
 class NeuralVoiceInstaller {
   NeuralVoiceInstaller({
     required http.Client client,
@@ -41,17 +42,20 @@ class NeuralVoiceInstaller {
     required String modelName,
     required Future<Directory> Function() supportDir,
     required Future<void> Function(String path) onInstalled,
+    String subdir = 'tts',
   }) : _client = client,
        _modelUrl = modelUrl,
        _modelName = modelName,
        _supportDir = supportDir,
-       _onInstalled = onInstalled;
+       _onInstalled = onInstalled,
+       _subdir = subdir;
 
   final http.Client _client;
   final String _modelUrl;
   final String _modelName;
   final Future<Directory> Function() _supportDir;
   final Future<void> Function(String path) _onInstalled;
+  final String _subdir;
 
   final _controller = StreamController<VoiceInstallState>.broadcast();
   Stream<VoiceInstallState> get state => _controller.stream;
@@ -60,7 +64,7 @@ class NeuralVoiceInstaller {
     try {
       _controller.add(const Installing(0));
       final support = await _supportDir();
-      final modelDir = Directory('${support.path}/tts/$_modelName');
+      final modelDir = Directory('${support.path}/$_subdir/$_modelName');
       final marker = File('${modelDir.path}/.ready');
       if (marker.existsSync()) {
         _controller.add(Installed(modelDir.path));

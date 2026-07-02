@@ -7,6 +7,15 @@ const String kDefaultNeuralVoiceUrl =
 /// Folder name the model unzips into under app support dir.
 const String kNeuralVoiceModelName = 'vits-piper-es_ES-davefx-medium';
 
+/// Download source for the offline Vosk STT model (Spanish). Downloaded
+/// on-demand at app start so the ~37MB model isn't bundled in the APK.
+/// Overridable via `.env` (STT_MODEL_URL).
+const String kDefaultSttModelUrl =
+    'https://github.com/lordmacu/astro-agent/releases/download/stt-v1/vosk-model-small-es-0.42.zip';
+
+/// Folder name the STT model unzips into (under the app support dir).
+const String kSttModelName = 'vosk-model-small-es-0.42';
+
 /// All numeric thresholds used by the mood cascade live here, in one place.
 /// Never hard-code a magic number in `MoodResolver` — read it from this object.
 class Thresholds {
