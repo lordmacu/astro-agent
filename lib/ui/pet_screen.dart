@@ -78,7 +78,9 @@ class _PetScreenState extends ConsumerState<PetScreen> {
     Duration(milliseconds: 620),
   ];
   bool _busy = false;
-  bool _cancelRequested = false; // tap-to-cancel while listening
+  // Tap-to-cancel ("escape"): set by a tap while Astro is active, honored across
+  // all phases (listening / thinking / speaking) to stop voice + AI and unwind.
+  bool _aborted = false;
   String _spokenText = '';
   bool _showCommands = false;
   int _unreadNotifs = 0;
@@ -446,7 +448,7 @@ class _PetScreenState extends ConsumerState<PetScreen> {
   Future<void> _converse() async {
     if (_busy) return;
     _busy = true;
-    _cancelRequested = false;
+    _aborted = false;
     // A firm buzz the moment Astro is summoned (by tap or wake word).
     _haptics.listenStart();
     final controller = ref.read(voiceControllerProvider.notifier);
@@ -462,6 +464,7 @@ class _PetScreenState extends ConsumerState<PetScreen> {
 
     try {
       for (var turn = 0; turn < 6; turn++) {
+        if (_aborted) break; // tapped to cancel between turns
         controller.applyPhase(VoicePhase.listening);
         if (mounted) setState(() => _spokenText = '');
 
@@ -470,10 +473,10 @@ class _PetScreenState extends ConsumerState<PetScreen> {
         await Future<void>.delayed(
           Duration(milliseconds: turn == 0 ? 300 : 650),
         );
-        if (_cancelRequested) break; // tapped to cancel before listening
+        if (_aborted) break; // tapped to cancel before listening
         final capSw = Stopwatch()..start();
         final command = await ref.read(speechRecognizerProvider).listen();
-        if (_cancelRequested) break; // tapped to cancel — end quietly
+        if (_aborted) break; // tapped to cancel — end quietly
         debugPrint(
           '[Astro] 🎙️ heard (${capSw.elapsedMilliseconds}ms): '
           '${command ?? '(nothing)'}',
@@ -503,6 +506,7 @@ class _PetScreenState extends ConsumerState<PetScreen> {
   Future<void> _runCommand(String command) async {
     if (_busy) return;
     _busy = true;
+    _aborted = false;
     final controller = ref.read(voiceControllerProvider.notifier);
     await _wake.pause();
     try {
@@ -550,13 +554,14 @@ class _PetScreenState extends ConsumerState<PetScreen> {
     }
   }
 
-  /// Tap while a conversation is in progress cancels the current listen: only
-  /// while actually listening (not mid-answer). Stopping the recognizer unblocks
-  /// the pending `listen()`, and the flag makes the loop end quietly.
-  void _cancelListening() {
-    if (ref.read(voiceControllerProvider).phase != VoicePhase.listening) return;
-    _cancelRequested = true;
-    ref.read(speechRecognizerProvider).stop();
+  /// Tap while Astro is active (listening / thinking / speaking): a full stop.
+  /// Silences the current speech, unblocks a pending `listen()`, and flags the
+  /// loops (conversation + brain via `isCancelled`) to unwind to idle. No spoken
+  /// confirmation — the point is silence.
+  void _abort() {
+    _aborted = true;
+    ref.read(ttsProvider).stop(); // cut whatever Astro is saying right now
+    ref.read(speechRecognizerProvider).stop(); // unblock a pending listen()
   }
 
   /// True when Astro's answer ends with a question, i.e. it expects a reply.
@@ -606,12 +611,16 @@ class _PetScreenState extends ConsumerState<PetScreen> {
           ref.read(appModeProvider),
           ref.read(langProvider),
         ),
+        isCancelled: () => _aborted,
         onSentence: (sentence) {
+          // Tapped to cancel: don't queue or speak any more sentences.
+          if (_aborted) return;
           // Suppress the model's own words when we'll speak a fixed line (e.g.
           // a call, where the model tends to mangle the contact name).
           if (_overrideAnswer != null) return;
           // Queue each sentence so they play in order, one after another.
           ttsChain = ttsChain.then((_) async {
+            if (_aborted) return;
             ensureSpeaking();
             if (mounted) setState(() => _spokenText = sentence);
             await ref.read(ttsProvider).speak(sentence);
@@ -619,6 +628,7 @@ class _PetScreenState extends ConsumerState<PetScreen> {
         },
       );
       await ttsChain; // let all queued speech finish
+      if (_aborted) return ''; // tapped to cancel → discard the answer
 
       // A call/message went out → say the app's line with the real name.
       final override = _overrideAnswer;
@@ -632,7 +642,7 @@ class _PetScreenState extends ConsumerState<PetScreen> {
     } catch (e) {
       await ttsChain;
       debugPrint('[Astro] brain error: $e');
-      if (!started) await _say(_oops, controller);
+      if (!started && !_aborted) await _say(_oops, controller);
       return '';
     } finally {
       _visemeTimer?.cancel();
@@ -739,6 +749,21 @@ class _PetScreenState extends ConsumerState<PetScreen> {
                   textAlign: TextAlign.center,
                   style: const TextStyle(color: DesignTokens.ink, fontSize: 12),
                 ),
+                // Show the actual reason on screen so a failure is diagnosable
+                // without a cable (it's also logged to logcat).
+                if (failed) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    state.message,
+                    textAlign: TextAlign.center,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: DesignTokens.dim,
+                      fontSize: 10,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 8),
                 if (failed)
                   TextButton(
@@ -877,11 +902,12 @@ class _PetScreenState extends ConsumerState<PetScreen> {
                         ],
                         GestureDetector(
                           // Tap starts a conversation (like the wake word); tap
-                          // again while it's listening to cancel.
+                          // again while Astro is active (listening / thinking /
+                          // speaking) to cancel voice + AI and return to rest.
                           onTap: () {
                             if (_busy) {
                               _haptics.cancel();
-                              _cancelListening();
+                              _abort();
                             } else {
                               _converse();
                             }
