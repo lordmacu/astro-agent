@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/config/design_tokens.dart';
+import '../core/config/llm_models.dart';
 import '../core/config/settings_providers.dart';
 import '../core/l10n/lang_provider.dart';
 import '../core/l10n/strings.dart';
@@ -40,9 +41,13 @@ class _AiSetupSheetState extends ConsumerState<_AiSetupSheet> {
   }
 
   Future<void> _save() async {
+    // Free models (e.g. the Kilo free tier) need no key; paid ones do.
+    final free = isFreeModel(ref.read(settingsProvider).llmModel);
     final key = _keyController.text.trim();
-    if (key.isEmpty) return;
-    await ref.read(settingsProvider.notifier).setLlmApiKey(key);
+    if (!free && key.isEmpty) return;
+    if (key.isNotEmpty) {
+      await ref.read(settingsProvider.notifier).setLlmApiKey(key);
+    }
     if (mounted) Navigator.of(context).pop(true);
   }
 
@@ -51,6 +56,8 @@ class _AiSetupSheetState extends ConsumerState<_AiSetupSheet> {
     final lang = ref.watch(langProvider);
     final settings = ref.watch(settingsProvider);
     final notifier = ref.read(settingsProvider.notifier);
+    // A free model needs no API key: hide the key field and let Save proceed.
+    final free = isFreeModel(settings.llmModel);
 
     return Padding(
       // Lift above the keyboard.
@@ -83,36 +90,40 @@ class _AiSetupSheetState extends ConsumerState<_AiSetupSheet> {
             onChanged: notifier.setLlmModel,
             lang: lang,
           ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _keyController,
-            obscureText: _obscure,
-            autofocus: true,
-            style: const TextStyle(color: DesignTokens.ink),
-            onChanged: (_) => setState(() {}),
-            onSubmitted: (_) => _save(),
-            decoration: InputDecoration(
-              labelText: Strings.aiKeyLabel(lang),
-              labelStyle: const TextStyle(color: DesignTokens.dim),
-              suffixIcon: IconButton(
-                icon: Icon(
-                  _obscure ? Icons.visibility : Icons.visibility_off,
-                  color: DesignTokens.dim,
+          if (!free) ...[
+            const SizedBox(height: 8),
+            TextField(
+              controller: _keyController,
+              obscureText: _obscure,
+              autofocus: true,
+              style: const TextStyle(color: DesignTokens.ink),
+              onChanged: (_) => setState(() {}),
+              onSubmitted: (_) => _save(),
+              decoration: InputDecoration(
+                labelText: Strings.aiKeyLabel(lang),
+                labelStyle: const TextStyle(color: DesignTokens.dim),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscure ? Icons.visibility : Icons.visibility_off,
+                    color: DesignTokens.dim,
+                  ),
+                  onPressed: () => setState(() => _obscure = !_obscure),
                 ),
-                onPressed: () => setState(() => _obscure = !_obscure),
               ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            Strings.aiKeyHint(lang),
-            style: const TextStyle(color: DesignTokens.dim, fontSize: 12),
-          ),
+            const SizedBox(height: 8),
+            Text(
+              Strings.aiKeyHint(lang),
+              style: const TextStyle(color: DesignTokens.dim, fontSize: 12),
+            ),
+          ],
           const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: _keyController.text.trim().isEmpty ? null : _save,
+              onPressed: (free || _keyController.text.trim().isNotEmpty)
+                  ? _save
+                  : null,
               child: Text(Strings.save(lang)),
             ),
           ),

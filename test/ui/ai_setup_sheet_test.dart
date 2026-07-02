@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:astro/core/config/llm_models.dart';
 import 'package:astro/core/config/settings_providers.dart';
 import 'package:astro/core/l10n/app_lang.dart';
 import 'package:astro/core/l10n/lang_provider.dart';
@@ -82,5 +83,40 @@ void main() {
 
     expect(result, false);
     expect(prefs.getString('llmApiKey'), isNull);
+  });
+
+  testWidgets('free model needs no key: Save works without one', (tester) async {
+    SharedPreferences.setMockInitialValues({'llmModel': kKiloFreeModel});
+    final prefs = await SharedPreferences.getInstance();
+    bool? result;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(prefs),
+          deviceLangProvider.overrideWithValue(AppLang.es),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () async => result = await showAiSetupSheet(context),
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    // A free model needs no API key: the key field is hidden and Save works.
+    expect(find.byType(TextField), findsNothing);
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Guardar'));
+    await tester.pumpAndSettle();
+
+    expect(result, true);
   });
 }
