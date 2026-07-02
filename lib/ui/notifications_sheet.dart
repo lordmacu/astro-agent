@@ -8,14 +8,18 @@ import '../core/l10n/lang_provider.dart';
 import '../core/l10n/strings.dart';
 import '../platform/notifications_grouping.dart';
 import '../platform/notifications_reader.dart';
-import '../platform/permissions.dart';
+import '../sensors/navigation/nav_service.dart';
 
 /// Show the notifications panel. [onSpeak] receives each AI summary so the
-/// caller can voice it. [reader] is injectable for tests.
+/// caller can voice it. [reader] is injectable for tests. Only notifications
+/// that arrived after [since] are shown, so ones already seen on a previous
+/// open don't reappear (and aren't summarized again). Defaults to the epoch,
+/// i.e. show everything.
 Future<void> showNotificationsSheet(
   BuildContext context, {
   required void Function(String summary) onSpeak,
   NotificationsReader reader = const NotificationsReader(),
+  DateTime? since,
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -24,20 +28,30 @@ Future<void> showNotificationsSheet(
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
-    builder: (_) => _NotificationsSheet(onSpeak: onSpeak, reader: reader),
+    builder: (_) => _NotificationsSheet(
+      onSpeak: onSpeak,
+      reader: reader,
+      since: since ?? DateTime.fromMillisecondsSinceEpoch(0),
+    ),
   );
 }
 
 class _NotificationsSheet extends ConsumerStatefulWidget {
-  const _NotificationsSheet({required this.onSpeak, required this.reader});
+  const _NotificationsSheet({
+    required this.onSpeak,
+    required this.reader,
+    required this.since,
+  });
   final void Function(String summary) onSpeak;
   final NotificationsReader reader;
+  final DateTime since;
   @override
   ConsumerState<_NotificationsSheet> createState() =>
       _NotificationsSheetState();
 }
 
-class _NotificationsSheetState extends ConsumerState<_NotificationsSheet> {
+class _NotificationsSheetState extends ConsumerState<_NotificationsSheet>
+    with WidgetsBindingObserver {
   Map<String, List<NotificationSummary>>? _groups; // null = loading
   final _summaries = <String, String>{};
   final _loading = <String>{};
@@ -45,13 +59,35 @@ class _NotificationsSheetState extends ConsumerState<_NotificationsSheet> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _load();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Notification-listener access is granted in system settings, so the user
+    // leaves the app to grant it. Re-read on resume so a freshly-granted access
+    // replaces the "grant access" empty state with the real notifications.
+    if (state == AppLifecycleState.resumed) _load();
   }
 
   Future<void> _load() async {
     final items = await widget.reader.recent(count: 40);
     if (!mounted) return;
-    setState(() => _groups = groupNotificationsByApp(items));
+    // Drop notifications already seen on a previous open (older than `since`),
+    // so they don't reappear or get re-summarized. Undated ones can't be aged,
+    // so we keep them rather than risk hiding a real notification.
+    final fresh = [
+      for (final n in items)
+        if (n.time == null || n.time!.isAfter(widget.since)) n,
+    ];
+    setState(() => _groups = groupNotificationsByApp(fresh));
   }
 
   Future<void> _summarize(
@@ -251,8 +287,12 @@ class _EmptyState extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         TextButton(
+          // Reading other apps' notifications needs the special
+          // notification-listener access, granted only in system settings —
+          // POST_NOTIFICATIONS (requestNotifications) does not cover it. Deep-
+          // link to the listener settings; the panel reloads on next open.
           onPressed: () async {
-            await const Permissions().requestNotifications();
+            await const NavControl().openSettings();
             await onGranted();
           },
           child: Text(Strings.grantNotifications(lang)),

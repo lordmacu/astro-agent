@@ -17,8 +17,9 @@ class WebSearchTool extends AstroTool {
   @override
   String get description =>
       'Search the web for current, factual information Astro does not already '
-      'know: weather, news, places, opening hours, prices. Use only when the '
-      'answer needs fresh facts from the internet.';
+      'know: places, opening hours, prices, sports scores, specific facts. For '
+      "today's news headlines use the 'noticias' tool instead. Use only when "
+      'the answer needs fresh facts from the internet.';
 
   @override
   Map<String, dynamic> get inputSchema => {

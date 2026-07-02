@@ -130,8 +130,9 @@ class SystemActions {
     String name, {
     int max = 4,
   }) async {
-    if (!await FlutterContacts.requestPermission(readonly: true))
+    if (!await FlutterContacts.requestPermission(readonly: true)) {
       return const [];
+    }
     final contacts = await FlutterContacts.getContacts(withProperties: true);
     final candidates = [
       for (final c in contacts)
@@ -149,8 +150,9 @@ class SystemActions {
     String query, {
     int max = 4,
   }) async {
-    if (!await FlutterContacts.requestPermission(readonly: true))
+    if (!await FlutterContacts.requestPermission(readonly: true)) {
       return const [];
+    }
     final contacts = await FlutterContacts.getContacts(withProperties: true);
     final candidates = [
       for (final c in contacts)

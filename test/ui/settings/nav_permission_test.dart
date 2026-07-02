@@ -18,6 +18,16 @@ class _FakeNavControl implements NavControl {
   Future<void> openSettings() async => openCalls++;
 }
 
+/// A nav control whose grant can flip at runtime (simulates the user granting
+/// access in system settings while the app is backgrounded).
+class _MutableNavControl implements NavControl {
+  bool granted = false;
+  @override
+  Future<bool> hasPermission() async => granted;
+  @override
+  Future<void> openSettings() async {}
+}
+
 void main() {
   testWidgets('enabling nav without access opens settings', (tester) async {
     SharedPreferences.setMockInitialValues({'navListenerEnabled': false});
@@ -118,4 +128,49 @@ void main() {
       );
     },
   );
+
+  testWidgets('nav tile re-checks permission on app resume', (tester) async {
+    // Enabled but access denied → the "grant" hint shows.
+    SharedPreferences.setMockInitialValues({'navListenerEnabled': true});
+    final prefs = await SharedPreferences.getInstance();
+    final fake = _MutableNavControl();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(prefs),
+          deviceLangProvider.overrideWithValue(AppLang.es),
+          navControlProvider.overrideWithValue(fake),
+        ],
+        child: const MaterialApp(home: SettingsScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final tile = find.widgetWithText(SwitchListTile, 'Navegación (Maps)');
+    await tester.scrollUntilVisible(
+      tile,
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Sin acceso a notificaciones — toca para conceder'),
+      findsOneWidget,
+    );
+
+    // The user granted access in system settings and returned to the app.
+    fake.granted = true;
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+
+    // The hint is gone; the normal subtitle shows without reopening Settings.
+    expect(
+      find.text('Sin acceso a notificaciones — toca para conceder'),
+      findsNothing,
+    );
+    expect(
+      find.text('Reaccionar a las indicaciones de Google Maps'),
+      findsOneWidget,
+    );
+  });
 }

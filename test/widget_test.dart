@@ -3,6 +3,7 @@ import 'package:astro/core/config/settings_providers.dart';
 import 'package:astro/core/state/app_mode.dart';
 import 'package:astro/core/state/app_state.dart';
 import 'package:astro/core/state/app_state_provider.dart';
+import 'package:astro/platform/permissions.dart';
 import 'package:astro/ui/astro_character.dart';
 import 'package:astro/voice/stt_provider.dart';
 import 'package:astro/voice/voice_interfaces.dart';
@@ -15,6 +16,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 class _CarModeNotifier extends AppModeNotifier {
   @override
   AppMode build() => AppMode.car;
+}
+
+/// No-op permissions so initState doesn't hit the real permission_handler
+/// plugin (which would leave a pending timer in the test VM).
+class _NoPermissions extends Permissions {
+  const _NoPermissions();
+  @override
+  Future<void> requestStartup() async {}
 }
 
 /// No-op recognizer so PetScreen.initState doesn't build the real platform
@@ -41,6 +50,7 @@ void main() {
           sharedPreferencesProvider.overrideWithValue(prefs),
           appModeProvider.overrideWith(_CarModeNotifier.new),
           speechRecognizerProvider.overrideWithValue(_FakeRecognizer()),
+          permissionsProvider.overrideWithValue(const _NoPermissions()),
           // No real sensors in tests; emit a single resting state.
           appStateProvider.overrideWith(
             (ref) => Stream.value(const AppState()),

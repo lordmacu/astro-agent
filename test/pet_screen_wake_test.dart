@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:astro/core/state/app_state.dart';
 import 'package:astro/core/state/app_state_provider.dart';
+import 'package:astro/platform/permissions.dart';
 import 'package:astro/ui/pet_screen.dart';
 import 'package:astro/voice/stt_provider.dart';
 import 'package:astro/voice/voice_interfaces.dart';
@@ -34,6 +35,14 @@ class FakeWake implements WakeWordDetector {
   Future<void> setSensitivity(double value) async => calls.add('sens:$value');
 }
 
+/// No-op permissions so initState doesn't hit the real permission_handler
+/// plugin (which would leave a pending timer in the test VM).
+class NoPermissions extends Permissions {
+  const NoPermissions();
+  @override
+  Future<void> requestStartup() async {}
+}
+
 /// No-op recognizer so PetScreen.initState doesn't build the real platform
 /// recognizer (Vosk), which throws UnsupportedError in the test VM.
 class FakeRecognizer implements SpeechRecognizer {
@@ -59,6 +68,7 @@ void main() {
           sharedPreferencesProvider.overrideWithValue(prefs),
           wakeWordProvider.overrideWithValue(fake),
           speechRecognizerProvider.overrideWithValue(FakeRecognizer()),
+          permissionsProvider.overrideWithValue(const NoPermissions()),
           appStateProvider.overrideWith(
             (ref) => Stream.value(const AppState()),
           ),
@@ -67,6 +77,9 @@ void main() {
       ),
     );
     await tester.pump();
+    // The wake word now starts after the startup permission request resolves,
+    // so let that async chain settle before asserting.
+    await tester.pump(const Duration(milliseconds: 100));
 
     expect(fake.calls, contains('start'));
   });

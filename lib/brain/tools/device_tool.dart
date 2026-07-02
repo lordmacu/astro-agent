@@ -119,6 +119,6 @@ class DeviceTool extends AstroTool {
 
   int? _level(Map<String, dynamic> args) {
     final raw = (args['level'] as num?)?.toInt();
-    return raw == null ? null : raw.clamp(0, 100);
+    return raw?.clamp(0, 100);
   }
 }

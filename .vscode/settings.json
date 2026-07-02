@@ -1,3 +1,10 @@
 {
-    "java.configuration.updateBuildConfiguration": "automatic"
+    "java.configuration.updateBuildConfiguration": "automatic",
+    // This is a Flutter app: the Android Gradle build lives in `android/` and is
+    // driven by the Flutter/Dart tooling (which uses android/gradle wrapper 8.14).
+    // The Red Hat Java extension otherwise auto-imports Gradle from the workspace
+    // ROOT — which has no wrapper — and falls back to its bundled Gradle 8.9,
+    // failing AGP 8.11's "min Gradle 8.13" check ("phased action failed"). We
+    // don't need Java/Gradle project import here, so disable it.
+    "java.import.gradle.enabled": false
 }

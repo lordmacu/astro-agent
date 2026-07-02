@@ -43,6 +43,8 @@ import 'tools/device_tool.dart';
 import 'tools/memory_tools.dart';
 import 'tools/music_tool.dart';
 import 'tools/map_tool.dart';
+import 'tools/news/google_news_provider.dart';
+import 'tools/news/news_tool.dart';
 import 'tools/phone_tool.dart';
 import 'tools/weather_tool.dart';
 import 'tools/timer_tool.dart';
@@ -235,8 +237,10 @@ el calendario); comunicacion (mandar correo, leer correos, o leer las
 notificaciones del teléfono); clima (el tiempo de un lugar); mapa (navegar a un
 destino o buscar sitios cerca); device
 (brillo, volumen, linterna, abrir apps); timer (temporizador o alarma); phone
-(llamar o mandar mensaje); web_search (datos
-frescos de internet); remember_fact (guardar algo del usuario).$closing''';
+(llamar o mandar mensaje); noticias (titulares reales de hoy, o de un tema:
+úsala para "noticias de hoy", no digas dónde buscarlas); web_search (otros datos
+frescos de internet: precios, horarios, hechos); remember_fact (guardar algo del
+usuario).$closing''';
 }
 
 String _promptEn(AppMode mode) {
@@ -284,8 +288,10 @@ save it to the gallery); calendar (create an event or reminder in the calendar);
 comunicacion (send email, read email, or read the phone's notifications); clima
 (the weather for a place); mapa (navigate to a destination or find nearby
 places); device (brightness, volume, flashlight, open apps); timer (timer or
-alarm); phone (call or send a message); web_search (fresh data from the
-internet); remember_fact (save something about the user).$closing''';
+alarm); phone (call or send a message); noticias (today's real headlines, or on
+a topic: use it for "what's the news", don't say where to look); web_search
+(other fresh data: prices, hours, facts); remember_fact (save something about
+the user).$closing''';
 }
 
 /// Holds the command-time voice confirmation for mutating tools. The UI sets
@@ -506,6 +512,20 @@ final astroBrainProvider = FutureProvider<AstroBrain>((ref) async {
               ? (await placeResolver.name() ?? '')
               : place;
           return const WeatherService().summary(p);
+        },
+        lang: () => ref.read(langProvider),
+      ),
+    )
+    // Today's real news headlines (Google News RSS, keyless). Also publishes
+    // the list to [latestNewsProvider] so the UI can pop the clickable panel.
+    ..register(
+      NewsTool(
+        fetch: (query, lang) async {
+          final items = await ref
+              .read(googleNewsProvider)
+              .headlines(query: query, lang: lang);
+          ref.read(latestNewsProvider.notifier).state = items;
+          return items;
         },
         lang: () => ref.read(langProvider),
       ),

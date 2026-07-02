@@ -427,6 +427,14 @@ abstract final class Strings {
     es: 'No pude consultar el clima ahora.',
   );
 
+  static String newsUnavailable(AppLang l) => _pick(
+    l,
+    en: "I couldn't get the news right now.",
+    es: 'No pude traer las noticias ahora.',
+  );
+
+  static String newsTitle(AppLang l) => _pick(l, en: 'News', es: 'Noticias');
+
   // ── Tool catalog (Settings toggles), keyed by AstroTool.name ─────────────
   static String toolLabel(String name, AppLang l) => switch (name) {
     'music' => _pick(l, en: 'Music', es: 'Música'),
@@ -439,6 +447,7 @@ abstract final class Strings {
     'timer' => _pick(l, en: 'Timer', es: 'Temporizador'),
     'phone' => _pick(l, en: 'Calls', es: 'Llamadas'),
     'web_search' => _pick(l, en: 'Web search', es: 'Búsqueda web'),
+    'noticias' => _pick(l, en: 'News', es: 'Noticias'),
     'remember_fact' => _pick(l, en: 'Memory', es: 'Memoria'),
     _ => name,
   };
@@ -485,6 +494,11 @@ abstract final class Strings {
       l,
       en: 'Search the internet for info',
       es: 'Buscar información en internet',
+    ),
+    'noticias' => _pick(
+      l,
+      en: "Today's news headlines",
+      es: 'Titulares de noticias de hoy',
     ),
     'remember_fact' => _pick(
       l,
@@ -537,6 +551,11 @@ abstract final class Strings {
     ),
     'phone' => _pick(l, en: 'Call mom', es: 'Llama a mamá'),
     'web_search' => _pick(
+      l,
+      en: 'How tall is the Eiffel Tower?',
+      es: '¿Qué altura tiene la Torre Eiffel?',
+    ),
+    'noticias' => _pick(
       l,
       en: "Search today's news",
       es: 'Busca noticias de hoy',

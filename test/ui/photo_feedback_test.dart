@@ -5,6 +5,7 @@ import 'package:astro/core/state/app_state_provider.dart';
 import 'package:astro/core/config/settings_providers.dart';
 import 'package:astro/core/l10n/app_lang.dart';
 import 'package:astro/core/l10n/lang_provider.dart';
+import 'package:astro/platform/permissions.dart';
 import 'package:astro/ui/pet_screen.dart';
 import 'package:astro/ui/photo_viewer_screen.dart';
 import 'package:astro/voice/stt_provider.dart';
@@ -35,6 +36,14 @@ class FakeWake implements WakeWordDetector {
       calls.add('keyword:$keyword');
   @override
   Future<void> setSensitivity(double value) async => calls.add('sens:$value');
+}
+
+/// No-op permissions so initState doesn't hit the real permission_handler
+/// plugin (which would leave a pending timer in the test VM).
+class NoPermissions extends Permissions {
+  const NoPermissions();
+  @override
+  Future<void> requestStartup() async {}
 }
 
 /// No-op recognizer so PetScreen.initState doesn't build the real platform
@@ -81,6 +90,7 @@ void main() {
           deviceLangProvider.overrideWithValue(AppLang.es),
           wakeWordProvider.overrideWithValue(fake),
           speechRecognizerProvider.overrideWithValue(FakeRecognizer()),
+          permissionsProvider.overrideWithValue(const NoPermissions()),
           appStateProvider.overrideWith(
             (ref) => Stream.value(const AppState()),
           ),

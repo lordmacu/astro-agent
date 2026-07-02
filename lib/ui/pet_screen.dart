@@ -18,6 +18,7 @@ import '../core/state/app_state_provider.dart';
 import '../platform/calendar_writer.dart';
 import '../platform/contact_match.dart';
 import '../platform/haptics.dart';
+import '../platform/permissions.dart';
 import '../platform/notifications_grouping.dart';
 import '../platform/notifications_reader.dart';
 import '../platform/system_actions.dart';
@@ -36,6 +37,8 @@ import 'astro_character.dart';
 import 'command_palette.dart';
 import 'hud.dart';
 import 'notifications_sheet.dart';
+import 'news_sheet.dart';
+import '../brain/tools/news/google_news_provider.dart';
 import 'photo_viewer_screen.dart';
 import 'settings/settings_screen.dart';
 
@@ -129,9 +132,13 @@ class _PetScreenState extends ConsumerState<PetScreen> {
     _wakeSub = _wake.onWake.listen((_) {
       if (!_busy) _converse();
     });
+    // Ask for the core runtime permissions up front, in one flow (mic,
+    // location, notifications). Fire-and-forget: features that need one also
+    // re-request it on use, and the wake word starts independently below.
+    unawaited(ref.read(permissionsProvider).requestStartup());
     final settings = ref.read(settingsProvider);
-    // Tell the native engine which phrase to listen for (default "hola astro",
-    // user-configurable in Settings) and how sensitive to be, before it starts.
+    // Tell the native engine which phrase to listen for and how sensitive to
+    // be, then start it (mic permission was just requested above).
     unawaited(_wake.setKeyword(settings.wakeWord));
     unawaited(_wake.setSensitivity(settings.wakeWordSensitivity));
     if (settings.wakeWordEnabled) {
@@ -665,18 +672,23 @@ class _PetScreenState extends ConsumerState<PetScreen> {
   /// Open the notifications sheet, marking everything as seen (clearing the
   /// badge) and voicing each AI summary the user asks for.
   Future<void> _openNotifications() async {
-    await ref
-        .read(settingsStoreProvider)
-        .setDouble(
-          SettingKey.notificationsSeenAt,
-          DateTime.now().millisecondsSinceEpoch.toDouble(),
-        );
+    // Capture the previous "seen" mark BEFORE updating it: the panel shows only
+    // notifications newer than it, so ones seen on a past open don't reappear.
+    final store = ref.read(settingsStoreProvider);
+    final since = DateTime.fromMillisecondsSinceEpoch(
+      store.getDouble(SettingKey.notificationsSeenAt, 0).toInt(),
+    );
+    await store.setDouble(
+      SettingKey.notificationsSeenAt,
+      DateTime.now().millisecondsSinceEpoch.toDouble(),
+    );
     if (!mounted) return;
     setState(() => _unreadNotifs = 0);
     final controller = ref.read(voiceControllerProvider.notifier);
     await showNotificationsSheet(
       context,
       onSpeak: (summary) => _say(summary, controller),
+      since: since,
     );
     await _refreshUnread();
   }
@@ -807,6 +819,13 @@ class _PetScreenState extends ConsumerState<PetScreen> {
     // Pulse a heartbeat while thinking; stop it the moment the phase changes.
     ref.listen(voiceControllerProvider.select((v) => v.phase), (_, next) {
       _syncThinkingHaptics(next);
+    });
+    // When a voice news query fetches headlines, pop the clickable news panel
+    // with that same list. Reset so the next query re-triggers.
+    ref.listen(latestNewsProvider, (_, next) {
+      if (next == null || next.isEmpty || !mounted) return;
+      ref.read(latestNewsProvider.notifier).state = null;
+      showNewsSheet(context, headlines: next);
     });
     final appState =
         ref.watch(appStateProvider).valueOrNull ?? const AppState();
@@ -981,6 +1000,12 @@ class _PetScreenState extends ConsumerState<PetScreen> {
                           : const Icon(Icons.notifications_none),
                       color: accent,
                       onPressed: _openNotifications,
+                    ),
+                    IconButton(
+                      key: const Key('news-button'),
+                      icon: const Icon(Icons.newspaper),
+                      color: accent,
+                      onPressed: () => showNewsSheet(context),
                     ),
                     IconButton(
                       icon: const Icon(Icons.help_outline),

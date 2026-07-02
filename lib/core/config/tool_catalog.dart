@@ -63,5 +63,6 @@ const List<ToolInfo> kToolCatalog = [
   ToolInfo(name: 'timer'),
   ToolInfo(name: 'phone', permission: Permission.phone, permissionKey: 'phone'),
   ToolInfo(name: 'web_search'),
+  ToolInfo(name: 'noticias'),
   ToolInfo(name: 'remember_fact'),
 ];
