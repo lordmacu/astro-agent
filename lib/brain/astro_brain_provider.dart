@@ -21,6 +21,7 @@ import '../sensors/location/place_resolver.dart';
 import '../platform/system_actions.dart';
 import 'astro_brain.dart';
 import 'llm/kilo_models.dart';
+import 'notification_summarizer.dart';
 import 'llm/providers/openai_compat_client.dart';
 import 'memory_context.dart';
 import '../platform/app_launcher.dart';
@@ -166,6 +167,16 @@ final astroModelProvider = Provider<String>((ref) {
 extension _Fallback on String {
   String ifEmpty(String other) => isEmpty ? other : this;
 }
+
+/// Summarizer for the notifications panel. Uses the same client/model as the
+/// brain (keyless Kilo for free models), but a single tool-less call.
+final notificationSummarizerProvider = Provider<NotificationSummarizer>((ref) {
+  final model = ref.watch(astroModelProvider);
+  return NotificationSummarizer(
+    client: _llmClientFor(ref, model),
+    model: model,
+  );
+});
 
 /// Astro's persona and answer style, tuned to the active mode. The language
 /// rule (#0) and the speaking style are shared; car mode frames Astro as a
