@@ -19,22 +19,8 @@ import '../../sensors/navigation/nav_service.dart';
 import '../../voice/neural_voice_installer.dart';
 import '../../voice/neural_voice_provider.dart';
 import '../../voice/wake_word_provider.dart';
+import 'model_picker_tile.dart';
 import 'settings_widgets.dart';
-
-/// Preset model identifiers for the LLM dropdown.
-const _modelPresets = [
-  'MiniMax-M3',
-  'gpt-4o',
-  'gpt-4o-mini',
-  'gpt-4.1',
-  'gpt-4.1-mini',
-  'o3-mini',
-  'deepseek-chat',
-  'deepseek-reasoner',
-];
-
-/// Sentinel shown in the dropdown when the stored model is a custom string.
-const _customSentinel = 'custom';
 
 /// Displayed app version. Updated manually on release cuts.
 const _appVersion = '0.1.0';
@@ -158,7 +144,7 @@ class SettingsScreen extends ConsumerWidget {
           SettingsSection(
             title: Strings.aiSection(lang),
             children: [
-              _ModelPickerTile(
+              ModelPickerTile(
                 currentModel: settings.llmModel,
                 lang: lang,
                 onChanged: notifier.setLlmModel,
@@ -338,99 +324,6 @@ class SettingsScreen extends ConsumerWidget {
             onChanged: (v) {
               if (v != null) ref.read(langPrefProvider.notifier).set(v);
             },
-          ),
-      ],
-    );
-  }
-}
-
-/// Model picker: a dropdown of preset model names plus a "Personalizado…"
-/// sentinel. Selecting "Personalizado…" reveals a free-text tile without
-/// clobbering the stored model value; the text tile persists until a preset is
-/// chosen again. Also shown automatically when the stored model is already a
-/// non-preset value (so existing custom values open in custom mode).
-class _ModelPickerTile extends StatefulWidget {
-  const _ModelPickerTile({
-    required this.currentModel,
-    required this.onChanged,
-    required this.lang,
-  });
-
-  final String currentModel;
-  final ValueChanged<String> onChanged;
-  final AppLang lang;
-
-  @override
-  State<_ModelPickerTile> createState() => _ModelPickerTileState();
-}
-
-class _ModelPickerTileState extends State<_ModelPickerTile> {
-  /// True when the user has chosen "Personalizado…" from the dropdown OR when
-  /// the stored model is already a non-preset value.
-  late bool _customMode;
-
-  @override
-  void initState() {
-    super.initState();
-    _customMode = !_modelPresets.contains(widget.currentModel);
-  }
-
-  @override
-  void didUpdateWidget(_ModelPickerTile old) {
-    super.didUpdateWidget(old);
-    // If the parent rebuilds with a preset model (e.g. after a preset is
-    // selected), leave custom mode in whatever state it was set to locally.
-    // Only flip it off when the new value is a known preset AND we are not
-    // already showing the custom field because of a user tap.
-    if (_modelPresets.contains(widget.currentModel)) {
-      _customMode = false;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final dropdownValue = _customMode ? _customSentinel : widget.currentModel;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ListTile(
-          title: Text(
-            Strings.modelLabel(widget.lang),
-            style: const TextStyle(color: DesignTokens.ink),
-          ),
-          trailing: DropdownButton<String>(
-            value: dropdownValue,
-            dropdownColor: const Color(0xFF1a2537),
-            style: const TextStyle(color: DesignTokens.ink, fontSize: 14),
-            underline: const SizedBox.shrink(),
-            items: [
-              for (final p in _modelPresets)
-                DropdownMenuItem(value: p, child: Text(p)),
-              DropdownMenuItem(
-                value: _customSentinel,
-                child: Text(Strings.customModel(widget.lang)),
-              ),
-            ],
-            onChanged: (v) {
-              if (v == null) return;
-              if (v == _customSentinel) {
-                // Reveal the custom text field without changing the stored model.
-                setState(() => _customMode = true);
-                return;
-              }
-              // A real preset was chosen: leave custom mode and persist.
-              setState(() => _customMode = false);
-              widget.onChanged(v);
-            },
-          ),
-        ),
-        if (_customMode)
-          SettingsTextTile(
-            label: Strings.customModelLabel(widget.lang),
-            value: widget.currentModel,
-            hint: 'MiniMax-M3',
-            onSubmitted: widget.onChanged,
           ),
       ],
     );
