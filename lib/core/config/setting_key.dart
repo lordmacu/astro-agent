@@ -9,6 +9,7 @@ enum SettingKey {
   neuralVoicePath,
   llmModel,
   llmApiKey,
+  searchProvider,
   searchApiKey,
   searxngUrl,
   wakeWordEnabled,

@@ -159,6 +159,26 @@ class SettingsScreen extends ConsumerWidget {
                   obscure: true,
                   onSubmitted: notifier.setLlmApiKey,
                 ),
+                // Which search backend the key below belongs to.
+                ListTile(
+                  title: Text(
+                    Strings.searchProviderLabel(lang),
+                    style: const TextStyle(color: DesignTokens.ink),
+                  ),
+                  trailing: DropdownButton<String>(
+                    value: settings.searchProvider,
+                    dropdownColor: const Color(0xFF1a2537),
+                    style: const TextStyle(color: DesignTokens.ink),
+                    underline: const SizedBox.shrink(),
+                    items: const [
+                      DropdownMenuItem(value: 'tavily', child: Text('Tavily')),
+                      DropdownMenuItem(value: 'brave', child: Text('Brave')),
+                    ],
+                    onChanged: (v) {
+                      if (v != null) notifier.setSearchProvider(v);
+                    },
+                  ),
+                ),
                 SettingsTextTile(
                   label: Strings.searchApiKey(lang),
                   value: settings.searchApiKey,

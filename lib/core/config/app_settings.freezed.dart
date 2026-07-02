@@ -25,6 +25,7 @@ mixin _$AppSettings {
   String get neuralVoicePath => throw _privateConstructorUsedError;
   String get llmModel => throw _privateConstructorUsedError;
   String get llmApiKey => throw _privateConstructorUsedError;
+  String get searchProvider => throw _privateConstructorUsedError;
   String get searchApiKey => throw _privateConstructorUsedError;
   String get searxngUrl => throw _privateConstructorUsedError;
   bool get wakeWordEnabled => throw _privateConstructorUsedError;
@@ -57,6 +58,7 @@ abstract class $AppSettingsCopyWith<$Res> {
     String neuralVoicePath,
     String llmModel,
     String llmApiKey,
+    String searchProvider,
     String searchApiKey,
     String searxngUrl,
     bool wakeWordEnabled,
@@ -91,6 +93,7 @@ class _$AppSettingsCopyWithImpl<$Res, $Val extends AppSettings>
     Object? neuralVoicePath = null,
     Object? llmModel = null,
     Object? llmApiKey = null,
+    Object? searchProvider = null,
     Object? searchApiKey = null,
     Object? searxngUrl = null,
     Object? wakeWordEnabled = null,
@@ -133,6 +136,10 @@ class _$AppSettingsCopyWithImpl<$Res, $Val extends AppSettings>
             llmApiKey: null == llmApiKey
                 ? _value.llmApiKey
                 : llmApiKey // ignore: cast_nullable_to_non_nullable
+                      as String,
+            searchProvider: null == searchProvider
+                ? _value.searchProvider
+                : searchProvider // ignore: cast_nullable_to_non_nullable
                       as String,
             searchApiKey: null == searchApiKey
                 ? _value.searchApiKey
@@ -190,6 +197,7 @@ abstract class _$$AppSettingsImplCopyWith<$Res>
     String neuralVoicePath,
     String llmModel,
     String llmApiKey,
+    String searchProvider,
     String searchApiKey,
     String searxngUrl,
     bool wakeWordEnabled,
@@ -223,6 +231,7 @@ class __$$AppSettingsImplCopyWithImpl<$Res>
     Object? neuralVoicePath = null,
     Object? llmModel = null,
     Object? llmApiKey = null,
+    Object? searchProvider = null,
     Object? searchApiKey = null,
     Object? searxngUrl = null,
     Object? wakeWordEnabled = null,
@@ -265,6 +274,10 @@ class __$$AppSettingsImplCopyWithImpl<$Res>
         llmApiKey: null == llmApiKey
             ? _value.llmApiKey
             : llmApiKey // ignore: cast_nullable_to_non_nullable
+                  as String,
+        searchProvider: null == searchProvider
+            ? _value.searchProvider
+            : searchProvider // ignore: cast_nullable_to_non_nullable
                   as String,
         searchApiKey: null == searchApiKey
             ? _value.searchApiKey
@@ -315,6 +328,7 @@ class _$AppSettingsImpl implements _AppSettings {
     required this.neuralVoicePath,
     required this.llmModel,
     required this.llmApiKey,
+    required this.searchProvider,
     required this.searchApiKey,
     required this.searxngUrl,
     required this.wakeWordEnabled,
@@ -342,6 +356,8 @@ class _$AppSettingsImpl implements _AppSettings {
   @override
   final String llmApiKey;
   @override
+  final String searchProvider;
+  @override
   final String searchApiKey;
   @override
   final String searxngUrl;
@@ -360,7 +376,7 @@ class _$AppSettingsImpl implements _AppSettings {
 
   @override
   String toString() {
-    return 'AppSettings(voiceRate: $voiceRate, voicePitch: $voicePitch, voiceLanguage: $voiceLanguage, neuralVoiceEnabled: $neuralVoiceEnabled, neuralVoiceInstalled: $neuralVoiceInstalled, neuralVoicePath: $neuralVoicePath, llmModel: $llmModel, llmApiKey: $llmApiKey, searchApiKey: $searchApiKey, searxngUrl: $searxngUrl, wakeWordEnabled: $wakeWordEnabled, wakeWord: $wakeWord, wakeWordSensitivity: $wakeWordSensitivity, navListenerEnabled: $navListenerEnabled, autoBrightnessEnabled: $autoBrightnessEnabled, hapticsEnabled: $hapticsEnabled)';
+    return 'AppSettings(voiceRate: $voiceRate, voicePitch: $voicePitch, voiceLanguage: $voiceLanguage, neuralVoiceEnabled: $neuralVoiceEnabled, neuralVoiceInstalled: $neuralVoiceInstalled, neuralVoicePath: $neuralVoicePath, llmModel: $llmModel, llmApiKey: $llmApiKey, searchProvider: $searchProvider, searchApiKey: $searchApiKey, searxngUrl: $searxngUrl, wakeWordEnabled: $wakeWordEnabled, wakeWord: $wakeWord, wakeWordSensitivity: $wakeWordSensitivity, navListenerEnabled: $navListenerEnabled, autoBrightnessEnabled: $autoBrightnessEnabled, hapticsEnabled: $hapticsEnabled)';
   }
 
   @override
@@ -384,6 +400,8 @@ class _$AppSettingsImpl implements _AppSettings {
                 other.llmModel == llmModel) &&
             (identical(other.llmApiKey, llmApiKey) ||
                 other.llmApiKey == llmApiKey) &&
+            (identical(other.searchProvider, searchProvider) ||
+                other.searchProvider == searchProvider) &&
             (identical(other.searchApiKey, searchApiKey) ||
                 other.searchApiKey == searchApiKey) &&
             (identical(other.searxngUrl, searxngUrl) ||
@@ -413,6 +431,7 @@ class _$AppSettingsImpl implements _AppSettings {
     neuralVoicePath,
     llmModel,
     llmApiKey,
+    searchProvider,
     searchApiKey,
     searxngUrl,
     wakeWordEnabled,
@@ -442,6 +461,7 @@ abstract class _AppSettings implements AppSettings {
     required final String neuralVoicePath,
     required final String llmModel,
     required final String llmApiKey,
+    required final String searchProvider,
     required final String searchApiKey,
     required final String searxngUrl,
     required final bool wakeWordEnabled,
@@ -468,6 +488,8 @@ abstract class _AppSettings implements AppSettings {
   String get llmModel;
   @override
   String get llmApiKey;
+  @override
+  String get searchProvider;
   @override
   String get searchApiKey;
   @override

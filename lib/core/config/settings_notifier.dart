@@ -53,6 +53,11 @@ class SettingsNotifier extends Notifier<AppSettings> {
     state = state.copyWith(llmApiKey: v);
   }
 
+  Future<void> setSearchProvider(String v) async {
+    await _store.setString(SettingKey.searchProvider, v);
+    state = state.copyWith(searchProvider: v);
+  }
+
   Future<void> setSearchApiKey(String v) async {
     await _store.setString(SettingKey.searchApiKey, v);
     state = state.copyWith(searchApiKey: v);

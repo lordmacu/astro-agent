@@ -78,6 +78,8 @@ abstract final class Strings {
 
   static String llmApiKey(AppLang l) =>
       _pick(l, en: 'LLM API key', es: 'API key del LLM');
+  static String searchProviderLabel(AppLang l) =>
+      _pick(l, en: 'Search provider', es: 'Proveedor de búsqueda');
   static String searchApiKey(AppLang l) =>
       _pick(l, en: 'Web search API key', es: 'API key de búsqueda web');
   static String searxngUrl(AppLang l) => _pick(

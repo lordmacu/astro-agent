@@ -50,6 +50,7 @@ import 'tools/web_search/providers/duckduckgo_provider.dart';
 import 'tools/web_search/providers/searxng_provider.dart';
 import 'tools/web_search/providers/fallback_provider.dart';
 import 'tools/web_search/providers/minimax_provider.dart';
+import 'tools/web_search/providers/brave_provider.dart';
 import 'tools/web_search/providers/tavily_provider.dart';
 import 'tools/web_search/web_search_provider.dart';
 import 'tools/web_search/web_search_tool.dart';
@@ -116,8 +117,16 @@ WebSearchProvider _buildSearchProvider(Ref ref, String llmProviderId) {
     final key = _miniMaxKey(ref);
     if (key.isNotEmpty) providers.add(MiniMaxSearchProvider(apiKey: key));
   } else {
-    final tavily = _searchKey(ref);
-    if (tavily.isNotEmpty) providers.add(TavilyProvider(apiKey: tavily));
+    final key = _searchKey(ref);
+    if (key.isNotEmpty) {
+      // The entered key belongs to the provider the user picked in Settings.
+      final which = ref.read(settingsProvider.select((s) => s.searchProvider));
+      providers.add(
+        which == 'brave'
+            ? BraveProvider(apiKey: key)
+            : TavilyProvider(apiKey: key),
+      );
+    }
   }
 
   // 2. SearXNG (keyless) when a base URL is configured.
