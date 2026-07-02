@@ -220,6 +220,13 @@ class _AstroPainter extends CustomPainter {
         sy = 1.08;
       case Mood.arrival:
         dy = -9 * math.sin(_tau * t * 2).abs(); // happy hops
+      case Mood.dizzy:
+        // Shaken silly: fast wobble side to side + a woozy rock and jitter.
+        dx = 4.5 * math.sin(_tau * t * 14);
+        dy = 2.5 * math.sin(_tau * t * 11);
+        rot += (14 * math.sin(_tau * t * 7)) * math.pi / 180;
+        sx = 1.05;
+        sy = 0.95;
       case Mood.pet:
         rot += (3 * math.sin(_tau * t)) * math.pi / 180;
       case Mood.sleep:

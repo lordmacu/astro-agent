@@ -12,6 +12,7 @@ class NewsTool extends AstroTool {
     required Future<List<NewsHeadline>> Function(String? query, AppLang lang)
     fetch,
     AppLang Function() lang = _defaultLang,
+    this.summaryLimit = 4,
   }) : _fetch = fetch,
        _lang = lang;
 
@@ -19,6 +20,11 @@ class NewsTool extends AstroTool {
 
   final Future<List<NewsHeadline>> Function(String? query, AppLang lang) _fetch;
   final AppLang Function() _lang;
+
+  /// How many headlines to put in the MODEL payload (the on-screen panel still
+  /// shows every fetched headline). Keeps the summary short so Astro starts
+  /// speaking sooner.
+  final int summaryLimit;
 
   @override
   String get name => 'noticias';
@@ -55,11 +61,12 @@ class NewsTool extends AstroTool {
     // Keep the model payload lean so the context doesn't balloon: title plus
     // its source (so the model can attribute a story), with long headlines
     // trimmed. The on-screen panel shows the links. Enough to summarize aloud.
+    final forModel = items.take(summaryLimit).toList();
     final buffer = StringBuffer();
-    for (var i = 0; i < items.length; i++) {
-      final title = items[i].title.trim();
+    for (var i = 0; i < forModel.length; i++) {
+      final title = forModel[i].title.trim();
       final short = title.length > 90 ? '${title.substring(0, 89)}…' : title;
-      final source = items[i].source.trim();
+      final source = forModel[i].source.trim();
       buffer.writeln(
         source.isEmpty ? '${i + 1}. $short' : '${i + 1}. $short — $source',
       );

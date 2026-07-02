@@ -47,6 +47,9 @@ class AppState with _$AppState {
     /// continuous lean into curves.
     @Default(0.0) double yawRate,
 
+    /// True while the phone is being shaken (just for fun → the dizzy mood).
+    @Default(false) bool shaking,
+
     // --- Speed (GPS, fused with the accelerometer between fixes) ---
     @Default(0.0) double speedKmh,
 

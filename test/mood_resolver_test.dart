@@ -2,6 +2,7 @@ import 'package:astro/core/config/thresholds.dart';
 import 'package:astro/core/state/app_state.dart';
 import 'package:astro/core/state/mood.dart';
 import 'package:astro/core/state/mood_resolver.dart';
+import 'package:astro/core/state/speech_line.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -266,6 +267,39 @@ void main() {
         const AppState(turnDirection: TurnDirection.right, turnDistanceM: 300),
       );
       expect(state.turnImminent, isFalse);
+    });
+  });
+
+  group('shake makes Astro dizzy (just for fun)', () {
+    test('shaking is dizzy in normal mode', () {
+      expect(moodOf(const AppState(shaking: true)), Mood.dizzy);
+    });
+
+    test('shaking is dizzy in car mode too', () {
+      expect(carMoodOf(const AppState(shaking: true)), Mood.dizzy);
+    });
+
+    test('the brain still tops a shake (no cutting off a reply)', () {
+      expect(
+        moodOf(const AppState(shaking: true, agentPhase: AgentPhase.answering)),
+        Mood.answering,
+      );
+    });
+
+    test('a shake beats a caress and driving reactions', () {
+      expect(
+        carMoodOf(const AppState(shaking: true, proximityNear: true)),
+        Mood.dizzy,
+      );
+      expect(
+        carMoodOf(const AppState(shaking: true, verticalG: 0.9)),
+        Mood.dizzy,
+      );
+    });
+
+    test('the dizzy mood says the dizzy line', () {
+      final state = resolver.resolve(const AppState(shaking: true));
+      expect(state.line, SpeechLine.dizzy);
     });
   });
 }

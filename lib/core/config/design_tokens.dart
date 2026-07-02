@@ -29,6 +29,7 @@ abstract final class DesignTokens {
     Mood.sleep: Color(0xFF9FB0C7),
     Mood.arrival: Color(0xFF5FD97A),
     Mood.surprised: Color(0xFFFFD166),
+    Mood.dizzy: Color(0xFFFF6AD5), // wild pink — shaken silly
   };
 }
 

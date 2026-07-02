@@ -32,7 +32,11 @@ class MoodResolver {
     if (s.agentPhase == AgentPhase.thinking) return Mood.thinking;
     if (s.agentPhase == AgentPhase.answering) return Mood.answering;
 
-    // 2. Caress.
+    // 2. Shake (just for fun): a good shake makes Astro dizzy, in any mode.
+    //    Below the brain so it never cuts off a conversation.
+    if (s.shaking) return Mood.dizzy;
+
+    // 3. Caress.
     if (s.proximityNear) return Mood.pet;
 
     // Normal mode: skip every driving reaction below. Astro is a desk / handheld
@@ -106,6 +110,8 @@ class MoodResolver {
         return SpeechLine.faultCode;
       case Mood.arrival:
         return SpeechLine.arrived;
+      case Mood.dizzy:
+        return SpeechLine.dizzy;
       case Mood.sleep:
       case Mood.surprised:
       case Mood.thinking:

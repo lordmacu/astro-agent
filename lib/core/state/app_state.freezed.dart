@@ -42,7 +42,10 @@ mixin _$AppState {
 
   /// Turn rate about the vertical axis (rad/s) from the gyroscope. Drives the
   /// continuous lean into curves.
-  double get yawRate =>
+  double get yawRate => throw _privateConstructorUsedError;
+
+  /// True while the phone is being shaken (just for fun → the dizzy mood).
+  bool get shaking =>
       throw _privateConstructorUsedError; // --- Speed (GPS, fused with the accelerometer between fixes) ---
   double get speedKmh =>
       throw _privateConstructorUsedError; // --- Navigation (optional) ---
@@ -78,6 +81,7 @@ abstract class $AppStateCopyWith<$Res> {
     double verticalG,
     double lateralG,
     double yawRate,
+    bool shaking,
     double speedKmh,
     bool arrived,
     TurnDirection turnDirection,
@@ -113,6 +117,7 @@ class _$AppStateCopyWithImpl<$Res, $Val extends AppState>
     Object? verticalG = null,
     Object? lateralG = null,
     Object? yawRate = null,
+    Object? shaking = null,
     Object? speedKmh = null,
     Object? arrived = null,
     Object? turnDirection = null,
@@ -166,6 +171,10 @@ class _$AppStateCopyWithImpl<$Res, $Val extends AppState>
                 ? _value.yawRate
                 : yawRate // ignore: cast_nullable_to_non_nullable
                       as double,
+            shaking: null == shaking
+                ? _value.shaking
+                : shaking // ignore: cast_nullable_to_non_nullable
+                      as bool,
             speedKmh: null == speedKmh
                 ? _value.speedKmh
                 : speedKmh // ignore: cast_nullable_to_non_nullable
@@ -217,6 +226,7 @@ abstract class _$$AppStateImplCopyWith<$Res>
     double verticalG,
     double lateralG,
     double yawRate,
+    bool shaking,
     double speedKmh,
     bool arrived,
     TurnDirection turnDirection,
@@ -251,6 +261,7 @@ class __$$AppStateImplCopyWithImpl<$Res>
     Object? verticalG = null,
     Object? lateralG = null,
     Object? yawRate = null,
+    Object? shaking = null,
     Object? speedKmh = null,
     Object? arrived = null,
     Object? turnDirection = null,
@@ -304,6 +315,10 @@ class __$$AppStateImplCopyWithImpl<$Res>
             ? _value.yawRate
             : yawRate // ignore: cast_nullable_to_non_nullable
                   as double,
+        shaking: null == shaking
+            ? _value.shaking
+            : shaking // ignore: cast_nullable_to_non_nullable
+                  as bool,
         speedKmh: null == speedKmh
             ? _value.speedKmh
             : speedKmh // ignore: cast_nullable_to_non_nullable
@@ -348,6 +363,7 @@ class _$AppStateImpl implements _AppState {
     this.verticalG = 0.0,
     this.lateralG = 0.0,
     this.yawRate = 0.0,
+    this.shaking = false,
     this.speedKmh = 0.0,
     this.arrived = false,
     this.turnDirection = TurnDirection.none,
@@ -400,6 +416,11 @@ class _$AppStateImpl implements _AppState {
   @override
   @JsonKey()
   final double yawRate;
+
+  /// True while the phone is being shaken (just for fun → the dizzy mood).
+  @override
+  @JsonKey()
+  final bool shaking;
   // --- Speed (GPS, fused with the accelerometer between fixes) ---
   @override
   @JsonKey()
@@ -424,7 +445,7 @@ class _$AppStateImpl implements _AppState {
 
   @override
   String toString() {
-    return 'AppState(agentPhase: $agentPhase, activeToolName: $activeToolName, carMode: $carMode, proximityNear: $proximityNear, dtcPresent: $dtcPresent, coolantTempC: $coolantTempC, rpm: $rpm, longitudinalG: $longitudinalG, verticalG: $verticalG, lateralG: $lateralG, yawRate: $yawRate, speedKmh: $speedKmh, arrived: $arrived, turnDirection: $turnDirection, turnDistanceM: $turnDistanceM, stillFor: $stillFor, lux: $lux)';
+    return 'AppState(agentPhase: $agentPhase, activeToolName: $activeToolName, carMode: $carMode, proximityNear: $proximityNear, dtcPresent: $dtcPresent, coolantTempC: $coolantTempC, rpm: $rpm, longitudinalG: $longitudinalG, verticalG: $verticalG, lateralG: $lateralG, yawRate: $yawRate, shaking: $shaking, speedKmh: $speedKmh, arrived: $arrived, turnDirection: $turnDirection, turnDistanceM: $turnDistanceM, stillFor: $stillFor, lux: $lux)';
   }
 
   @override
@@ -451,6 +472,7 @@ class _$AppStateImpl implements _AppState {
             (identical(other.lateralG, lateralG) ||
                 other.lateralG == lateralG) &&
             (identical(other.yawRate, yawRate) || other.yawRate == yawRate) &&
+            (identical(other.shaking, shaking) || other.shaking == shaking) &&
             (identical(other.speedKmh, speedKmh) ||
                 other.speedKmh == speedKmh) &&
             (identical(other.arrived, arrived) || other.arrived == arrived) &&
@@ -477,6 +499,7 @@ class _$AppStateImpl implements _AppState {
     verticalG,
     lateralG,
     yawRate,
+    shaking,
     speedKmh,
     arrived,
     turnDirection,
@@ -507,6 +530,7 @@ abstract class _AppState implements AppState {
     final double verticalG,
     final double lateralG,
     final double yawRate,
+    final bool shaking,
     final double speedKmh,
     final bool arrived,
     final TurnDirection turnDirection,
@@ -547,7 +571,11 @@ abstract class _AppState implements AppState {
   /// Turn rate about the vertical axis (rad/s) from the gyroscope. Drives the
   /// continuous lean into curves.
   @override
-  double get yawRate; // --- Speed (GPS, fused with the accelerometer between fixes) ---
+  double get yawRate;
+
+  /// True while the phone is being shaken (just for fun → the dizzy mood).
+  @override
+  bool get shaking; // --- Speed (GPS, fused with the accelerometer between fixes) ---
   @override
   double get speedKmh; // --- Navigation (optional) ---
   @override

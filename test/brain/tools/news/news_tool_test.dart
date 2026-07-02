@@ -31,6 +31,21 @@ void main() {
     expect(result.content, contains('2. Sin fuente'));
   });
 
+  test(
+    'summarizes only the first 4 headlines (panel shows the rest)',
+    () async {
+      final tool = NewsTool(
+        fetch: (q, l) async => [
+          for (var i = 1; i <= 6; i++)
+            NewsHeadline(title: 'Titular $i', source: 'F$i', url: 'u$i'),
+        ],
+      );
+      final result = await tool.run({});
+      expect(result.content, contains('4. Titular 4'));
+      expect(result.content, isNot(contains('5. Titular 5')));
+    },
+  );
+
   test('passes the query through to the fetch', () async {
     String? seen;
     final tool = NewsTool(

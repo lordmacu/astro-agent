@@ -18,6 +18,7 @@ enum Mood {
   lean,
   bump,
   pet,
+  dizzy,
   surprised,
   thinking,
   answering,

@@ -66,4 +66,16 @@ class Thresholds {
 
   /// Distance to the next maneuver below which attention is heightened.
   final double turnImminentM = 80.0;
+
+  // ── Shake (just for fun) ───────────────────────────────────────────────────
+  /// A single motion sample counts as a "jerk" when its gravity-free
+  /// acceleration magnitude exceeds this (well above ordinary bumps ~0.6g).
+  final double shakeG = 1.2;
+
+  /// Rolling window over which jerks are counted.
+  final Duration shakeWindow = const Duration(milliseconds: 1000);
+
+  /// Jerks within [shakeWindow] needed to call it a shake (so one bump doesn't
+  /// trigger it — it takes deliberate shaking).
+  final int shakeCount = 5;
 }

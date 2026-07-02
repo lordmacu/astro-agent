@@ -34,6 +34,10 @@ abstract final class SpeechCatalog {
       SpeechLang.en: 'We made it!',
       SpeechLang.es: '¡Llegamos!',
     },
+    SpeechLine.dizzy: {
+      SpeechLang.en: "Whoaa, stop shaking me, I'm dizzy!",
+      SpeechLang.es: '¡Ayyy, deja de moverme que me mareo!',
+    },
   };
 
   /// The text for a line in the given language, falling back to English.

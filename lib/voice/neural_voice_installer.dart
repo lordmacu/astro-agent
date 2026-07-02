@@ -96,7 +96,9 @@ class NeuralVoiceInstaller {
       final marker = File('${modelDir.path}/.ready');
       debugPrint('$_tag install() → target=${modelDir.path}');
       if (marker.existsSync()) {
-        debugPrint('$_tag already installed (.ready present), skipping download');
+        debugPrint(
+          '$_tag already installed (.ready present), skipping download',
+        );
         _emit(Installed(modelDir.path));
         await _onInstalled(modelDir.path);
         return;
@@ -132,7 +134,9 @@ class NeuralVoiceInstaller {
       _emit(Installed(modelDir.path));
       await _onInstalled(modelDir.path);
     } catch (e, st) {
-      debugPrint('$_tag ✗ install failed after ${sw.elapsedMilliseconds}ms: $e');
+      debugPrint(
+        '$_tag ✗ install failed after ${sw.elapsedMilliseconds}ms: $e',
+      );
       debugPrint('$_tag stack: $st');
       _emit(InstallError('$e'));
     }
@@ -150,8 +154,10 @@ class NeuralVoiceInstaller {
         return await _downloadOne(url).timeout(_timeout);
       } on TimeoutException catch (e) {
         lastError = e;
-        debugPrint('$_tag source ${i + 1} TIMED OUT after '
-            '${_timeout.inSeconds}s: $url');
+        debugPrint(
+          '$_tag source ${i + 1} TIMED OUT after '
+          '${_timeout.inSeconds}s: $url',
+        );
         _emit(const Installing(-1)); // reset the bar for the next try
       } catch (e) {
         lastError = e;
@@ -159,7 +165,9 @@ class NeuralVoiceInstaller {
         _emit(const Installing(-1)); // reset the bar for the next try
       }
     }
-    debugPrint('$_tag all ${urls.length} sources failed; last error: $lastError');
+    debugPrint(
+      '$_tag all ${urls.length} sources failed; last error: $lastError',
+    );
     throw lastError;
   }
 
@@ -167,8 +175,10 @@ class NeuralVoiceInstaller {
     final request = http.Request('GET', Uri.parse(url));
     final response = await _client.send(request);
     final total = response.contentLength ?? -1;
-    debugPrint('$_tag HTTP ${response.statusCode} '
-        '(size=${total >= 0 ? '$total bytes' : 'unknown'}) ← $url');
+    debugPrint(
+      '$_tag HTTP ${response.statusCode} '
+      '(size=${total >= 0 ? '$total bytes' : 'unknown'}) ← $url',
+    );
     if (response.statusCode != 200) {
       throw HttpException('download failed: HTTP ${response.statusCode}');
     }

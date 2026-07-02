@@ -12,8 +12,9 @@ Future<void> main() async {
   // Use the bundled SQLite (sqlite3_flutter_libs) via ffi, so FTS5 is available
   // for memory even on devices whose system SQLite lacks it.
   sqfliteFfiInit();
-  // Load .env (API keys) so any launch works without --dart-define. Missing or
-  // malformed is fine — the app runs with canned replies until a key is set.
+  // Best-effort local-dev .env read. `.env` is NOT a bundled asset (that would
+  // ship the key inside the APK/AAB), so on-device this finds nothing and we
+  // fall back to --dart-define / in-app Settings. Missing or malformed is fine.
   try {
     await dotenv.load(fileName: '.env');
   } catch (_) {}
