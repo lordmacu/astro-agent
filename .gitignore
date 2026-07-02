@@ -53,3 +53,6 @@ nexo-rs/
 # Secrets and build artifacts (do not commit)
 .env
 /android/build/
+
+# Neural TTS model zip — downloaded at runtime, not bundled (65MB).
+assets/tts/*.zip
