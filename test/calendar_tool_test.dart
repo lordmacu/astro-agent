@@ -3,6 +3,7 @@ import 'package:astro/brain/llm/llm_client.dart';
 import 'package:astro/brain/llm/llm_message.dart';
 import 'package:astro/brain/tools/calendar_tool.dart';
 import 'package:astro/brain/tools/tool_registry.dart';
+import 'package:astro/core/l10n/app_lang.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Records what the tool asked to create, and returns a scripted result.
@@ -92,6 +93,18 @@ void main() {
         'start': '2026-07-02T09:00',
       });
       expect(result.content.toLowerCase(), contains('no pude'));
+    });
+
+    test('the result language follows the injected AppLang', () async {
+      final tool = CalendarTool(
+        createEvent: FakeCreator().create,
+        lang: () => AppLang.en,
+      );
+      final result = await tool.run({
+        'title': 'Dentist',
+        'start': '2026-07-02T18:30',
+      });
+      expect(result.content, 'Done, I scheduled "Dentist".');
     });
   });
 

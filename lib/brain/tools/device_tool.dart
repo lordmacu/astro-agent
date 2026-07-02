@@ -1,3 +1,5 @@
+import '../../core/l10n/app_lang.dart';
+import '../../core/l10n/strings.dart';
 import 'astro_tool.dart';
 
 /// Controls low-stakes phone hardware: screen brightness, media volume, and the
@@ -12,16 +14,21 @@ class DeviceTool extends AstroTool {
     required Future<void> Function(int direction) nudgeVolume,
     required Future<void> Function(bool on) setTorch,
     Future<bool> Function(String appName)? openApp,
+    AppLang Function() lang = _defaultLang,
   }) : _setBrightness = setBrightness,
        _setVolume = setVolume,
        _nudgeVolume = nudgeVolume,
        _setTorch = setTorch,
-       _openApp = openApp;
+       _openApp = openApp,
+       _lang = lang;
+
+  static AppLang _defaultLang() => AppLang.es;
 
   final Future<void> Function(double value01) _setBrightness;
   final Future<void> Function(double value01) _setVolume;
   final Future<void> Function(int direction) _nudgeVolume;
   final Future<void> Function(bool on) _setTorch;
+  final AppLang Function() _lang;
 
   /// Launch an installed app by name; null when unavailable (e.g. in tests).
   final Future<bool> Function(String appName)? _openApp;
@@ -76,34 +83,34 @@ class DeviceTool extends AstroTool {
           final level = _level(args);
           if (level == null) return const ToolResult.error('need level 0-100');
           await _setBrightness(level / 100);
-          return ToolResult('Brillo en $level%.');
+          return ToolResult(Strings.brightnessSet(level, _lang()));
         case 'set_volume':
           final level = _level(args);
           if (level == null) return const ToolResult.error('need level 0-100');
           await _setVolume(level / 100);
-          return ToolResult('Volumen en $level%.');
+          return ToolResult(Strings.volumeSet(level, _lang()));
         case 'volume_up':
           await _nudgeVolume(1);
-          return const ToolResult('Subí el volumen.');
+          return ToolResult(Strings.volumeUp(_lang()));
         case 'volume_down':
           await _nudgeVolume(-1);
-          return const ToolResult('Bajé el volumen.');
+          return ToolResult(Strings.volumeDown(_lang()));
         case 'flashlight_on':
           await _setTorch(true);
-          return const ToolResult('Linterna encendida.');
+          return ToolResult(Strings.flashlightOn(_lang()));
         case 'flashlight_off':
           await _setTorch(false);
-          return const ToolResult('Linterna apagada.');
+          return ToolResult(Strings.flashlightOff(_lang()));
         default: // open_app
           final app = (args['app'] as String?)?.trim() ?? '';
           if (app.isEmpty) return const ToolResult.error('need an app name');
           if (_openApp == null) {
-            return const ToolResult('No puedo abrir apps en este dispositivo.');
+            return ToolResult(Strings.cantOpenApps(_lang()));
           }
           final opened = await _openApp(app);
           return opened
-              ? ToolResult('Abriendo $app.')
-              : ToolResult('No encontré la app "$app".');
+              ? ToolResult(Strings.openingApp(app, _lang()))
+              : ToolResult(Strings.appNotFound(app, _lang()));
       }
     } catch (_) {
       return const ToolResult.error('the device rejected that');

@@ -95,7 +95,10 @@ void main() {
 
   group('bestEmailMatches', () {
     final emails = [
-      const EmailCandidate(name: 'Juan Carlos Pérez', email: 'juancp@gmail.com'),
+      const EmailCandidate(
+        name: 'Juan Carlos Pérez',
+        email: 'juancp@gmail.com',
+      ),
       const EmailCandidate(name: 'Mi Esposa ❤️', email: 'ana@work.co'),
       const EmailCandidate(name: 'Trabajo', email: 'info@empresa.com'),
     ];

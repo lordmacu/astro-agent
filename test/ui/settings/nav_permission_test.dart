@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:astro/core/config/settings_providers.dart';
+import 'package:astro/core/l10n/app_lang.dart';
+import 'package:astro/core/l10n/lang_provider.dart';
 import 'package:astro/sensors/navigation/nav_service.dart';
 import 'package:astro/ui/settings/settings_screen.dart';
 
@@ -25,6 +27,7 @@ void main() {
       ProviderScope(
         overrides: [
           sharedPreferencesProvider.overrideWithValue(prefs),
+          deviceLangProvider.overrideWithValue(AppLang.es),
           navControlProvider.overrideWithValue(fake),
         ],
         child: const MaterialApp(home: SettingsScreen()),
@@ -56,6 +59,7 @@ void main() {
         ProviderScope(
           overrides: [
             sharedPreferencesProvider.overrideWithValue(prefs),
+            deviceLangProvider.overrideWithValue(AppLang.es),
             navControlProvider.overrideWithValue(fake),
             // Override the permission provider directly to resolve immediately.
             navPermissionProvider.overrideWith((_) async => false),
@@ -91,6 +95,7 @@ void main() {
         ProviderScope(
           overrides: [
             sharedPreferencesProvider.overrideWithValue(prefs),
+            deviceLangProvider.overrideWithValue(AppLang.es),
             navControlProvider.overrideWithValue(fake),
             navPermissionProvider.overrideWith((_) async => true),
           ],

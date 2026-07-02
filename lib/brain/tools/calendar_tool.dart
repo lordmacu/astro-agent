@@ -1,3 +1,5 @@
+import '../../core/l10n/app_lang.dart';
+import '../../core/l10n/strings.dart';
 import 'astro_tool.dart';
 
 /// Creates an event / reminder in the phone calendar. Low-risk on explicit
@@ -12,7 +14,11 @@ class CalendarTool extends AstroTool {
       required Duration reminder,
     })
     createEvent,
-  }) : _createEvent = createEvent;
+    AppLang Function() lang = _defaultLang,
+  }) : _createEvent = createEvent,
+       _lang = lang;
+
+  static AppLang _defaultLang() => AppLang.es;
 
   final Future<bool> Function({
     required String title,
@@ -21,6 +27,7 @@ class CalendarTool extends AstroTool {
     required Duration reminder,
   })
   _createEvent;
+  final AppLang Function() _lang;
 
   @override
   String get name => 'calendar';
@@ -77,7 +84,7 @@ class CalendarTool extends AstroTool {
       reminder: reminder,
     );
     return ok
-        ? ToolResult('Listo, agendé "$title".')
-        : const ToolResult('No pude crear el evento en el calendario.');
+        ? ToolResult(Strings.eventCreated(title, _lang()))
+        : ToolResult(Strings.eventCreateFailed(_lang()));
   }
 }

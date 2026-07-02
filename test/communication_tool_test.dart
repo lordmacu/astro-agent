@@ -1,4 +1,5 @@
 import 'package:astro/brain/tools/communication_tool.dart';
+import 'package:astro/core/l10n/app_lang.dart';
 import 'package:astro/platform/email_reader.dart';
 import 'package:astro/platform/notifications_reader.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -50,16 +51,18 @@ class Fakes {
       notifs;
 }
 
-CommunicationTool _tool(Fakes f) => CommunicationTool(
-  emailConfigured: () async => f.configured,
-  sendEmail: f.send,
-  composeEmail: f.compose,
-  resolveEmail: f.resolve,
-  emailCanRead: () async => f.canRead,
-  readEmail: f.readEmail,
-  openMailApp: f.openMail,
-  readNotifications: f.readNotifs,
-);
+CommunicationTool _tool(Fakes f, {AppLang Function()? lang}) =>
+    CommunicationTool(
+      emailConfigured: () async => f.configured,
+      sendEmail: f.send,
+      composeEmail: f.compose,
+      resolveEmail: f.resolve,
+      emailCanRead: () async => f.canRead,
+      readEmail: f.readEmail,
+      openMailApp: f.openMail,
+      readNotifications: f.readNotifs,
+      lang: lang ?? () => AppLang.es,
+    );
 
 void main() {
   group('CommunicationTool', () {
@@ -97,6 +100,17 @@ void main() {
       expect(f.sends, 1);
       expect(f.sentTo, 'ana@example.com');
       expect(result.content, contains('ana@example.com'));
+    });
+
+    test('the result language follows the injected AppLang', () async {
+      final f = Fakes()..configured = true;
+      final result = await _tool(f, lang: () => AppLang.en).run({
+        'action': 'enviar_correo',
+        'to': 'ana@example.com',
+        'subject': 'Hi',
+        'body': 'Hey',
+      });
+      expect(result.content, 'Done, I sent the email to ana@example.com.');
     });
 
     test(

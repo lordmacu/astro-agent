@@ -1,4 +1,5 @@
 import 'package:astro/brain/tools/map_tool.dart';
+import 'package:astro/core/l10n/app_lang.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class Fake {
@@ -67,6 +68,20 @@ void main() {
         f,
       ).run({'action': 'navigate', 'destination': 'x'});
       expect(result.content.toLowerCase(), contains('no pude'));
+    });
+
+    test('the result language follows the injected AppLang', () async {
+      final f = Fake();
+      final tool = MapTool(
+        navigate: f.navigate,
+        nearby: f.nearby,
+        lang: () => AppLang.en,
+      );
+      final result = await tool.run({
+        'action': 'navigate',
+        'destination': 'home',
+      });
+      expect(result.content, 'Navigating to home.');
     });
   });
 }

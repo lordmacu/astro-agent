@@ -1,3 +1,5 @@
+import '../../core/l10n/app_lang.dart';
+import '../../core/l10n/strings.dart';
 import 'astro_tool.dart';
 
 /// Places calls and sends messages (WhatsApp or SMS). Contact resolution and the
@@ -10,14 +12,19 @@ class PhoneTool extends AstroTool {
     required Future<bool> Function(String number) call,
     required Future<bool> Function(String number, String text, bool viaWhatsApp)
     message,
+    AppLang Function() lang = _defaultLang,
   }) : _resolve = resolveContact,
        _call = call,
-       _message = message;
+       _message = message,
+       _lang = lang;
+
+  static AppLang _defaultLang() => AppLang.es;
 
   final Future<String?> Function(String name) _resolve;
   final Future<bool> Function(String number) _call;
   final Future<bool> Function(String number, String text, bool viaWhatsApp)
   _message;
+  final AppLang Function() _lang;
 
   @override
   bool get mutates => true;
@@ -67,15 +74,15 @@ class PhoneTool extends AstroTool {
         ? injected
         : await _numberFor(contact);
     if (number == null || number.isEmpty) {
-      return ToolResult('No encontré a $contact en tus contactos.');
+      return ToolResult(Strings.contactNotFound(contact, _lang()));
     }
 
     switch (action) {
       case 'call':
         final ok = await _call(number);
         return ok
-            ? ToolResult('Llamando a $contact.')
-            : const ToolResult('No pude hacer la llamada.');
+            ? ToolResult(Strings.callingNow(contact, _lang()))
+            : ToolResult(Strings.callFailed(_lang()));
       case 'message':
         final text = (args['text'] as String?)?.trim() ?? '';
         if (text.isEmpty) return const ToolResult.error('text is empty');
@@ -83,8 +90,8 @@ class PhoneTool extends AstroTool {
             (args['channel'] as String?)?.trim().toLowerCase() != 'sms';
         final ok = await _message(number, text, viaWhatsApp);
         return ok
-            ? ToolResult('Mensaje listo para $contact.')
-            : const ToolResult('No pude abrir el mensaje.');
+            ? ToolResult(Strings.messageReady(contact, _lang()))
+            : ToolResult(Strings.messageOpenFailed(_lang()));
       default:
         return ToolResult.error('unknown action: "$action"');
     }

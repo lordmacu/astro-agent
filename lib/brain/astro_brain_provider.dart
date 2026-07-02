@@ -10,6 +10,7 @@ import '../core/config/settings_resolver.dart';
 import '../core/config/tool_catalog.dart';
 import '../core/config/tool_prefs.dart';
 import '../core/l10n/app_lang.dart';
+import '../core/l10n/lang_provider.dart';
 import '../core/state/app_mode.dart';
 import '../core/state/app_state_provider.dart';
 import '../memory/long_term_memory.dart';
@@ -387,6 +388,7 @@ final astroBrainProvider = FutureProvider<AstroBrain>((ref) async {
                 reminder: reminder,
               );
             },
+        lang: () => ref.read(langProvider),
       ),
     )
     // Communication: send email (confirmed when SMTP sends), read email, read
@@ -421,6 +423,7 @@ final astroBrainProvider = FutureProvider<AstroBrain>((ref) async {
         openMailApp: actions.openEmailApp,
         readNotifications: ({required count}) =>
             const NotificationsReader().recent(count: count),
+        lang: () => ref.read(langProvider),
       ),
     )
     // Phone hardware: brightness + volume + flashlight + open apps.
@@ -432,10 +435,17 @@ final astroBrainProvider = FutureProvider<AstroBrain>((ref) async {
         nudgeVolume: media.nudgeVolume,
         setTorch: media.setTorch, // native CameraManager (reliable off)
         openApp: const AppLauncher().open,
+        lang: () => ref.read(langProvider),
       ),
     )
     // Maps: navigate to a place or find places nearby.
-    ..register(MapTool(navigate: actions.navigate, nearby: actions.nearby))
+    ..register(
+      MapTool(
+        navigate: actions.navigate,
+        nearby: actions.nearby,
+        lang: () => ref.read(langProvider),
+      ),
+    )
     // Current weather (empty place → current location).
     ..register(
       WeatherTool(
@@ -445,6 +455,7 @@ final astroBrainProvider = FutureProvider<AstroBrain>((ref) async {
               : place;
           return const WeatherService().summary(p);
         },
+        lang: () => ref.read(langProvider),
       ),
     )
     // Countdown timer / alarm.
@@ -457,6 +468,7 @@ final astroBrainProvider = FutureProvider<AstroBrain>((ref) async {
         resolveContact: actions.resolveContact,
         call: actions.call,
         message: actions.message,
+        lang: () => ref.read(langProvider),
       ),
     );
 

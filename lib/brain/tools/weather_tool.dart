@@ -1,13 +1,21 @@
+import '../../core/l10n/app_lang.dart';
+import '../../core/l10n/strings.dart';
 import 'astro_tool.dart';
 
 /// Tells the current weather for a place (temperature + conditions). Read-only.
 /// The lookup is injected, keeping the tool decoupled and testable; an empty
 /// place lets the wiring fall back to the current location.
 class WeatherTool extends AstroTool {
-  WeatherTool({required Future<String?> Function(String place) fetch})
-    : _fetch = fetch;
+  WeatherTool({
+    required Future<String?> Function(String place) fetch,
+    AppLang Function() lang = _defaultLang,
+  }) : _fetch = fetch,
+       _lang = lang;
+
+  static AppLang _defaultLang() => AppLang.es;
 
   final Future<String?> Function(String place) _fetch;
+  final AppLang Function() _lang;
 
   @override
   String get name => 'clima';
@@ -34,7 +42,7 @@ class WeatherTool extends AstroTool {
     final place = (args['place'] as String?)?.trim() ?? '';
     final summary = await _fetch(place);
     return summary == null
-        ? const ToolResult('No pude consultar el clima ahora.')
+        ? ToolResult(Strings.weatherUnavailable(_lang()))
         : ToolResult(summary);
   }
 }

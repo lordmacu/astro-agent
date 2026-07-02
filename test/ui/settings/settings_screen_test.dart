@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:astro/core/config/settings_providers.dart';
+import 'package:astro/core/l10n/app_lang.dart';
+import 'package:astro/core/l10n/lang_provider.dart';
 import 'package:astro/ui/settings/settings_screen.dart';
 
 void main() {
@@ -11,7 +13,10 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(prefs),
+          deviceLangProvider.overrideWithValue(AppLang.es),
+        ],
         child: const MaterialApp(home: SettingsScreen()),
       ),
     );
@@ -28,10 +33,16 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(prefs),
+          deviceLangProvider.overrideWithValue(AppLang.es),
+        ],
         child: const MaterialApp(home: SettingsScreen()),
       ),
     );
+    // Scroll to bring the AI section into view (it builds lazily in the list).
+    await tester.drag(find.byType(ListView), const Offset(0, -300));
+    await tester.pumpAndSettle();
     // The Modelo label should be present via a ListTile.
     expect(find.text('Modelo'), findsOneWidget);
     // The Modelo dropdown (inside its ListTile) should be present.
@@ -52,7 +63,10 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(prefs),
+          deviceLangProvider.overrideWithValue(AppLang.es),
+        ],
         child: const MaterialApp(home: SettingsScreen()),
       ),
     );
@@ -94,7 +108,10 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(prefs),
+          deviceLangProvider.overrideWithValue(AppLang.es),
+        ],
         child: const MaterialApp(home: SettingsScreen()),
       ),
     );
@@ -131,7 +148,10 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(prefs),
+          deviceLangProvider.overrideWithValue(AppLang.es),
+        ],
         child: const MaterialApp(home: SettingsScreen()),
       ),
     );
@@ -153,7 +173,10 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(prefs),
+          deviceLangProvider.overrideWithValue(AppLang.es),
+        ],
         child: const MaterialApp(home: SettingsScreen()),
       ),
     );

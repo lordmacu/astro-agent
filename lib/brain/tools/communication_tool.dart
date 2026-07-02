@@ -1,3 +1,5 @@
+import '../../core/l10n/app_lang.dart';
+import '../../core/l10n/strings.dart';
 import '../../platform/email_reader.dart';
 import '../../platform/notifications_reader.dart';
 import 'astro_tool.dart';
@@ -32,6 +34,7 @@ class CommunicationTool extends AstroTool {
     // --- read notifications ---
     required Future<List<NotificationSummary>> Function({required int count})
     readNotifications,
+    AppLang Function() lang = _defaultLang,
   }) : _emailConfigured = emailConfigured,
        _sendEmail = sendEmail,
        _composeEmail = composeEmail,
@@ -39,8 +42,12 @@ class CommunicationTool extends AstroTool {
        _emailCanRead = emailCanRead,
        _readEmail = readEmail,
        _openMailApp = openMailApp,
-       _readNotifications = readNotifications;
+       _readNotifications = readNotifications,
+       _lang = lang;
 
+  static AppLang _defaultLang() => AppLang.es;
+
+  final AppLang Function() _lang;
   final Future<bool> Function() _emailConfigured;
   final Future<bool> Function({
     required String to,
@@ -132,8 +139,8 @@ class CommunicationTool extends AstroTool {
     if (await _emailConfigured()) {
       final ok = await _sendEmail(to: to, subject: subject, body: body);
       return ok
-          ? ToolResult('Listo, envié el correo a $to.')
-          : const ToolResult('No pude enviar el correo.');
+          ? ToolResult(Strings.emailSent(to, _lang()))
+          : ToolResult(Strings.emailSendFailed(_lang()));
     }
 
     // No SMTP: resolve a spoken contact name to its saved address, then open a
@@ -151,20 +158,20 @@ class CommunicationTool extends AstroTool {
       body: body,
     );
     return opened
-        ? ToolResult('Abrí tu app de correo con el borrador para $recipient.')
-        : const ToolResult('No pude abrir tu app de correo.');
+        ? ToolResult(Strings.mailDraftOpened(recipient, _lang()))
+        : ToolResult(Strings.cantOpenMail(_lang()));
   }
 
   Future<ToolResult> _readEmailAction(Map<String, dynamic> args) async {
     if (!await _emailCanRead()) {
       final opened = await _openMailApp();
       return opened
-          ? const ToolResult('Abrí tu app de correo.')
-          : const ToolResult('No pude abrir tu app de correo.');
+          ? ToolResult(Strings.mailAppOpened(_lang()))
+          : ToolResult(Strings.cantOpenMail(_lang()));
     }
     final count = (args['count'] as num?)?.toInt() ?? 5;
     final emails = await _readEmail(count: count);
-    if (emails.isEmpty) return const ToolResult('No encontré correos.');
+    if (emails.isEmpty) return ToolResult(Strings.noEmailsFound(_lang()));
 
     final buffer = StringBuffer();
     for (var i = 0; i < emails.length; i++) {
@@ -179,10 +186,7 @@ class CommunicationTool extends AstroTool {
     final count = (args['count'] as num?)?.toInt() ?? 5;
     final items = await _readNotifications(count: count);
     if (items.isEmpty) {
-      return const ToolResult(
-        'No tengo notificaciones recientes. Si es raro, dale acceso a '
-        'notificaciones en ajustes.',
-      );
+      return ToolResult(Strings.noRecentNotifications(_lang()));
     }
     final buffer = StringBuffer();
     for (var i = 0; i < items.length; i++) {

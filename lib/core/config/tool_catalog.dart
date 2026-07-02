@@ -84,11 +84,7 @@ const List<ToolInfo> kToolCatalog = [
     permission: Permission.locationWhenInUse,
     permissionLabel: 'ubicación',
   ),
-  ToolInfo(
-    name: 'timer',
-    label: 'Temporizador',
-    subtitle: 'Timers y alarmas',
-  ),
+  ToolInfo(name: 'timer', label: 'Temporizador', subtitle: 'Timers y alarmas'),
   ToolInfo(
     name: 'phone',
     label: 'Llamadas',

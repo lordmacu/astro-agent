@@ -27,7 +27,9 @@ class ToolPrefs extends Notifier<Set<String>> {
     } else {
       next.add(name);
     }
-    await ref.read(sharedPreferencesProvider).setStringList(_key, next.toList());
+    await ref
+        .read(sharedPreferencesProvider)
+        .setStringList(_key, next.toList());
     state = next;
   }
 }

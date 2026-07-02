@@ -3,6 +3,7 @@ import 'package:astro/core/config/settings_providers.dart';
 import 'package:astro/core/state/app_mode.dart';
 import 'package:astro/core/state/app_state.dart';
 import 'package:astro/core/state/app_state_provider.dart';
+import 'package:astro/ui/astro_character.dart';
 import 'package:astro/voice/stt_provider.dart';
 import 'package:astro/voice/voice_interfaces.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -50,8 +51,8 @@ void main() {
     );
     await tester.pump();
 
-    // HUD renders with the speedometer unit and the resting event label.
+    // HUD renders with the speedometer unit, and the resting mood shows Astro.
     expect(find.text('km/h'), findsOneWidget);
-    expect(find.text('EN REPOSO'), findsOneWidget);
+    expect(find.byType(AstroCharacter), findsOneWidget);
   });
 }
