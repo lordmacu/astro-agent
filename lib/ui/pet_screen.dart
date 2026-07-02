@@ -131,9 +131,16 @@ class _PetScreenState extends ConsumerState<PetScreen> {
     if (settings.wakeWordEnabled) {
       _wake.start();
     }
-    // Download the offline STT model on start (once). Meanwhile the platform
-    // recognizer handles commands; Vosk takes over automatically when it lands.
-    if (settings.sttModelPath.isEmpty) {
+    // Download the offline STT model on start if it's missing OR its files are
+    // gone (a stale saved path — otherwise Vosk would fail forever with no
+    // re-download). Meanwhile the platform recognizer handles commands; Vosk
+    // takes over automatically once the model lands.
+    final sttPath = settings.sttModelPath;
+    final sttReady = sttPath.isNotEmpty && File('$sttPath/.ready').existsSync();
+    if (!sttReady) {
+      if (sttPath.isNotEmpty) {
+        unawaited(ref.read(settingsProvider.notifier).setSttModelPath(''));
+      }
       unawaited(ref.read(sttModelInstallerProvider).install());
     }
   }

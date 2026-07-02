@@ -44,13 +44,15 @@ class NeuralVoiceInstaller {
     required Future<void> Function(String path) onInstalled,
     String subdir = 'tts',
     List<String> fallbackUrls = const [],
+    Duration timeout = const Duration(seconds: 120),
   }) : _client = client,
        _modelUrl = modelUrl,
        _modelName = modelName,
        _supportDir = supportDir,
        _onInstalled = onInstalled,
        _subdir = subdir,
-       _fallbackUrls = fallbackUrls;
+       _fallbackUrls = fallbackUrls,
+       _timeout = timeout;
 
   final http.Client _client;
   final String _modelUrl;
@@ -61,6 +63,10 @@ class NeuralVoiceInstaller {
 
   /// Extra sources tried in order if [_modelUrl] fails.
   final List<String> _fallbackUrls;
+
+  /// Per-source cap; a hung connection becomes an error (→ next source / retry)
+  /// instead of a banner that spins forever.
+  final Duration _timeout;
 
   final _controller = StreamController<VoiceInstallState>.broadcast();
   Stream<VoiceInstallState> get state => _controller.stream;
@@ -108,7 +114,7 @@ class NeuralVoiceInstaller {
     Object lastError = const HttpException('no download sources');
     for (final url in urls) {
       try {
-        return await _downloadOne(url);
+        return await _downloadOne(url).timeout(_timeout);
       } catch (e) {
         lastError = e;
         _controller.add(const Installing(-1)); // reset the bar for the next try
@@ -124,14 +130,16 @@ class NeuralVoiceInstaller {
       throw HttpException('download failed: ${response.statusCode}');
     }
     final total = response.contentLength ?? -1;
-    final chunks = <int>[];
+    // BytesBuilder (not a growable List<int>) keeps memory near the file size
+    // instead of ~8x, which matters for a ~37MB model on low-end phones.
+    final builder = BytesBuilder(copy: false);
     var received = 0;
     await for (final chunk in response.stream) {
-      chunks.addAll(chunk);
+      builder.add(chunk);
       received += chunk.length;
       _controller.add(Installing(total > 0 ? received / total : -1));
     }
-    return Uint8List.fromList(chunks);
+    return builder.takeBytes();
   }
 
   Future<void> dispose() => _controller.close();
