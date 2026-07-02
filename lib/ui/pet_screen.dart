@@ -24,6 +24,7 @@ import '../voice/sherpa_tts.dart';
 import '../voice/tts_provider.dart';
 import '../voice/voice_controller.dart';
 import '../voice/voice_pipeline.dart';
+import 'ai_setup_sheet.dart';
 import 'astro_character.dart';
 import 'hud.dart';
 import 'photo_viewer_screen.dart';
@@ -43,7 +44,6 @@ class _PetScreenState extends ConsumerState<PetScreen> {
   /// The language Astro speaks/writes right now (device locale or user override).
   AppLang get _lang => ref.read(langProvider);
 
-  String get _wakeAck => Strings.wakeAck(_lang);
   String get _notHeard => Strings.notHeard(_lang);
   String get _oops => Strings.oops(_lang);
 
@@ -504,8 +504,13 @@ class _PetScreenState extends ConsumerState<PetScreen> {
     VoiceController controller,
   ) async {
     if (!ref.read(astroConfiguredProvider)) {
-      await _say(_wakeAck, controller);
-      return _wakeAck;
+      // No LLM key yet: tell the driver and open the inline setup. If they
+      // configure it, fall through and answer the original command; otherwise
+      // stay quiet.
+      await _say(Strings.aiSetupSpoken(_lang), controller);
+      if (!mounted) return '';
+      final configured = await showAiSetupSheet(context);
+      if (!configured || !ref.read(astroConfiguredProvider)) return '';
     }
     controller.applyPhase(VoicePhase.thinking);
     _overrideAnswer = null; // reset; a phone confirm may set it mid-turn
