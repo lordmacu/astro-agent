@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:astro/core/config/app_settings.dart';
+import 'package:astro/core/config/llm_models.dart';
 import 'package:astro/core/config/settings_providers.dart';
 import 'package:astro/core/config/settings_store.dart';
 
@@ -20,8 +21,9 @@ void main() {
     final c = await _container();
     final s = c.read(settingsProvider);
     expect(s.voiceRate, 0.56);
-    expect(s.llmModel, 'MiniMax-M3');
+    expect(s.llmModel, kDefaultModel);
     expect(s.wakeWordEnabled, true);
+    expect(s.hapticsEnabled, true);
   });
 
   test('a setter persists and updates state', () async {
