@@ -10,6 +10,7 @@ enum SettingKey {
   llmModel,
   llmApiKey,
   searchApiKey,
+  searxngUrl,
   wakeWordEnabled,
   wakeWord,
   wakeWordSensitivity,

@@ -58,6 +58,11 @@ class SettingsNotifier extends Notifier<AppSettings> {
     state = state.copyWith(searchApiKey: v);
   }
 
+  Future<void> setSearxngUrl(String v) async {
+    await _store.setString(SettingKey.searxngUrl, v.trim());
+    state = state.copyWith(searxngUrl: v.trim());
+  }
+
   Future<void> setWakeWordEnabled(bool v) async {
     await _store.setBool(SettingKey.wakeWordEnabled, v);
     state = state.copyWith(wakeWordEnabled: v);

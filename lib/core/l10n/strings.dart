@@ -80,6 +80,11 @@ abstract final class Strings {
       _pick(l, en: 'LLM API key', es: 'API key del LLM');
   static String searchApiKey(AppLang l) =>
       _pick(l, en: 'Web search API key', es: 'API key de búsqueda web');
+  static String searxngUrl(AppLang l) => _pick(
+    l,
+    en: 'SearXNG URL (keyless search)',
+    es: 'URL de SearXNG (búsqueda sin key)',
+  );
   static String wakeSensorsSection(AppLang l) =>
       _pick(l, en: 'Wake word and sensors', es: 'Wake word y sensores');
   static String wakeWordLabel(String word, AppLang l) =>

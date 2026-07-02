@@ -20,6 +20,7 @@ import '../platform/media_controller.dart';
 import '../sensors/location/place_resolver.dart';
 import '../platform/system_actions.dart';
 import 'astro_brain.dart';
+import 'llm/kilo_models.dart';
 import 'llm/providers/openai_compat_client.dart';
 import 'memory_context.dart';
 import '../platform/app_launcher.dart';
@@ -46,6 +47,7 @@ import 'tools/weather_tool.dart';
 import 'tools/timer_tool.dart';
 import 'tools/tool_registry.dart';
 import 'tools/web_search/providers/duckduckgo_provider.dart';
+import 'tools/web_search/providers/searxng_provider.dart';
 import 'tools/web_search/providers/fallback_provider.dart';
 import 'tools/web_search/providers/minimax_provider.dart';
 import 'tools/web_search/providers/tavily_provider.dart';
@@ -98,22 +100,36 @@ String _searchKey(Ref ref) => resolveSecret(
   ),
 );
 
-/// Pick the web-search backend for the active LLM provider. MiniMax gets its
-/// native search (`/v1/coding_plan/search`) with DuckDuckGo as a keyless,
-/// always-available fallback; every other provider uses Tavily when its key is
-/// configured, else no web search at all. Gating on the provider id keeps the
-/// MiniMax-only search key from ever being used under a different LLM.
-WebSearchProvider? _buildSearchProvider(Ref ref, String llmProviderId) {
+/// Pick the web-search backend, in priority order:
+///   1. A keyed provider, when its API key is set — MiniMax native search under
+///      the MiniMax LLM, Tavily otherwise. Gating on the provider id keeps the
+///      MiniMax-only search key from ever being used under a different LLM.
+///   2. SearXNG, when a base URL is configured — keyless and self-hosted.
+///   3. DuckDuckGo — keyless HTML scraper, the always-available last resort.
+/// The chain always ends with DuckDuckGo, so web search works out of the box
+/// with no key and no SearXNG instance.
+WebSearchProvider _buildSearchProvider(Ref ref, String llmProviderId) {
+  final providers = <WebSearchProvider>[];
+
+  // 1. Keyed provider first (best quality) when its key is present.
   if (llmProviderId == 'minimax') {
     final key = _miniMaxKey(ref);
-    return FallbackSearchProvider([
-      if (key.isNotEmpty) MiniMaxSearchProvider(apiKey: key),
-      DuckDuckGoProvider(),
-    ]);
+    if (key.isNotEmpty) providers.add(MiniMaxSearchProvider(apiKey: key));
+  } else {
+    final tavily = _searchKey(ref);
+    if (tavily.isNotEmpty) providers.add(TavilyProvider(apiKey: tavily));
   }
-  final tavily = _searchKey(ref);
-  if (tavily.isNotEmpty) return TavilyProvider(apiKey: tavily);
-  return null;
+
+  // 2. SearXNG (keyless) when a base URL is configured.
+  final searxngUrl = ref.read(settingsProvider.select((s) => s.searxngUrl));
+  if (searxngUrl.trim().isNotEmpty) {
+    providers.add(SearxngProvider(baseUrl: searxngUrl));
+  }
+
+  // 3. DuckDuckGo (keyless) — the universal fallback, always last.
+  providers.add(DuckDuckGoProvider());
+
+  return FallbackSearchProvider(providers);
 }
 
 /// Whether the brain has credentials. The UI uses this to fall back to canned
@@ -488,12 +504,11 @@ final astroBrainProvider = FutureProvider<AstroBrain>((ref) async {
       ),
     );
 
-  // Web search: on MiniMax (Astro's provider) use MiniMax's native search with
-  // DuckDuckGo as a keyless fallback; any other LLM provider uses Tavily.
-  final searchProvider = _buildSearchProvider(ref, client.providerId);
-  if (searchProvider != null) {
-    registry.register(WebSearchTool(searchProvider));
-  }
+  // Web search: keyed provider when configured → SearXNG (if a URL is set) →
+  // DuckDuckGo (keyless). The chain always resolves, so search is always on.
+  registry.register(
+    WebSearchTool(_buildSearchProvider(ref, client.providerId)),
+  );
 
   // Long-term memory: write tool + automatic recall (no separate read tool, to
   // stay within the tool budget — recall is injected each turn).
@@ -529,6 +544,14 @@ final astroBrainProvider = FutureProvider<AstroBrain>((ref) async {
     registry: registry,
     recallContext: recall,
     maxAnswerTokens: _answerTokensFor(model),
+    // Free-model failover: if the current free model fails, try the other free
+    // models (they share the one keyless Kilo client) and persist the winner.
+    // Returns [] for paid models, so failover only ever applies to free ones.
+    freeFallbacks: () =>
+        (ref.read(kiloFreeModelsProvider).asData?.value ?? kSeedFreeModels)
+            .map((m) => m.id)
+            .toList(),
+    onModelSwitched: (m) => ref.read(settingsProvider.notifier).setLlmModel(m),
     confirm: (tool, args) async {
       final confirmer = ref.read(toolConfirmerProvider).confirmer;
       return confirmer == null ? false : confirmer(tool, args);

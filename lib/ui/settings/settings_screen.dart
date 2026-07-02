@@ -166,6 +166,14 @@ class SettingsScreen extends ConsumerWidget {
                   onSubmitted: notifier.setSearchApiKey,
                 ),
               ],
+              // Keyless search backend: used when no search API key is set,
+              // before the DuckDuckGo fallback. Works with any model.
+              SettingsTextTile(
+                label: Strings.searxngUrl(lang),
+                hint: 'https://searxng.example.com',
+                value: settings.searxngUrl,
+                onSubmitted: notifier.setSearxngUrl,
+              ),
             ],
           ),
           const SizedBox(height: 24),
