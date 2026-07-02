@@ -259,29 +259,7 @@ class SettingsScreen extends ConsumerWidget {
                       );
                 },
               ),
-              Consumer(
-                builder: (context, ref, _) {
-                  final permAsync = ref.watch(navPermissionProvider);
-                  final hasPermission = permAsync.valueOrNull ?? true;
-                  final subtitle = settings.navListenerEnabled && !hasPermission
-                      ? Strings.navGrantHint(lang)
-                      : Strings.navOnHint(lang);
-                  return SettingsSwitchTile(
-                    label: Strings.navLabel(lang),
-                    subtitle: subtitle,
-                    value: settings.navListenerEnabled,
-                    onChanged: (on) async {
-                      await notifier.setNavListenerEnabled(on);
-                      if (!on) return;
-                      final control = ref.read(navControlProvider);
-                      if (!await control.hasPermission()) {
-                        await control.openSettings();
-                        ref.invalidate(navPermissionProvider);
-                      }
-                    },
-                  );
-                },
-              ),
+              const _NavListenerTile(),
               SettingsSwitchTile(
                 label: Strings.autoBrightness(lang),
                 subtitle: Strings.autoBrightnessHint(lang),
@@ -779,6 +757,64 @@ class _EmailSectionState extends State<_EmailSection> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// The Maps-nav toggle. A stateful widget (not an inline `Consumer`) so it can
+/// re-check the notification-listener grant when the app resumes. That access is
+/// granted in system settings, so the user leaves and returns; without the
+/// re-check the "grant access" hint stays stuck even after they've granted it.
+class _NavListenerTile extends ConsumerStatefulWidget {
+  const _NavListenerTile();
+
+  @override
+  ConsumerState<_NavListenerTile> createState() => _NavListenerTileState();
+}
+
+class _NavListenerTileState extends ConsumerState<_NavListenerTile>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      ref.invalidate(navPermissionProvider);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = ref.watch(settingsProvider);
+    final notifier = ref.read(settingsProvider.notifier);
+    final lang = ref.watch(langProvider);
+    final hasPermission = ref.watch(navPermissionProvider).valueOrNull ?? true;
+    final subtitle = settings.navListenerEnabled && !hasPermission
+        ? Strings.navGrantHint(lang)
+        : Strings.navOnHint(lang);
+    return SettingsSwitchTile(
+      label: Strings.navLabel(lang),
+      subtitle: subtitle,
+      value: settings.navListenerEnabled,
+      onChanged: (on) async {
+        await notifier.setNavListenerEnabled(on);
+        if (!on) return;
+        final control = ref.read(navControlProvider);
+        if (!await control.hasPermission()) {
+          await control.openSettings();
+          ref.invalidate(navPermissionProvider);
+        }
+      },
     );
   }
 }
