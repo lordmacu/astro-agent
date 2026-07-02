@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:http/http.dart' as http;
 
 /// Where a neural-voice install currently stands.
@@ -78,43 +79,61 @@ class NeuralVoiceInstaller {
   /// alone drops events emitted before subscription.
   VoiceInstallState get current => _current;
 
+  /// Prefix so device logs make clear which model (stt / tts) is downloading.
+  String get _tag => '[Astro][model:$_subdir]';
+
   void _emit(VoiceInstallState s) {
     _current = s;
     _controller.add(s);
   }
 
   Future<void> install() async {
+    final sw = Stopwatch()..start();
     try {
       _emit(const Installing(0));
       final support = await _supportDir();
       final modelDir = Directory('${support.path}/$_subdir/$_modelName');
       final marker = File('${modelDir.path}/.ready');
+      debugPrint('$_tag install() → target=${modelDir.path}');
       if (marker.existsSync()) {
+        debugPrint('$_tag already installed (.ready present), skipping download');
         _emit(Installed(modelDir.path));
         await _onInstalled(modelDir.path);
         return;
       }
 
       // Clean any partial previous attempt.
-      if (modelDir.existsSync()) modelDir.deleteSync(recursive: true);
+      if (modelDir.existsSync()) {
+        debugPrint('$_tag clearing partial previous attempt');
+        modelDir.deleteSync(recursive: true);
+      }
       modelDir.createSync(recursive: true);
 
       final bytes = await _download();
+      debugPrint('$_tag downloaded ${bytes.length} bytes, unzipping…');
       final archive = ZipDecoder().decodeBytes(bytes);
+      var files = 0;
       for (final entry in archive) {
         final outPath = '${modelDir.path}/${entry.name}';
         if (entry.isFile) {
           File(outPath)
             ..createSync(recursive: true)
             ..writeAsBytesSync(entry.content as List<int>);
+          files++;
         } else {
           Directory(outPath).createSync(recursive: true);
         }
       }
       marker.writeAsStringSync('ok');
+      debugPrint(
+        '$_tag ✓ installed ($files files, ${sw.elapsedMilliseconds}ms) '
+        '→ ${modelDir.path}',
+      );
       _emit(Installed(modelDir.path));
       await _onInstalled(modelDir.path);
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('$_tag ✗ install failed after ${sw.elapsedMilliseconds}ms: $e');
+      debugPrint('$_tag stack: $st');
       _emit(InstallError('$e'));
     }
   }
@@ -124,24 +143,35 @@ class NeuralVoiceInstaller {
   Future<Uint8List> _download() async {
     final urls = [_modelUrl, ..._fallbackUrls];
     Object lastError = const HttpException('no download sources');
-    for (final url in urls) {
+    for (var i = 0; i < urls.length; i++) {
+      final url = urls[i];
       try {
+        debugPrint('$_tag source ${i + 1}/${urls.length}: GET $url');
         return await _downloadOne(url).timeout(_timeout);
+      } on TimeoutException catch (e) {
+        lastError = e;
+        debugPrint('$_tag source ${i + 1} TIMED OUT after '
+            '${_timeout.inSeconds}s: $url');
+        _emit(const Installing(-1)); // reset the bar for the next try
       } catch (e) {
         lastError = e;
+        debugPrint('$_tag source ${i + 1} failed: $url → $e');
         _emit(const Installing(-1)); // reset the bar for the next try
       }
     }
+    debugPrint('$_tag all ${urls.length} sources failed; last error: $lastError');
     throw lastError;
   }
 
   Future<Uint8List> _downloadOne(String url) async {
     final request = http.Request('GET', Uri.parse(url));
     final response = await _client.send(request);
-    if (response.statusCode != 200) {
-      throw HttpException('download failed: ${response.statusCode}');
-    }
     final total = response.contentLength ?? -1;
+    debugPrint('$_tag HTTP ${response.statusCode} '
+        '(size=${total >= 0 ? '$total bytes' : 'unknown'}) ← $url');
+    if (response.statusCode != 200) {
+      throw HttpException('download failed: HTTP ${response.statusCode}');
+    }
     // BytesBuilder (not a growable List<int>) keeps memory near the file size
     // instead of ~8x, which matters for a ~37MB model on low-end phones.
     final builder = BytesBuilder(copy: false);
@@ -150,6 +180,10 @@ class NeuralVoiceInstaller {
       builder.add(chunk);
       received += chunk.length;
       _emit(Installing(total > 0 ? received / total : -1));
+    }
+    debugPrint('$_tag received $received bytes from $url');
+    if (received == 0) {
+      throw const HttpException('download failed: empty response body');
     }
     return builder.takeBytes();
   }

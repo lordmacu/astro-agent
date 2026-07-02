@@ -393,6 +393,45 @@ void main() {
       ]);
     });
 
+    test('isCancelled stops emitting further sentences', () async {
+      final client = FakeLlmClient([_finalTurn('Uno. Dos. Tres.')]);
+      final brain = AstroBrain(client: client, registry: ToolRegistry());
+      final sentences = <String>[];
+
+      // Cancel as soon as the first sentence has been emitted.
+      await brain.askStream(
+        'x',
+        model: 'm',
+        onSentence: sentences.add,
+        isCancelled: () => sentences.isNotEmpty,
+      );
+
+      expect(sentences, ['Uno.']); // the rest is suppressed
+    });
+
+    test('isCancelled stops the turn loop before the next LLM call', () async {
+      final tool = EchoTool();
+      final registry = ToolRegistry()..register(tool);
+      final client = FakeLlmClient([
+        _toolTurn('1', 'echo', {'text': 'hi'}),
+        _finalTurn('Listo.'),
+      ]);
+      final brain = AstroBrain(client: client, registry: registry);
+      final sentences = <String>[];
+
+      // Cancel once the tool has run — before the second (final) turn.
+      await brain.askStream(
+        'echo',
+        model: 'm',
+        onSentence: sentences.add,
+        isCancelled: () => tool.ran,
+      );
+
+      expect(tool.ran, isTrue); // first turn ran the tool
+      expect(client.requests.length, 1); // the 2nd LLM call never happened
+      expect(sentences, isEmpty); // nothing was spoken
+    });
+
     test('resetConversation clears the memory', () async {
       final client = FakeLlmClient([_finalTurn('Uno.'), _finalTurn('Dos.')]);
       final brain = AstroBrain(client: client, registry: ToolRegistry());

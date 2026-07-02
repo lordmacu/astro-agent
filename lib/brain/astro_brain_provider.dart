@@ -521,9 +521,12 @@ final astroBrainProvider = FutureProvider<AstroBrain>((ref) async {
     ..register(
       NewsTool(
         fetch: (query, lang) async {
+          // Top 4: a shorter tool result means the model reads and summarizes
+          // less, so it starts speaking sooner (the full clickable list still
+          // pops on screen via [latestNewsProvider]).
           final items = await ref
               .read(googleNewsProvider)
-              .headlines(query: query, lang: lang);
+              .headlines(query: query, lang: lang, limit: 4);
           ref.read(latestNewsProvider.notifier).state = items;
           return items;
         },

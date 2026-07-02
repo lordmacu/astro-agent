@@ -254,6 +254,7 @@ class AstroBrain {
     required String model,
     String? system,
     required void Function(String sentence) onSentence,
+    bool Function()? isCancelled,
   }) async {
     final sw = Stopwatch()..start();
     _log('▶ (stream) user: $userText  [model=$model]');
@@ -265,6 +266,9 @@ class AstroBrain {
     var activeModel = model; // may change if a free model fails over
 
     void emit(String sentence) {
+      // The caller cancelled (e.g. the driver tapped the pet to stop): don't
+      // speak any more sentences.
+      if (isCancelled?.call() ?? false) return;
       final clean = _stripReasoning(sentence).trim();
       if (clean.isEmpty || _hasForeignScript(clean)) return;
       spoken.write(spoken.isEmpty ? clean : ' $clean');
@@ -272,6 +276,8 @@ class AstroBrain {
     }
 
     for (var turn = 0; turn < maxTurns; turn++) {
+      // Cancelled between turns: stop before the next LLM call / tool run.
+      if (isCancelled?.call() ?? false) break;
       onThinking?.call(true);
       final callSw = Stopwatch()..start();
       final splitter = _SentenceSplitter(emit);

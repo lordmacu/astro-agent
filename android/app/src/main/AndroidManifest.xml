@@ -1,4 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Network: the LLM brain, web search, weather, and the offline-model
+         download all need this. Flutter only injects INTERNET into the debug/
+         profile manifests, so a release/Play build without this line fails every
+         DNS lookup ("No address associated with hostname"). -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <!-- GPS speed (geolocator). -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>

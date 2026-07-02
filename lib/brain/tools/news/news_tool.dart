@@ -52,11 +52,17 @@ class NewsTool extends AstroTool {
     }
     if (items.isEmpty) return ToolResult(Strings.newsUnavailable(_lang()));
 
+    // Keep the model payload lean so the context doesn't balloon: title plus
+    // its source (so the model can attribute a story), with long headlines
+    // trimmed. The on-screen panel shows the links. Enough to summarize aloud.
     final buffer = StringBuffer();
     for (var i = 0; i < items.length; i++) {
-      final h = items[i];
-      final src = h.source.isEmpty ? '' : ' — ${h.source}';
-      buffer.writeln('${i + 1}. ${h.title}$src');
+      final title = items[i].title.trim();
+      final short = title.length > 90 ? '${title.substring(0, 89)}…' : title;
+      final source = items[i].source.trim();
+      buffer.writeln(
+        source.isEmpty ? '${i + 1}. $short' : '${i + 1}. $short — $source',
+      );
     }
     return ToolResult(buffer.toString().trimRight());
   }
