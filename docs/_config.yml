@@ -1,0 +1,6 @@
+# GitHub Pages (Jekyll) config for the Astro landing served from /docs.
+# Only the landing is public; internal dev notes under docs/ are excluded so
+# they are never built into the published site.
+exclude:
+  - superpowers
+  - wakeword-training.md
