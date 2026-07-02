@@ -770,7 +770,7 @@ class _PetScreenState extends ConsumerState<PetScreen> {
     final capturedPhoto = ref.watch(capturedPhotoProvider);
     final lang = ref.watch(langProvider);
     // While the offline STT model downloads, show a thin banner at the top.
-    final sttInstall = ref.watch(sttModelInstallStateProvider).valueOrNull;
+    final sttInstall = ref.watch(sttModelInstallStateProvider);
 
     final ambient = AmbientPalette.fromHour(DateTime.now().hour);
     final moodColor = DesignTokens.moodColor[mood.mood];
@@ -943,7 +943,7 @@ class _PetScreenState extends ConsumerState<PetScreen> {
             ),
           ),
           if (sttInstall is Installing || sttInstall is InstallError)
-            _sttBanner(lang, accent, sttInstall!),
+            _sttBanner(lang, accent, sttInstall),
           if (_showCommands) _commandsOverlay(),
           if (_confirmPrompt != null) _confirmOverlay(accent),
           if (_pickContacts != null) _pickOverlay(accent),

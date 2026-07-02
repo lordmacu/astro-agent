@@ -71,14 +71,26 @@ class NeuralVoiceInstaller {
   final _controller = StreamController<VoiceInstallState>.broadcast();
   Stream<VoiceInstallState> get state => _controller.stream;
 
+  VoiceInstallState _current = const NotInstalled();
+
+  /// The latest state, retained so a late subscriber (e.g. a widget that builds
+  /// after `install()` already started) can seed from it — a broadcast stream
+  /// alone drops events emitted before subscription.
+  VoiceInstallState get current => _current;
+
+  void _emit(VoiceInstallState s) {
+    _current = s;
+    _controller.add(s);
+  }
+
   Future<void> install() async {
     try {
-      _controller.add(const Installing(0));
+      _emit(const Installing(0));
       final support = await _supportDir();
       final modelDir = Directory('${support.path}/$_subdir/$_modelName');
       final marker = File('${modelDir.path}/.ready');
       if (marker.existsSync()) {
-        _controller.add(Installed(modelDir.path));
+        _emit(Installed(modelDir.path));
         await _onInstalled(modelDir.path);
         return;
       }
@@ -100,10 +112,10 @@ class NeuralVoiceInstaller {
         }
       }
       marker.writeAsStringSync('ok');
-      _controller.add(Installed(modelDir.path));
+      _emit(Installed(modelDir.path));
       await _onInstalled(modelDir.path);
     } catch (e) {
-      _controller.add(InstallError('$e'));
+      _emit(InstallError('$e'));
     }
   }
 
@@ -117,7 +129,7 @@ class NeuralVoiceInstaller {
         return await _downloadOne(url).timeout(_timeout);
       } catch (e) {
         lastError = e;
-        _controller.add(const Installing(-1)); // reset the bar for the next try
+        _emit(const Installing(-1)); // reset the bar for the next try
       }
     }
     throw lastError;
@@ -137,7 +149,7 @@ class NeuralVoiceInstaller {
     await for (final chunk in response.stream) {
       builder.add(chunk);
       received += chunk.length;
-      _controller.add(Installing(total > 0 ? received / total : -1));
+      _emit(Installing(total > 0 ? received / total : -1));
     }
     return builder.takeBytes();
   }

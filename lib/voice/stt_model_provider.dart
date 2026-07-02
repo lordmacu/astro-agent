@@ -37,7 +37,20 @@ final sttModelInstallerProvider = Provider<NeuralVoiceInstaller>((ref) {
   return installer;
 });
 
-/// Live download progress for the STT model, for the pet screen banner.
-final sttModelInstallStateProvider = StreamProvider<VoiceInstallState>((ref) {
-  return ref.watch(sttModelInstallerProvider).state;
-});
+/// Live download state for the pet-screen banner. Backed by a Notifier (not a
+/// StreamProvider) so it seeds from the installer's retained `current` value and
+/// never misses events emitted before the UI subscribes.
+class SttModelInstallNotifier extends Notifier<VoiceInstallState> {
+  @override
+  VoiceInstallState build() {
+    final installer = ref.watch(sttModelInstallerProvider);
+    final sub = installer.state.listen((s) => state = s);
+    ref.onDispose(sub.cancel);
+    return installer.current;
+  }
+}
+
+final sttModelInstallStateProvider =
+    NotifierProvider<SttModelInstallNotifier, VoiceInstallState>(
+      SttModelInstallNotifier.new,
+    );
